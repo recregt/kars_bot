@@ -1,15 +1,19 @@
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{Duration as ChronoDuration, Utc};
 use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, OwnedSemaphorePermit, Semaphore};
 
 use crate::config::Config;
+use crate::monitor::{alert_snapshot, mute_alerts_for, unmute_alerts, AlertState};
 use crate::system::{run_cmd, CommandError, CommandOutput};
 
 const TELEGRAM_TEXT_HARD_LIMIT: usize = 4096;
 const TELEGRAM_TEXT_SAFE_LIMIT: usize = 3900;
 const TRUNCATE_NOTICE: &str = "\n\n⚠️ (Output was truncated...)";
+const OUTPUT_HEAD_LINES: usize = 50;
+const OUTPUT_TAIL_LINES: usize = 10;
+const FAST_TIMEOUT_SECS: u64 = 5;
 
 #[derive(BotCommands, Clone)]
 #[command(rename_rule = "lowercase", description = "Available commands:")]
@@ -32,6 +36,72 @@ pub enum MyCommands {
     Temp,
     #[command(description = "Show bot health and monitor liveness.")]
     Health,
+    #[command(description = "Show alert thresholds and current alert states.")]
+    Alerts,
+    #[command(description = "Mute alerts for a duration, e.g. /mute 30m")]
+    Mute(String),
+    #[command(description = "Unmute alerts immediately.")]
+    Unmute,
+}
+
+fn timeout_for(cmd: &MyCommands, config: &Config) -> u64 {
+    match cmd {
+        MyCommands::Status
+        | MyCommands::Ports
+        | MyCommands::Cpu
+        | MyCommands::Network
+        | MyCommands::Uptime
+        | MyCommands::Health
+        | MyCommands::Alerts
+        | MyCommands::Mute(_)
+        | MyCommands::Unmute
+        | MyCommands::Help => FAST_TIMEOUT_SECS,
+        MyCommands::Services | MyCommands::Temp => config.command_timeout_secs,
+    }
+}
+
+fn parse_mute_duration(input: &str) -> Option<ChronoDuration> {
+    let normalized = input.trim().to_lowercase();
+    if normalized.len() < 2 {
+        return None;
+    }
+
+    let (value_part, unit_part) = normalized.split_at(normalized.len() - 1);
+    let value = value_part.parse::<i64>().ok()?;
+    if value <= 0 {
+        return None;
+    }
+
+    match unit_part {
+        "s" => Some(ChronoDuration::seconds(value)),
+        "m" => Some(ChronoDuration::minutes(value)),
+        "h" => Some(ChronoDuration::hours(value)),
+        "d" => Some(ChronoDuration::days(value)),
+        _ => None,
+    }
+}
+
+async fn acquire_command_slot(
+    command_slots: &Arc<Semaphore>,
+    msg: &Message,
+    bot: &Bot,
+) -> ResponseResult<Option<OwnedSemaphorePermit>> {
+    match command_slots.clone().acquire_owned().await {
+        Ok(permit) => Ok(Some(permit)),
+        Err(error) => {
+            log::error!("failed to acquire command semaphore: {}", error);
+            bot.send_message(
+                msg.chat.id,
+                as_html_block(
+                    "Command queue error",
+                    "Could not acquire command slot. Please try again.",
+                ),
+            )
+            .parse_mode(ParseMode::Html)
+            .await?;
+            Ok(None)
+        }
+    }
 }
 
 fn truncate_to_char_boundary(input: &str, max_bytes: usize) -> &str {
@@ -97,18 +167,18 @@ fn is_authorized(msg: &Message, config: &Config) -> bool {
 
 fn command_body(output: &CommandOutput) -> String {
     let mut content = String::new();
-    let stdout = output.stdout.trim();
-    let stderr = output.stderr.trim();
+    let stdout = limit_output_lines(output.stdout.trim());
+    let stderr = limit_output_lines(output.stderr.trim());
 
     if !stdout.is_empty() {
-        content.push_str(stdout);
+        content.push_str(&stdout);
     }
 
     if !stderr.is_empty() {
         if !content.is_empty() {
             content.push_str("\n\n--- stderr ---\n");
         }
-        content.push_str(stderr);
+        content.push_str(&stderr);
     }
 
     if content.is_empty() {
@@ -120,6 +190,32 @@ fn command_body(output: &CommandOutput) -> String {
     }
 
     content
+}
+
+fn limit_output_lines(text: &str) -> String {
+    let lines: Vec<&str> = text.lines().collect();
+    if lines.len() <= OUTPUT_HEAD_LINES + OUTPUT_TAIL_LINES {
+        return text.to_string();
+    }
+
+    let head = lines
+        .iter()
+        .take(OUTPUT_HEAD_LINES)
+        .copied()
+        .collect::<Vec<_>>();
+    let tail = lines
+        .iter()
+        .skip(lines.len() - OUTPUT_TAIL_LINES)
+        .copied()
+        .collect::<Vec<_>>();
+
+    let omitted = lines.len() - (OUTPUT_HEAD_LINES + OUTPUT_TAIL_LINES);
+    format!(
+        "{}\n... ({} lines omitted) ...\n{}",
+        head.join("\n"),
+        omitted,
+        tail.join("\n")
+    )
 }
 
 fn as_html_block(title: &str, body: &str) -> String {
@@ -151,7 +247,9 @@ pub async fn answer(
     msg: Message,
     cmd: MyCommands,
     config: &Config,
-    last_monitor_tick: &Arc<Mutex<chrono::DateTime<Utc>>>,
+    last_monitor_tick: &Arc<Mutex<Option<chrono::DateTime<Utc>>>>,
+    alert_state: &Arc<Mutex<AlertState>>,
+    command_slots: &Arc<Semaphore>,
 ) -> ResponseResult<()> {
     if !is_authorized(&msg, config) {
         let user_id = msg
@@ -177,8 +275,12 @@ pub async fn answer(
                 .await?;
         }
         MyCommands::Status => {
-            let ram = run_cmd("free", &["-h"], config.command_timeout_secs).await;
-            let disk = run_cmd("df", &["-h", "/"], config.command_timeout_secs).await;
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
+            let timeout = timeout_for(&cmd, config);
+            let ram = run_cmd("free", &["-h"], timeout).await;
+            let disk = run_cmd("df", &["-h", "/"], timeout).await;
 
             let message = match (ram, disk) {
                 (Ok(ram_out), Ok(disk_out)) => {
@@ -200,7 +302,10 @@ pub async fn answer(
             .await?;
         }
         MyCommands::Ports => {
-            let message = match run_cmd("ss", &["-tuln"], config.command_timeout_secs).await {
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
+            let message = match run_cmd("ss", &["-tuln"], timeout_for(&cmd, config)).await {
                 Ok(output) => as_html_block("Open Ports", &command_body(&output)),
                 Err(error) => command_error_html(&error),
             };
@@ -210,6 +315,9 @@ pub async fn answer(
                 .await?;
         }
         MyCommands::Services => {
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
             let services = run_cmd(
                 "systemctl",
                 &[
@@ -218,7 +326,7 @@ pub async fn answer(
                     "--state=running",
                     "--no-pager",
                 ],
-                config.command_timeout_secs,
+                timeout_for(&cmd, config),
             )
             .await;
 
@@ -242,7 +350,10 @@ pub async fn answer(
                 .await?;
         }
         MyCommands::Cpu => {
-            let message = match run_cmd("top", &["-bn1"], config.command_timeout_secs).await {
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
+            let message = match run_cmd("top", &["-bn1"], timeout_for(&cmd, config)).await {
                 Ok(output) => {
                     let short = output
                         .stdout
@@ -261,7 +372,10 @@ pub async fn answer(
                 .await?;
         }
         MyCommands::Network => {
-            let message = match run_cmd("ip", &["-s", "link"], config.command_timeout_secs).await {
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
+            let message = match run_cmd("ip", &["-s", "link"], timeout_for(&cmd, config)).await {
                 Ok(output) => as_html_block("Network Statistics", &command_body(&output)),
                 Err(error) => command_error_html(&error),
             };
@@ -271,7 +385,10 @@ pub async fn answer(
                 .await?;
         }
         MyCommands::Uptime => {
-            let message = match run_cmd("uptime", &[], config.command_timeout_secs).await {
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
+            let message = match run_cmd("uptime", &[], timeout_for(&cmd, config)).await {
                 Ok(output) => as_html_block("System Uptime", &command_body(&output)),
                 Err(error) => command_error_html(&error),
             };
@@ -281,7 +398,10 @@ pub async fn answer(
                 .await?;
         }
         MyCommands::Temp => {
-            let message = match run_cmd("sensors", &[], config.command_timeout_secs).await {
+            let Some(_permit) = acquire_command_slot(command_slots, &msg, &bot).await? else {
+                return Ok(());
+            };
+            let message = match run_cmd("sensors", &[], timeout_for(&cmd, config)).await {
                 Ok(output) => as_html_block("Temperature Sensors", &command_body(&output)),
                 Err(error) => command_error_html(&error),
             };
@@ -293,32 +413,98 @@ pub async fn answer(
         MyCommands::Health => {
             let last_tick = *last_monitor_tick.lock().await;
             let now = Utc::now();
-            let lag_secs = now.signed_duration_since(last_tick).num_seconds().max(0);
             let threshold_secs = (config.monitor_interval * 2) as i64;
 
-            let status_line = if lag_secs > threshold_secs {
-                format!(
-                    "⚠️ CRITICAL: Monitor loop is delayed. Last tick: {}s ago (threshold: {}s)",
-                    lag_secs, threshold_secs
-                )
-            } else {
-                format!(
-                    "✅ Healthy. Last monitor tick: {}s ago (threshold: {}s)",
-                    lag_secs, threshold_secs
-                )
-            };
+            let body = match last_tick {
+                Some(tick) => {
+                    let lag_secs = now.signed_duration_since(tick).num_seconds().max(0);
+                    let status_line = if lag_secs > threshold_secs {
+                        format!(
+                            "⚠️ CRITICAL: Monitor loop is delayed. Last tick: {}s ago (threshold: {}s)",
+                            lag_secs, threshold_secs
+                        )
+                    } else {
+                        format!(
+                            "✅ Healthy. Last monitor tick: {}s ago (threshold: {}s)",
+                            lag_secs, threshold_secs
+                        )
+                    };
 
-            let body = format!(
-                "{}\n\nMonitor interval: {}s\nCurrent time: {}\nLast tick: {}",
-                status_line,
-                config.monitor_interval,
-                now.to_rfc3339(),
-                last_tick.to_rfc3339()
-            );
+                    format!(
+                        "{}\n\nMonitor interval: {}s\nCurrent time: {}\nLast tick: {}",
+                        status_line,
+                        config.monitor_interval,
+                        now.to_rfc3339(),
+                        tick.to_rfc3339()
+                    )
+                }
+                None => format!(
+                    "⏳ Warming up...\n\nMonitor loop has not produced the first tick yet.\nMonitor interval: {}s\nCurrent time: {}",
+                    config.monitor_interval,
+                    now.to_rfc3339()
+                ),
+            };
 
             bot.send_message(msg.chat.id, as_html_block("Bot Health", &body))
                 .parse_mode(ParseMode::Html)
                 .await?;
+        }
+        MyCommands::Alerts => {
+            let snapshot = alert_snapshot(alert_state).await;
+            let now = Utc::now();
+            let mute_line = match snapshot.muted_until {
+                Some(until) if now <= until => {
+                    let remaining = until.signed_duration_since(now).num_seconds().max(0);
+                    format!("muted ({}s remaining until {})", remaining, until.to_rfc3339())
+                }
+                _ => "not muted".to_string(),
+            };
+            let body = format!(
+                "Thresholds:\n- CPU: {:.1}%\n- RAM: {:.1}%\n- Disk: {:.1}%\n\nControl:\n- Cooldown: {}s\n- Hysteresis: {:.1}%\n- Mute: {}\n\nCurrent State:\n- CPU alerting: {}\n- RAM alerting: {}\n- Disk alerting: {}",
+                config.alerts.cpu,
+                config.alerts.ram,
+                config.alerts.disk,
+                config.alerts.cooldown_secs,
+                config.alerts.hysteresis,
+                mute_line,
+                if snapshot.cpu_alerting { "yes" } else { "no" },
+                if snapshot.ram_alerting { "yes" } else { "no" },
+                if snapshot.disk_alerting { "yes" } else { "no" }
+            );
+
+            bot.send_message(msg.chat.id, as_html_block("Alert Configuration", &body))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+        MyCommands::Mute(duration_str) => {
+            let Some(duration) = parse_mute_duration(&duration_str) else {
+                let message = as_html_block(
+                    "Mute failed",
+                    "Invalid duration. Use format like: 30s, 15m, 2h, 1d",
+                );
+                bot.send_message(msg.chat.id, message)
+                    .parse_mode(ParseMode::Html)
+                    .await?;
+                return Ok(());
+            };
+
+            let muted_until = mute_alerts_for(alert_state, duration).await;
+            let body = format!(
+                "Alerts are muted until {}",
+                muted_until.to_rfc3339()
+            );
+            bot.send_message(msg.chat.id, as_html_block("Alerts muted", &body))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+        MyCommands::Unmute => {
+            unmute_alerts(alert_state).await;
+            bot.send_message(
+                msg.chat.id,
+                as_html_block("Alerts unmuted", "Alerts are active again."),
+            )
+            .parse_mode(ParseMode::Html)
+            .await?;
         }
     }
 

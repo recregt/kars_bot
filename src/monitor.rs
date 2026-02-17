@@ -1,5 +1,6 @@
 use std::{path::Path, sync::Arc, time::Instant};
 
+use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use sysinfo::{CpuExt, DiskExt, System, SystemExt};
 use teloxide::prelude::*;
 use thiserror::Error;
@@ -15,6 +16,15 @@ pub struct AlertState {
     last_cpu_alert: Option<Instant>,
     last_ram_alert: Option<Instant>,
     last_disk_alert: Option<Instant>,
+    muted_until: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AlertSnapshot {
+    pub cpu_alerting: bool,
+    pub ram_alerting: bool,
+    pub disk_alerting: bool,
+    pub muted_until: Option<DateTime<Utc>>,
 }
 
 impl AlertState {
@@ -283,6 +293,16 @@ pub async fn check_alerts<P: MetricsProvider>(
         }
     };
 
+    let muted_until = {
+        let state = state.lock().await;
+        state.muted_until
+    };
+    if let Some(until) = muted_until {
+        if Utc::now() < until {
+            return;
+        }
+    }
+
     for notification in notifications {
         if let Err(error) = bot.send_message(owner_chat_id, notification).await {
             log::error!(
@@ -292,6 +312,31 @@ pub async fn check_alerts<P: MetricsProvider>(
             );
         }
     }
+}
+
+pub async fn alert_snapshot(state: &Arc<Mutex<AlertState>>) -> AlertSnapshot {
+    let state = state.lock().await;
+    AlertSnapshot {
+        cpu_alerting: state.cpu_alerting,
+        ram_alerting: state.ram_alerting,
+        disk_alerting: state.disk_alerting,
+        muted_until: state.muted_until,
+    }
+}
+
+pub async fn mute_alerts_for(
+    state: &Arc<Mutex<AlertState>>,
+    duration: ChronoDuration,
+) -> DateTime<Utc> {
+    let until = Utc::now() + duration;
+    let mut state = state.lock().await;
+    state.muted_until = Some(until);
+    until
+}
+
+pub async fn unmute_alerts(state: &Arc<Mutex<AlertState>>) {
+    let mut state = state.lock().await;
+    state.muted_until = None;
 }
 
 #[cfg(test)]

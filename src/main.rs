@@ -3,16 +3,42 @@ mod config;
 mod monitor;
 mod system;
 
+use std::process::Command;
 use std::sync::Arc;
 
 use chrono::Utc;
 use teloxide::prelude::*;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio::time::{interval, Duration};
 
 use crate::commands::{answer, MyCommands};
 use crate::config::{load_config, Config};
 use crate::monitor::{check_alerts, AlertState, RealMetricsProvider};
+
+fn check_external_command(command: &str) -> bool {
+    Command::new("which")
+        .arg(command)
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+fn run_preflight_checks() -> bool {
+    let required_commands = ["systemctl", "sensors"];
+    let mut all_ok = true;
+
+    for command in required_commands {
+        if !check_external_command(command) {
+            log::error!(
+                "Preflight failed: required external command '{}' was not found in PATH",
+                command
+            );
+            all_ok = false;
+        }
+    }
+
+    all_ok
+}
 
 // Main
 #[tokio::main]
@@ -32,11 +58,17 @@ async fn main() {
         return;
     }
 
+    if !run_preflight_checks() {
+        log::error!("Startup aborted due to failed preflight checks");
+        return;
+    }
+
     log::info!("Kars Server Bot is starting...");
     let bot = Bot::new(&config.bot_token);
 
     let alert_state = Arc::new(Mutex::new(AlertState::default()));
-    let last_monitor_tick = Arc::new(Mutex::new(Utc::now()));
+    let last_monitor_tick = Arc::new(Mutex::new(None));
+    let command_slots = Arc::new(Semaphore::new(2));
 
     let bot_clone = bot.clone();
     let config_clone = config.clone();
@@ -50,7 +82,7 @@ async fn main() {
             interval.tick().await;
             {
                 let mut tick = tick_clone.lock().await;
-                *tick = Utc::now();
+                *tick = Some(Utc::now());
             }
             check_alerts(&bot_clone, &config_clone, &state_clone, &mut metrics_provider).await;
         }
@@ -59,6 +91,19 @@ async fn main() {
     MyCommands::repl(bot, move |bot, msg, cmd| {
         let config = config.clone();
         let last_monitor_tick = last_monitor_tick.clone();
-        async move { answer(bot, msg, cmd, &config, &last_monitor_tick).await }
+        let alert_state = alert_state.clone();
+        let command_slots = command_slots.clone();
+        async move {
+            answer(
+                bot,
+                msg,
+                cmd,
+                &config,
+                &last_monitor_tick,
+                &alert_state,
+                &command_slots,
+            )
+            .await
+        }
     }).await;
 }
