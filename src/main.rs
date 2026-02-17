@@ -6,14 +6,16 @@ mod system;
 use std::process::Command;
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{Days, TimeZone, Utc};
 use teloxide::prelude::*;
 use tokio::sync::{Mutex, Semaphore};
-use tokio::time::{interval, Duration};
+use tokio::time::{interval, sleep, Duration};
 
 use crate::commands::{answer, MyCommands};
 use crate::config::{load_config, Config};
-use crate::monitor::{check_alerts, AlertState, RealMetricsProvider};
+use crate::monitor::{
+    check_alerts, take_daily_summary_report, AlertState, DailySummaryReport, RealMetricsProvider,
+};
 
 fn check_external_command(command: &str) -> bool {
     Command::new("which")
@@ -38,6 +40,54 @@ fn run_preflight_checks() -> bool {
     }
 
     all_ok
+}
+
+fn duration_until_next_daily_summary(hour_utc: u8, minute_utc: u8) -> Duration {
+    let now = Utc::now();
+
+    let today = now.date_naive();
+    let Some(scheduled_today_naive) = today.and_hms_opt(hour_utc as u32, minute_utc as u32, 0) else {
+        return Duration::from_secs(60);
+    };
+
+    let mut scheduled = Utc.from_utc_datetime(&scheduled_today_naive);
+    if scheduled <= now {
+        let tomorrow = today.checked_add_days(Days::new(1)).unwrap_or(today);
+        let Some(scheduled_tomorrow_naive) =
+            tomorrow.and_hms_opt(hour_utc as u32, minute_utc as u32, 0)
+        else {
+            return Duration::from_secs(60);
+        };
+        scheduled = Utc.from_utc_datetime(&scheduled_tomorrow_naive);
+    }
+
+    (scheduled - now)
+        .to_std()
+        .unwrap_or_else(|_| Duration::from_secs(60))
+}
+
+fn format_daily_summary_message(report: Option<DailySummaryReport>) -> String {
+    match report {
+        Some(report) => format!(
+            "📅 Daily Summary\n\nSamples: {}\nAlerts triggered: {}\n\nCPU avg/min/max: {:.1}% / {:.1}% / {:.1}%\nRAM avg/min/max: {:.1}% / {:.1}% / {:.1}%\nDisk avg/min/max: {:.1}% / {:.1}% / {:.1}%\n\nGenerated at (UTC): {}",
+            report.sample_count,
+            report.alert_count,
+            report.cpu_avg,
+            report.cpu_min,
+            report.cpu_max,
+            report.ram_avg,
+            report.ram_min,
+            report.ram_max,
+            report.disk_avg,
+            report.disk_min,
+            report.disk_max,
+            report.generated_at.to_rfc3339(),
+        ),
+        None => format!(
+            "📅 Daily Summary\n\nNo monitoring samples were collected since the last summary window.\nGenerated at (UTC): {}",
+            Utc::now().to_rfc3339()
+        ),
+    }
 }
 
 // Main
@@ -87,6 +137,36 @@ async fn main() {
             check_alerts(&bot_clone, &config_clone, &state_clone, &mut metrics_provider).await;
         }
     });
+
+    if config.daily_summary.enabled {
+        let summary_bot = bot.clone();
+        let summary_config = config.clone();
+        let summary_state = alert_state.clone();
+
+        tokio::spawn(async move {
+            loop {
+                let wait = duration_until_next_daily_summary(
+                    summary_config.daily_summary.hour_utc,
+                    summary_config.daily_summary.minute_utc,
+                );
+                sleep(wait).await;
+
+                let report = take_daily_summary_report(&summary_state).await;
+                let message = format_daily_summary_message(report);
+                let owner_chat_id = match summary_config.owner_chat_id() {
+                    Ok(chat_id) => chat_id,
+                    Err(error) => {
+                        log::error!("daily summary skipped: invalid owner chat id: {}", error);
+                        continue;
+                    }
+                };
+
+                if let Err(error) = summary_bot.send_message(owner_chat_id, message).await {
+                    log::error!("failed to send daily summary: {}", error);
+                }
+            }
+        });
+    }
 
     MyCommands::repl(bot, move |bot, msg, cmd| {
         let config = config.clone();

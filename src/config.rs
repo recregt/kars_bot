@@ -15,6 +15,8 @@ pub struct Config {
     pub monitor_interval: u64,
     #[serde(default = "default_command_timeout_secs")]
     pub command_timeout_secs: u64,
+    #[serde(default)]
+    pub daily_summary: DailySummary,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -28,6 +30,26 @@ pub struct Alerts {
     pub hysteresis: f32,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct DailySummary {
+    #[serde(default = "default_daily_summary_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_daily_summary_hour")]
+    pub hour_utc: u8,
+    #[serde(default = "default_daily_summary_minute")]
+    pub minute_utc: u8,
+}
+
+impl Default for DailySummary {
+    fn default() -> Self {
+        Self {
+            enabled: default_daily_summary_enabled(),
+            hour_utc: default_daily_summary_hour(),
+            minute_utc: default_daily_summary_minute(),
+        }
+    }
+}
+
 fn default_command_timeout_secs() -> u64 {
     30
 }
@@ -38,6 +60,18 @@ fn default_alert_cooldown_secs() -> u64 {
 
 fn default_alert_hysteresis() -> f32 {
     3.0
+}
+
+fn default_daily_summary_enabled() -> bool {
+    true
+}
+
+fn default_daily_summary_hour() -> u8 {
+    9
+}
+
+fn default_daily_summary_minute() -> u8 {
+    0
 }
 
 #[derive(Debug, Error)]
@@ -98,6 +132,18 @@ impl Config {
         if self.owner_id > i64::MAX as u64 {
             return Err(ConfigError::Validation(
                 "owner_id exceeds Telegram ChatId range (i64::MAX)".to_string(),
+            ));
+        }
+
+        if self.daily_summary.hour_utc > 23 {
+            return Err(ConfigError::Validation(
+                "daily_summary.hour_utc must be between 0 and 23".to_string(),
+            ));
+        }
+
+        if self.daily_summary.minute_utc > 59 {
+            return Err(ConfigError::Validation(
+                "daily_summary.minute_utc must be between 0 and 59".to_string(),
             ));
         }
 

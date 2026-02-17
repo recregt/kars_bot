@@ -745,7 +745,7 @@ dependencies = [
 
 [[package]]
 name = "kars_bot"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "chrono",
  "html-escape",
