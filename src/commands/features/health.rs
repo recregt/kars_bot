@@ -1,15 +1,36 @@
 use chrono::Utc;
-use teloxide::{prelude::*, types::ParseMode, utils::command::BotCommands};
+use teloxide::{
+    prelude::*,
+    types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
+    utils::command::BotCommands,
+};
 
 use crate::app_context::AppContext;
 
 use super::super::{command_def::MyCommands, helpers::as_html_block};
 
 pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> {
+    let quick_actions = InlineKeyboardMarkup::new(vec![
+        vec![
+            InlineKeyboardButton::switch_inline_query_current_chat("📊 Status", "/status"),
+            InlineKeyboardButton::switch_inline_query_current_chat("💓 Health", "/health"),
+        ],
+        vec![
+            InlineKeyboardButton::switch_inline_query_current_chat("📈 Graph CPU", "/graph cpu 1h"),
+            InlineKeyboardButton::switch_inline_query_current_chat("🧾 Recent 6h", "/recent 6h"),
+        ],
+        vec![
+            InlineKeyboardButton::switch_inline_query_current_chat("🚨 Alerts", "/alerts"),
+            InlineKeyboardButton::switch_inline_query_current_chat("🔇 Mute 1h", "/mute 1h"),
+            InlineKeyboardButton::switch_inline_query_current_chat("🔔 Unmute", "/unmute"),
+        ],
+    ]);
+
     bot.send_message(
         msg.chat.id,
         as_html_block("Available commands", &MyCommands::descriptions().to_string()),
     )
+    .reply_markup(quick_actions)
     .parse_mode(ParseMode::Html)
     .await?;
 

@@ -98,7 +98,7 @@ Improve validation workflows and mobile usability.
 
 ### Acceptance Criteria
 - [x] Simulation mode can be enabled without changing production logic paths.
-- [ ] Inline actions reduce manual command typing for routine operations.
+- [x] Inline actions reduce manual command typing for routine operations.
 
 ---
 
