@@ -68,8 +68,6 @@ mod tests {
         Config {
             bot_token: "token".to_string(),
             owner_id: 1,
-            allowed_user_ids: vec![1],
-            allowed_chat_ids: Some(vec![1]),
             alerts: Alerts {
                 cpu: 80.0,
                 ram: 80.0,

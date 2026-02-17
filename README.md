@@ -92,12 +92,6 @@ sudo systemctl status kars-bot
 bot_token = "123456:telegram-bot-token"
 owner_id = 123456789
 
-# Allowed users (required)
-allowed_user_ids = [123456789]
-
-# Optional: allowed groups/channels (chat IDs, usually negative for groups)
-allowed_chat_ids = [-1001234567890]
-
 # Monitor loop interval (seconds, minimum 10)
 monitor_interval = 30
 
@@ -121,7 +115,29 @@ minute_utc = 0
 
 ## Notes
 
-- `allowed_user_ids` also supports legacy alias `authorized_users`.
+- Authorization is single-owner only: only direct messages from `owner_id` are accepted.
 - `/health` returns `Warming up` until the first monitor tick arrives.
 - Daily summary runs once per day in UTC based on `daily_summary.hour_utc` and `daily_summary.minute_utc`.
 - External command preflight checks currently validate `systemctl` and `sensors` at startup.
+- Owner identity updates currently require restart (`systemctl restart kars-bot`).
+
+## Future SRE Improvement
+
+- Add optional config hot-reload with `notify` crate to watch `config.toml` and refresh runtime-only values (such as `owner_id`) without full process restart.
+
+## JSON Structured Logs
+
+- Logging output is JSON by default and can be filtered with `RUST_LOG`.
+- Monitor loop emits structured fields on each sample: `cpu`, `ram`, `disk`, `cpu_over`, `ram_over`, `disk_over`.
+
+Example run:
+
+```bash
+RUST_LOG=info ./target/release/kars_bot
+```
+
+Example local filter (`cpu > 80` for monitor logs):
+
+```bash
+RUST_LOG=info ./target/release/kars_bot | jq 'select(.target == "monitor" and .fields.cpu > 80)'
+```

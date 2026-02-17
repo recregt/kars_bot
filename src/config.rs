@@ -1,16 +1,12 @@
 use serde::Deserialize;
 use std::fs;
-use teloxide::types::ChatId;
+use teloxide::types::{ChatId, UserId};
 use thiserror::Error;
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct Config {
     pub bot_token: String,
-    pub owner_id: u64,
-    #[serde(alias = "authorized_users")]
-    pub allowed_user_ids: Vec<u64>,
-    #[serde(default)]
-    pub allowed_chat_ids: Option<Vec<i64>>,
+    pub owner_id: i64,
     pub alerts: Alerts,
     pub monitor_interval: u64,
     #[serde(default = "default_command_timeout_secs")]
@@ -92,9 +88,9 @@ impl Config {
             ));
         }
 
-        if self.allowed_user_ids.is_empty() {
+        if self.owner_id <= 0 {
             return Err(ConfigError::Validation(
-                "allowed_user_ids cannot be empty".to_string(),
+                "owner_id must be a positive Telegram user id".to_string(),
             ));
         }
 
@@ -129,12 +125,6 @@ impl Config {
             ));
         }
 
-        if self.owner_id > i64::MAX as u64 {
-            return Err(ConfigError::Validation(
-                "owner_id exceeds Telegram ChatId range (i64::MAX)".to_string(),
-            ));
-        }
-
         if self.daily_summary.hour_utc > 23 {
             return Err(ConfigError::Validation(
                 "daily_summary.hour_utc must be between 0 and 23".to_string(),
@@ -151,13 +141,15 @@ impl Config {
     }
 
     pub fn owner_chat_id(&self) -> Result<ChatId, ConfigError> {
-        let owner_id = i64::try_from(self.owner_id).map_err(|_| {
-            ConfigError::Validation(
-                "owner_id exceeds Telegram ChatId range (i64::MAX)".to_string(),
-            )
+        Ok(ChatId(self.owner_id))
+    }
+
+    pub fn owner_user_id(&self) -> Result<UserId, ConfigError> {
+        let owner_user_id = u64::try_from(self.owner_id).map_err(|_| {
+            ConfigError::Validation("owner_id must fit into Telegram UserId (u64)".to_string())
         })?;
 
-        Ok(ChatId(owner_id))
+        Ok(UserId(owner_user_id))
     }
 }
 
