@@ -111,6 +111,7 @@ Make deployment simpler across Linux environments.
 - [x] Add optional static build target (`x86_64-unknown-linux-musl`).
 - [x] Document binary portability trade-offs and feature constraints.
 - [x] Add CI artifact build for portable release binaries.
+- [x] Add glibc/musl runtime validation checklist template.
 - [ ] Validate runtime behavior on glibc and musl environments.
 
 ### Acceptance Criteria
