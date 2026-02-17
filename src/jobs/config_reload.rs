@@ -5,6 +5,16 @@ use notify::{Config as NotifyConfig, EventKind, RecommendedWatcher, RecursiveMod
 use crate::app_context::AppContext;
 use crate::config::load_config;
 
+async fn apply_runtime_reload_from_path(
+    app_context: &AppContext,
+    config_path: &str,
+) -> Result<crate::config::RuntimeConfig, String> {
+    let new_config = load_config(config_path).map_err(|error| error.to_string())?;
+    let runtime_config = crate::config::RuntimeConfig::from_config(&new_config);
+    app_context.update_runtime_config(runtime_config.clone()).await;
+    Ok(runtime_config)
+}
+
 pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
     tokio::spawn(async move {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
@@ -50,13 +60,8 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
                 continue;
             }
 
-            match load_config(config_path.as_str()).and_then(|cfg| {
-                cfg.validate()?;
-                Ok(cfg)
-            }) {
-                Ok(new_config) => {
-                    let runtime_config = crate::config::RuntimeConfig::from_config(&new_config);
-                    app_context.update_runtime_config(runtime_config.clone()).await;
+            match apply_runtime_reload_from_path(&app_context, config_path.as_str()).await {
+                Ok(runtime_config) => {
 
                     let graph = runtime_config.graph;
                     log::info!(
@@ -79,3 +84,6 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
         }
     });
 }
+
+#[cfg(test)]
+mod tests;

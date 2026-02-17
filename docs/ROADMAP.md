@@ -58,9 +58,9 @@ Enable safe dynamic behavior changes without restarts.
 - [x] Add tests for hot-reload race safety and value visibility.
 
 ### Acceptance Criteria
-- [ ] Runtime config changes are reflected without restart.
+- [x] Runtime config changes are reflected without restart.
 - [ ] No data races or lock-related regressions in async tasks.
-- [ ] Invalid config updates are rejected safely with clear logs.
+- [x] Invalid config updates are rejected safely with clear logs.
 
 ---
 
@@ -111,6 +111,7 @@ Make deployment simpler across Linux environments.
 - [x] Add optional static build target (`x86_64-unknown-linux-musl`).
 - [x] Document binary portability trade-offs and feature constraints.
 - [x] Add CI artifact build for portable release binaries.
+- [x] Add glibc/musl runtime validation checklist template.
 - [ ] Validate runtime behavior on glibc and musl environments.
 
 ### Acceptance Criteria

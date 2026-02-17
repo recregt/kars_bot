@@ -187,6 +187,7 @@ Portability notes:
 - `musl` binaries are usually more portable across Linux distributions than default `glibc` builds.
 - Host tooling still affects command behavior (`systemctl`, `sensors`, `ss`, etc.); unsupported features degrade gracefully.
 - Some environments can still differ in kernel/cgroup visibility, so validate `/status`, `/health`, `/sysstatus`, and `/graph` on target host.
+- Runtime validation checklist: `docs/releases/runtime-validation-checklist.md`
 
 ## Logging
 
