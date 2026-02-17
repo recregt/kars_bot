@@ -161,6 +161,33 @@ docker run --rm \
   bash -lc "cargo build --release"
 ```
 
+### Portable Linux binary (musl, optional)
+
+Build with static musl target:
+
+```bash
+scripts/build_musl.sh
+```
+
+Artifact path:
+
+```text
+target/x86_64-unknown-linux-musl/release/kars_bot
+```
+
+Manual equivalent:
+
+```bash
+rustup target add x86_64-unknown-linux-musl
+sudo apt-get update && sudo apt-get install -y musl-tools
+cargo build --release --target x86_64-unknown-linux-musl
+```
+
+Portability notes:
+- `musl` binaries are usually more portable across Linux distributions than default `glibc` builds.
+- Host tooling still affects command behavior (`systemctl`, `sensors`, `ss`, etc.); unsupported features degrade gracefully.
+- Some environments can still differ in kernel/cgroup visibility, so validate `/status`, `/health`, `/sysstatus`, and `/graph` on target host.
+
 ## Logging
 
 - Logging output is JSON by default and can be filtered with `RUST_LOG`.
