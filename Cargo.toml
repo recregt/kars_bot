@@ -1,15 +1,20 @@
 [package]
 name = "kars_bot"
-version = "0.1.0"
-edition = "2021"
+version = "0.1.1"
+edition = "2024"
+resolver = "3"
 
 [dependencies]
 teloxide = { version = "0.12", default-features = false, features = ["macros", "rustls", "ctrlc_handler"] }
+serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 pretty_env_logger = "0.5"
-log = "0.4"
-serde = { version = "1.0", features = ["derive"] }
+html-escape = "0.2"
+sysinfo = "0.29"
+thiserror = "1"
+chrono = "0.4"
 toml = "0.8"
+log = "0.4"
 
 [profile.release]
 opt-level = "z"
