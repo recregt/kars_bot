@@ -4,6 +4,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use teloxide::prelude::*;
 use tokio::sync::Mutex;
 
+use crate::anomaly_journal::record_anomaly_if_needed;
 use crate::config::Config;
 
 use super::{
@@ -40,6 +41,8 @@ pub async fn check_alerts<P: MetricsProvider>(
         disk_over = metrics.disk > config.alerts.disk,
         "monitor_metrics"
     );
+
+    record_anomaly_if_needed(config, metrics.cpu, metrics.ram, metrics.disk);
 
     let notifications = evaluate_alerts_at(config, state, metrics, Instant::now()).await;
 

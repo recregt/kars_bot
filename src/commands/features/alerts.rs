@@ -1,5 +1,6 @@
 use teloxide::{prelude::*, types::ParseMode};
 
+use crate::anomaly_journal::recent_anomalies;
 use crate::app_context::AppContext;
 use crate::monitor::{alert_snapshot, mute_alerts_for, unmute_alerts};
 
@@ -84,4 +85,57 @@ pub(crate) async fn handle_unmute(
     .await?;
 
     Ok(())
+}
+
+pub(crate) async fn handle_recent_anomalies(
+    bot: &Bot,
+    msg: &Message,
+    app_context: &AppContext,
+) -> ResponseResult<()> {
+    let recent = recent_anomalies(&app_context.config, 10);
+    if recent.is_empty() {
+        bot.send_message(
+            msg.chat.id,
+            as_html_block("Recent anomalies", "No anomaly records found."),
+        )
+        .parse_mode(ParseMode::Html)
+        .await?;
+        return Ok(());
+    }
+
+    let lines = recent
+        .iter()
+        .enumerate()
+        .map(|(index, event)| {
+            format!(
+                "{}. {} | CPU {:.1}% (>{:.1}%: {}) | RAM {:.1}% (>{:.1}%: {}) | Disk {:.1}% (>{:.1}%: {})",
+                index + 1,
+                event.timestamp,
+                event.cpu,
+                event.cpu_threshold,
+                yes_no(event.cpu_over),
+                event.ram,
+                event.ram_threshold,
+                yes_no(event.ram_over),
+                event.disk,
+                event.disk_threshold,
+                yes_no(event.disk_over),
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    bot.send_message(msg.chat.id, as_html_block("Recent anomalies", &lines))
+        .parse_mode(ParseMode::Html)
+        .await?;
+
+    Ok(())
+}
+
+fn yes_no(value: bool) -> &'static str {
+    if value {
+        "yes"
+    } else {
+        "no"
+    }
 }

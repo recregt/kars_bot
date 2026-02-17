@@ -10,6 +10,7 @@ A Telegram server monitoring bot built with Rust + Teloxide.
 - Health/liveness check command (`/health`)
 - Alert state/config overview command (`/alerts`)
 - Scheduled daily summary report (UTC, default 09:00)
+- JSONL anomaly journal + lightweight index (`/recentanomalies`)
 - Safe command output handling (HTML escaping + truncation + line limiting)
 - Command concurrency protection via semaphore
 
@@ -111,6 +112,12 @@ hysteresis = 5.0
 enabled = true
 hour_utc = 9
 minute_utc = 0
+
+[anomaly_journal]
+enabled = true
+dir = "logs"
+max_file_size_bytes = 10485760
+retention_days = 7
 ```
 
 ## Notes
@@ -120,6 +127,9 @@ minute_utc = 0
 - Daily summary runs once per day in UTC based on `daily_summary.hour_utc` and `daily_summary.minute_utc`.
 - External command preflight checks currently validate `systemctl` and `sensors` at startup.
 - Owner identity updates currently require restart (`systemctl restart kars-bot`).
+- `/recentanomalies` returns latest 10 anomaly records from daily index files.
+- Journal structure uses namespaced folders under `dir`: `events/`, `index/`, `meta/`.
+- Event journal files rotate by size and synchronized pruning is handled by hourly maintenance job (`events` + matching `index` day files).
 
 ## Future SRE Improvement
 

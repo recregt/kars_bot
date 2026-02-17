@@ -2,11 +2,16 @@ use chrono::{Days, TimeZone, Utc};
 use teloxide::prelude::*;
 use tokio::time::{interval, sleep, Duration};
 
+use crate::anomaly_journal::run_maintenance;
 use crate::app_context::AppContext;
 use crate::monitor::{check_alerts, take_daily_summary_report, DailySummaryReport, RealMetricsProvider};
 
 pub fn start_background_jobs(bot: Bot, app_context: AppContext) {
     start_monitor_job(bot.clone(), app_context.clone());
+
+    if app_context.config.anomaly_journal.enabled {
+        start_maintenance_job(app_context.clone());
+    }
 
     if app_context.config.daily_summary.enabled {
         start_daily_summary_job(bot, app_context);
@@ -58,6 +63,17 @@ fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
             if let Err(error) = bot.send_message(owner_chat_id, message).await {
                 log::error!("failed to send daily summary: {}", error);
             }
+        }
+    });
+}
+
+fn start_maintenance_job(app_context: AppContext) {
+    tokio::spawn(async move {
+        let mut ticker = interval(Duration::from_secs(3600));
+
+        loop {
+            ticker.tick().await;
+            run_maintenance(&app_context.config);
         }
     });
 }

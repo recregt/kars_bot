@@ -4,7 +4,7 @@ use crate::app_context::AppContext;
 
 use super::command_def::MyCommands;
 use super::features::{
-    alerts::{handle_alerts, handle_mute, handle_unmute},
+    alerts::{handle_alerts, handle_mute, handle_recent_anomalies, handle_unmute},
     health::{handle_health, handle_help},
     system_info::{
         handle_cpu, handle_network, handle_ports, handle_services, handle_status, handle_temp,
@@ -29,6 +29,7 @@ pub(super) async fn route_command(
         MyCommands::Temp => handle_temp(&bot, &msg, app_context, &cmd).await?,
         MyCommands::Health => handle_health(&bot, &msg, app_context).await?,
         MyCommands::Alerts => handle_alerts(&bot, &msg, app_context).await?,
+        MyCommands::Recentanomalies => handle_recent_anomalies(&bot, &msg, app_context).await?,
         MyCommands::Mute(duration_str) => handle_mute(&bot, &msg, app_context, &duration_str).await?,
         MyCommands::Unmute => handle_unmute(&bot, &msg, app_context).await?,
     }

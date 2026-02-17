@@ -13,6 +13,8 @@ pub struct Config {
     pub command_timeout_secs: u64,
     #[serde(default)]
     pub daily_summary: DailySummary,
+    #[serde(default)]
+    pub anomaly_journal: AnomalyJournal,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -36,12 +38,35 @@ pub struct DailySummary {
     pub minute_utc: u8,
 }
 
+#[derive(Debug, Deserialize, Clone)]
+pub struct AnomalyJournal {
+    #[serde(default = "default_anomaly_journal_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_anomaly_journal_dir")]
+    pub dir: String,
+    #[serde(default = "default_anomaly_journal_max_file_size_bytes")]
+    pub max_file_size_bytes: u64,
+    #[serde(default = "default_anomaly_journal_retention_days")]
+    pub retention_days: u16,
+}
+
 impl Default for DailySummary {
     fn default() -> Self {
         Self {
             enabled: default_daily_summary_enabled(),
             hour_utc: default_daily_summary_hour(),
             minute_utc: default_daily_summary_minute(),
+        }
+    }
+}
+
+impl Default for AnomalyJournal {
+    fn default() -> Self {
+        Self {
+            enabled: default_anomaly_journal_enabled(),
+            dir: default_anomaly_journal_dir(),
+            max_file_size_bytes: default_anomaly_journal_max_file_size_bytes(),
+            retention_days: default_anomaly_journal_retention_days(),
         }
     }
 }
@@ -68,6 +93,22 @@ fn default_daily_summary_hour() -> u8 {
 
 fn default_daily_summary_minute() -> u8 {
     0
+}
+
+fn default_anomaly_journal_enabled() -> bool {
+    true
+}
+
+fn default_anomaly_journal_dir() -> String {
+    "logs".to_string()
+}
+
+fn default_anomaly_journal_max_file_size_bytes() -> u64 {
+    10 * 1024 * 1024
+}
+
+fn default_anomaly_journal_retention_days() -> u16 {
+    7
 }
 
 #[derive(Debug, Error)]
@@ -135,6 +176,26 @@ impl Config {
             return Err(ConfigError::Validation(
                 "daily_summary.minute_utc must be between 0 and 59".to_string(),
             ));
+        }
+
+        if self.anomaly_journal.enabled {
+            if self.anomaly_journal.dir.trim().is_empty() {
+                return Err(ConfigError::Validation(
+                    "anomaly_journal.dir cannot be empty when enabled".to_string(),
+                ));
+            }
+
+            if self.anomaly_journal.max_file_size_bytes == 0 {
+                return Err(ConfigError::Validation(
+                    "anomaly_journal.max_file_size_bytes must be greater than 0".to_string(),
+                ));
+            }
+
+            if self.anomaly_journal.retention_days == 0 {
+                return Err(ConfigError::Validation(
+                    "anomaly_journal.retention_days must be greater than 0".to_string(),
+                ));
+            }
         }
 
         Ok(())

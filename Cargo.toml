@@ -1,13 +1,15 @@
 [package]
 name = "kars_bot"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 resolver = "3"
 
 [dependencies]
 teloxide = { version = "0.12", default-features = false, features = ["macros", "rustls", "ctrlc_handler"] }
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
+file-rotate = "0.8"
 html-escape = "0.2"
 sysinfo = "0.29"
 thiserror = "1"

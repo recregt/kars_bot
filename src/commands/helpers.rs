@@ -25,6 +25,7 @@ pub(super) fn timeout_for(cmd: &MyCommands, config: &Config) -> u64 {
         | MyCommands::Uptime
         | MyCommands::Health
         | MyCommands::Alerts
+        | MyCommands::Recentanomalies
         | MyCommands::Mute(_)
         | MyCommands::Unmute
         | MyCommands::Help => FAST_TIMEOUT_SECS,

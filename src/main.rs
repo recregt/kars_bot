@@ -1,3 +1,4 @@
+mod anomaly_journal;
 mod app_context;
 mod commands;
 mod config;

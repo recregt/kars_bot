@@ -78,6 +78,7 @@ mod tests {
             monitor_interval: 10,
             command_timeout_secs: 30,
             daily_summary: Default::default(),
+            anomaly_journal: Default::default(),
         }
     }
 
