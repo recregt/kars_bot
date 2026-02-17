@@ -108,13 +108,13 @@ Improve validation workflows and mobile usability.
 Make deployment simpler across Linux environments.
 
 ### Tasks
-- [ ] Add optional static build target (`x86_64-unknown-linux-musl`).
-- [ ] Document binary portability trade-offs and feature constraints.
+- [x] Add optional static build target (`x86_64-unknown-linux-musl`).
+- [x] Document binary portability trade-offs and feature constraints.
 - [x] Add CI artifact build for portable release binaries.
 - [ ] Validate runtime behavior on glibc and musl environments.
 
 ### Acceptance Criteria
-- [ ] Portable binary build is reproducible and documented.
+- [x] Portable binary build is reproducible and documented.
 - [ ] Runtime checks and degraded features still behave predictably.
 
 ---
