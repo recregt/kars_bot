@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ ! -f Cargo.toml ]]; then
+  exit 0
+fi
+
+readarray -t push_lines
+
+has_release_tag_for_version() {
+  local version="$1"
+  for line in "${push_lines[@]}"; do
+    local_ref=$(awk '{print $1}' <<<"$line")
+    local_sha=$(awk '{print $2}' <<<"$line")
+    if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
+      continue
+    fi
+    if [[ "$local_ref" == "refs/tags/v$version" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+for line in "${push_lines[@]}"; do
+  local_ref=$(awk '{print $1}' <<<"$line")
+  local_sha=$(awk '{print $2}' <<<"$line")
+  remote_ref=$(awk '{print $3}' <<<"$line")
+  remote_sha=$(awk '{print $4}' <<<"$line")
+
+  if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
+    continue
+  fi
+
+  if [[ "$local_ref" =~ ^refs/tags/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+    expected="${BASH_REMATCH[1]}"
+    actual=$(git show "${local_ref#refs/tags/}":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
+    if [[ "$actual" != "$expected" ]]; then
+      echo "[pre-push] Blocked: tag ${local_ref#refs/tags/} points to Cargo.toml version $actual"
+      echo "Expected Cargo.toml version: $expected"
+      exit 1
+    fi
+    continue
+  fi
+
+  if [[ "$local_ref" =~ ^refs/heads/ ]]; then
+    if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+      empty_tree=$(git hash-object -t tree /dev/null)
+      range="$empty_tree..$local_sha"
+    else
+      range="$remote_sha..$local_sha"
+    fi
+
+    if git diff "$range" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
+      target_version=$(git show "$local_sha":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
+      if ! has_release_tag_for_version "$target_version"; then
+        echo "[pre-push] Blocked: Cargo.toml version changed to $target_version but no matching tag v$target_version is in this push."
+        echo "Use scripts/release_tag.sh v$target_version and push commit + tag together."
+        exit 1
+      fi
+    fi
+  fi
+done
+
+exit 0

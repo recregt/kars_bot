@@ -59,10 +59,13 @@ mod tests {
 
     use tokio::sync::Mutex;
 
-    use crate::config::{Alerts, Config};
+    use crate::config::{
+        Alerts, Config, Graph, ReleaseNotifierConfig, ReportingStoreConfig, Simulation,
+        WeeklyReport,
+    };
 
     use super::{evaluate_alerts_at, AlertState, Metrics};
-    use crate::monitor::provider::{MetricsProvider, MockMetricsProvider};
+    use crate::monitor::provider::{MetricsProvider, MockMetricsProvider, SimulatedMetricsProvider};
 
     fn test_config() -> Config {
         Config {
@@ -78,7 +81,12 @@ mod tests {
             monitor_interval: 10,
             command_timeout_secs: 30,
             daily_summary: Default::default(),
-            anomaly_journal: Default::default(),
+            weekly_report: WeeklyReport::default(),
+            graph: Graph::default(),
+            anomaly_db: Default::default(),
+            simulation: Simulation::default(),
+            reporting_store: ReportingStoreConfig::default(),
+            release_notifier: ReleaseNotifierConfig::default(),
         }
     }
 
@@ -136,5 +144,41 @@ mod tests {
         )
         .await;
         assert_eq!(retrigger.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn simulation_spike_triggers_cpu_alert() {
+        let mut config = test_config();
+        config.alerts.cpu = 94.0;
+        config.alerts.ram = 99.0;
+        config.alerts.disk = 99.0;
+        config.alerts.cooldown_secs = 1;
+
+        let state = Arc::new(Mutex::new(AlertState::default()));
+        let mut provider = SimulatedMetricsProvider::new();
+        let start = Instant::now();
+        let mut cpu_alert_observed = false;
+
+        for tick in 0..40 {
+            let metrics = provider
+                .collect_metrics()
+                .await
+                .expect("simulated metrics should be generated");
+
+            let notifications = evaluate_alerts_at(
+                &config,
+                &state,
+                metrics,
+                start + Duration::from_secs(tick),
+            )
+            .await;
+
+            if notifications.iter().any(|n| n.contains("CPU usage is high")) {
+                cpu_alert_observed = true;
+                break;
+            }
+        }
+
+        assert!(cpu_alert_observed, "expected simulated CPU spike to trigger alert");
     }
 }

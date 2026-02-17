@@ -1,105 +1,12 @@
-use std::sync::Arc;
-
-use chrono::Duration as ChronoDuration;
-use teloxide::{prelude::*, types::ParseMode};
-use tokio::sync::{OwnedSemaphorePermit, Semaphore};
-
-use crate::config::Config;
 use crate::system::{CommandError, CommandOutput};
-
-use super::command_def::MyCommands;
 
 const TELEGRAM_TEXT_HARD_LIMIT: usize = 4096;
 const TELEGRAM_TEXT_SAFE_LIMIT: usize = 3900;
 const TRUNCATE_NOTICE: &str = "\n\n⚠️ (Output was truncated...)";
 const OUTPUT_HEAD_LINES: usize = 50;
 const OUTPUT_TAIL_LINES: usize = 10;
-const FAST_TIMEOUT_SECS: u64 = 5;
 
-pub(super) fn timeout_for(cmd: &MyCommands, config: &Config) -> u64 {
-    match cmd {
-        MyCommands::Status
-        | MyCommands::Ports
-        | MyCommands::Cpu
-        | MyCommands::Network
-        | MyCommands::Uptime
-        | MyCommands::Health
-        | MyCommands::Alerts
-        | MyCommands::Recentanomalies
-        | MyCommands::Mute(_)
-        | MyCommands::Unmute
-        | MyCommands::Help => FAST_TIMEOUT_SECS,
-        MyCommands::Services | MyCommands::Temp => config.command_timeout_secs,
-    }
-}
-
-pub(super) fn parse_mute_duration(input: &str) -> Option<ChronoDuration> {
-    let normalized = input.trim().to_lowercase();
-    if normalized.len() < 2 {
-        return None;
-    }
-
-    let (value_part, unit_part) = normalized.split_at(normalized.len() - 1);
-    let value = value_part.parse::<i64>().ok()?;
-    if value <= 0 {
-        return None;
-    }
-
-    match unit_part {
-        "s" => Some(ChronoDuration::seconds(value)),
-        "m" => Some(ChronoDuration::minutes(value)),
-        "h" => Some(ChronoDuration::hours(value)),
-        "d" => Some(ChronoDuration::days(value)),
-        _ => None,
-    }
-}
-
-pub(super) async fn acquire_command_slot(
-    command_slots: &Arc<Semaphore>,
-    msg: &Message,
-    bot: &Bot,
-) -> ResponseResult<Option<OwnedSemaphorePermit>> {
-    match command_slots.clone().acquire_owned().await {
-        Ok(permit) => Ok(Some(permit)),
-        Err(error) => {
-            log::error!("failed to acquire command semaphore: {}", error);
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    "Command queue error",
-                    "Could not acquire command slot. Please try again.",
-                ),
-            )
-            .parse_mode(ParseMode::Html)
-            .await?;
-            Ok(None)
-        }
-    }
-}
-
-pub(super) fn is_authorized(msg: &Message, config: &Config) -> bool {
-    let Some(from) = msg.from() else {
-        return false;
-    };
-
-    let owner_user_id = match config.owner_user_id() {
-        Ok(owner_user_id) => owner_user_id,
-        Err(_) => return false,
-    };
-
-    let owner_chat_id = match config.owner_chat_id() {
-        Ok(owner_chat_id) => owner_chat_id,
-        Err(_) => return false,
-    };
-
-    if from.id != owner_user_id {
-        return false;
-    }
-
-    msg.chat.id == owner_chat_id
-}
-
-pub(super) fn command_body(output: &CommandOutput) -> String {
+pub(crate) fn command_body(output: &CommandOutput) -> String {
     let mut content = String::new();
     let stdout = limit_output_lines(output.stdout.trim());
     let stderr = limit_output_lines(output.stderr.trim());
@@ -126,7 +33,7 @@ pub(super) fn command_body(output: &CommandOutput) -> String {
     content
 }
 
-pub(super) fn as_html_block(title: &str, body: &str) -> String {
+pub(crate) fn as_html_block(title: &str, body: &str) -> String {
     let escaped_title = html_escape::encode_text(title);
     let body_budget = TELEGRAM_TEXT_SAFE_LIMIT.saturating_sub(TRUNCATE_NOTICE.len());
     let mut escaped_body = sanitize_and_truncate(body, body_budget);
@@ -143,7 +50,7 @@ pub(super) fn as_html_block(title: &str, body: &str) -> String {
     message
 }
 
-pub(super) fn command_error_html(error: &CommandError) -> String {
+pub(crate) fn command_error_html(error: &CommandError) -> String {
     format!(
         "<b>Command execution failed</b>\n<pre>{}</pre>",
         sanitize_and_truncate(&error.to_string(), TELEGRAM_TEXT_SAFE_LIMIT)

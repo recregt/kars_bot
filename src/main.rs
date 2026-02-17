@@ -1,17 +1,19 @@
-mod anomaly_journal;
+mod anomaly_db;
 mod app_context;
+mod capabilities;
 mod commands;
 mod config;
 mod jobs;
 mod monitor;
+mod reporting_store;
+mod release_notes;
 mod system;
-
-use std::process::Command;
 
 use teloxide::prelude::*;
 use tracing_subscriber::EnvFilter;
 
 use crate::app_context::AppContext;
+use crate::capabilities::Capabilities;
 use crate::commands::{answer, MyCommands};
 use crate::config::{load_config, Config};
 use crate::jobs::start_background_jobs;
@@ -37,29 +39,38 @@ fn init_json_logging() {
     }
 }
 
-fn check_external_command(command: &str) -> bool {
-    Command::new("which")
-        .arg(command)
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
-}
+const CONFIG_PATH: &str = "config.toml";
 
-fn run_preflight_checks() -> bool {
-    let required_commands = ["systemctl", "sensors"];
-    let mut all_ok = true;
-
-    for command in required_commands {
-        if !check_external_command(command) {
-            log::error!(
-                "Preflight failed: required external command '{}' was not found in PATH",
-                command
-            );
-            all_ok = false;
-        }
+fn log_capability_warnings(capabilities: &Capabilities) {
+    if !capabilities.is_systemd {
+        log::warn!(
+            "capability_degraded feature=systemd_services reason=systemctl_or_systemd_unavailable"
+        );
     }
 
-    all_ok
+    if !capabilities.has_sensors {
+        log::warn!("capability_degraded feature=temperature reason=sensors_unavailable");
+    }
+
+    if !capabilities.has_ss {
+        log::warn!("capability_degraded feature=ports reason=ss_unavailable");
+    }
+
+    if !capabilities.has_ip {
+        log::warn!("capability_degraded feature=network reason=ip_unavailable");
+    }
+
+    if !capabilities.has_free {
+        log::warn!("capability_degraded feature=sysstatus_ram reason=free_unavailable");
+    }
+
+    if !capabilities.has_top {
+        log::warn!("capability_degraded feature=cpu reason=top_unavailable");
+    }
+
+    if !capabilities.has_uptime {
+        log::warn!("capability_degraded feature=uptime reason=uptime_unavailable");
+    }
 }
 
 // Main
@@ -67,7 +78,7 @@ fn run_preflight_checks() -> bool {
 async fn main() {
     init_json_logging();
 
-    let config: Config = match load_config("config.toml") {
+    let config: Config = match load_config(CONFIG_PATH) {
         Ok(config) => config,
         Err(error) => {
             log::error!("Configuration error: {}", error);
@@ -80,15 +91,13 @@ async fn main() {
         return;
     }
 
-    if !run_preflight_checks() {
-        log::error!("Startup aborted due to failed preflight checks");
-        return;
-    }
-
     log::info!("Kars Server Bot is starting...");
+    let capabilities = Capabilities::detect();
+    log_capability_warnings(&capabilities);
+
     let bot = Bot::new(&config.bot_token);
 
-    let app_context = AppContext::new(config.clone(), 2);
+    let app_context = AppContext::new(config.clone(), 2, CONFIG_PATH, capabilities);
 
     start_background_jobs(bot.clone(), app_context.clone());
 

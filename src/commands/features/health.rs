@@ -21,9 +21,10 @@ pub(crate) async fn handle_health(
     msg: &Message,
     app_context: &AppContext,
 ) -> ResponseResult<()> {
+    let runtime_config = app_context.runtime_config.read().await.clone();
     let last_tick = *app_context.last_monitor_tick.lock().await;
     let now = Utc::now();
-    let threshold_secs = (app_context.config.monitor_interval * 2) as i64;
+    let threshold_secs = (runtime_config.monitor_interval * 2) as i64;
 
     let body = match last_tick {
         Some(tick) => {
@@ -43,14 +44,14 @@ pub(crate) async fn handle_health(
             format!(
                 "{}\n\nMonitor interval: {}s\nCurrent time: {}\nLast tick: {}",
                 status_line,
-                app_context.config.monitor_interval,
+                runtime_config.monitor_interval,
                 now.to_rfc3339(),
                 tick.to_rfc3339()
             )
         }
         None => format!(
             "⏳ Warming up...\n\nMonitor loop has not produced the first tick yet.\nMonitor interval: {}s\nCurrent time: {}",
-            app_context.config.monitor_interval,
+            runtime_config.monitor_interval,
             now.to_rfc3339()
         ),
     };

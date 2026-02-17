@@ -1,0 +1,45 @@
+name: PR Version Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+jobs:
+  guard-cargo-version:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect Cargo.toml version change
+        id: version_diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          if git diff --unified=0 "$base_sha" "$head_sha" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Require release label if version changed
+        if: steps.version_diff.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, sys
+          event_path = os.environ["GITHUB_EVENT_PATH"]
+          with open(event_path, "r", encoding="utf-8") as f:
+              payload = json.load(f)
+          labels = {item["name"] for item in payload.get("pull_request", {}).get("labels", [])}
+          allowed = {"release", "release-approved"}
+          if labels.isdisjoint(allowed):
+              print("::error::Cargo.toml version changed but PR has no release label (release or release-approved).")
+              sys.exit(1)
+          print("Release label present; version change is allowed.")
+          PY

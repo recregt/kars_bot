@@ -2,58 +2,122 @@
 
 A Telegram server monitoring bot built with Rust + Teloxide.
 
-## Features
+## What It Does
 
-- System monitoring with `sysinfo` (CPU, RAM, Disk)
-- Hysteresis + cooldown alerting to reduce alert flapping/spam
-- Time-bound alert mute controls (`/mute 30m`, `/unmute`)
-- Health/liveness check command (`/health`)
-- Alert state/config overview command (`/alerts`)
-- Scheduled daily summary report (UTC, default 09:00)
-- JSONL anomaly journal + lightweight index (`/recentanomalies`)
-- Safe command output handling (HTML escaping + truncation + line limiting)
-- Command concurrency protection via semaphore
+- Monitors CPU, RAM, and Disk with `sysinfo`
+- Sends threshold-based alerts with cooldown + hysteresis
+- Supports alert muting (`/mute 30m`, `/unmute`)
+- Provides health/status and system snapshot commands
+- Stores anomalies in a local JSONL-based anomaly DB (`/recent` smart queries)
+- Produces structured JSON logs for filtering and automation
 
-## Architecture
+## Quick Start
 
-The project is organized into focused modules:
-
-- `src/main.rs`: startup, config validation, preflight checks, task wiring
-- `src/config.rs`: config schema + validation
-- `src/system.rs`: command execution with timeout/error model
-- `src/commands/`:
-  - `command_def.rs`: Telegram command enum
-  - `helpers.rs`: formatting/auth/timeout helpers
-  - `handler.rs`: command dispatch and command handlers
-- `src/monitor/`:
-  - `provider.rs`: metrics provider trait + `sysinfo` implementation
-  - `state.rs`: alert state and snapshots
-  - `evaluator.rs`: threshold/cooldown/hysteresis evaluation logic
-  - `service.rs`: monitor orchestration, mute/unmute, snapshots
-
-## Installation
-
-### Local build
+### 1) Build and run locally
 
 ```bash
 cargo build --release
 ./target/release/kars_bot
 ```
 
-### Docker (build in container)
+### 2) Minimal `config.toml`
 
-```bash
-docker run --rm \
-  -v "$PWD":/app \
-  -w /app \
-  rust:1.93 \
-  bash -lc "cargo build --release"
+```toml
+bot_token = "123456:telegram-bot-token"
+owner_id = 123456789
+monitor_interval = 30
+command_timeout_secs = 30
+
+[alerts]
+cpu = 85.0
+ram = 90.0
+disk = 90.0
+cooldown_secs = 300
+hysteresis = 5.0
+
+[daily_summary]
+enabled = true
+hour_utc = 9
+minute_utc = 0
+
+[weekly_report]
+enabled = false
+weekday_utc = 1
+hour_utc = 9
+minute_utc = 0
+
+[graph]
+enabled = true
+default_window_minutes = 60
+max_window_hours = 24
+max_points = 1200
+
+[anomaly_db]
+enabled = true
+dir = "logs"
+max_file_size_bytes = 10485760
+retention_days = 7
 ```
 
-Then run the produced binary from host:
+`[anomaly_journal]` is also accepted as a backward-compatible alias.
+
+### 3) Set BotFather commands
+
+```text
+help - Show help and usage examples
+status - Show bot mode/capabilities
+health - Show monitor liveness
+sysstatus - Show RAM and Disk snapshot
+cpu - Show CPU usage
+temp - Show temperature sensors
+network - Show network statistics
+uptime - Show system uptime
+services - List active services
+ports - List open ports
+recent - Smart recent query (5 | 6h | cpu>85)
+graph - Metric chart (/graph cpu|ram|disk [30m|1h|6h|24h])
+export - Export metric snapshot (/export cpu|ram|disk [30m|1h|6h|24h] [csv|json])
+alerts - Show alert config/state
+mute - Mute alerts (/mute 30m)
+unmute - Unmute alerts
+```
+
+## Operations
+
+### Versioning Guard + Release Tag Flow
+
+- This repo blocks accidental `Cargo.toml` version edits in normal commits via `.githooks/pre-commit`.
+- A pre-push guard (`.githooks/pre-push`) also validates tag/version consistency.
+- Install hooks once per clone:
 
 ```bash
-./target/release/kars_bot
+scripts/install_hooks.sh
+```
+
+- Create a release tag with version sync:
+
+```bash
+scripts/release_tag.sh v0.8.0
+```
+
+- Run release checks without mutations:
+
+```bash
+scripts/release_tag.sh --dry-run v0.8.0
+```
+
+Notes:
+- The script runs `cargo test` before any release mutation.
+- The script generates an English `CHANGELOG.md` section via `git-cliff`.
+- The script logs binary size to `docs/releases/binary-size.csv`.
+- The script bumps `Cargo.toml` only when needed.
+- Version bump commit uses `ALLOW_VERSION_BUMP=1` to pass the guard.
+- If no tag/release is planned, `Cargo.toml` version must stay unchanged.
+
+Prerequisite:
+
+```bash
+cargo install git-cliff
 ```
 
 ### systemd service
@@ -87,67 +151,54 @@ sudo systemctl enable --now kars-bot
 sudo systemctl status kars-bot
 ```
 
-## Configuration Schema (`config.toml`)
+### Docker build (optional)
 
-```toml
-bot_token = "123456:telegram-bot-token"
-owner_id = 123456789
-
-# Monitor loop interval (seconds, minimum 10)
-monitor_interval = 30
-
-# Slow command timeout (seconds)
-command_timeout_secs = 30
-
-[alerts]
-cpu = 85.0
-ram = 90.0
-disk = 90.0
-
-# Alert spam control
-cooldown_secs = 300
-hysteresis = 5.0
-
-[daily_summary]
-enabled = true
-hour_utc = 9
-minute_utc = 0
-
-[anomaly_journal]
-enabled = true
-dir = "logs"
-max_file_size_bytes = 10485760
-retention_days = 7
+```bash
+docker run --rm \
+  -v "$PWD":/app \
+  -w /app \
+  rust:1.93 \
+  bash -lc "cargo build --release"
 ```
 
-## Notes
-
-- Authorization is single-owner only: only direct messages from `owner_id` are accepted.
-- `/health` returns `Warming up` until the first monitor tick arrives.
-- Daily summary runs once per day in UTC based on `daily_summary.hour_utc` and `daily_summary.minute_utc`.
-- External command preflight checks currently validate `systemctl` and `sensors` at startup.
-- Owner identity updates currently require restart (`systemctl restart kars-bot`).
-- `/recentanomalies` returns latest 10 anomaly records from daily index files.
-- Journal structure uses namespaced folders under `dir`: `events/`, `index/`, `meta/`.
-- Event journal files rotate by size and synchronized pruning is handled by hourly maintenance job (`events` + matching `index` day files).
-
-## Future SRE Improvement
-
-- Add optional config hot-reload with `notify` crate to watch `config.toml` and refresh runtime-only values (such as `owner_id`) without full process restart.
-
-## JSON Structured Logs
+## Logging
 
 - Logging output is JSON by default and can be filtered with `RUST_LOG`.
-- Monitor loop emits structured fields on each sample: `cpu`, `ram`, `disk`, `cpu_over`, `ram_over`, `disk_over`.
-
-Example run:
+- Monitor loop emits structured fields: `cpu`, `ram`, `disk`, `cpu_over`, `ram_over`, `disk_over`.
 
 ```bash
 RUST_LOG=info ./target/release/kars_bot
 ```
 
-Example local filter (`cpu > 80` for monitor logs):
-
 ```bash
 RUST_LOG=info ./target/release/kars_bot | jq 'select(.target == "monitor" and .fields.cpu > 80)'
 ```
+
+## Runtime Notes
+
+- Authorization is single-owner only: only direct messages from `owner_id` are accepted.
+- `/health` returns `Warming up` until the first monitor tick arrives.
+- Daily summary runs once per day in UTC (`daily_summary.hour_utc`, `daily_summary.minute_utc`).
+- Startup preflight checks currently validate `systemctl` and `sensors`.
+- Owner identity changes currently require restart (`systemctl restart kars-bot`).
+- Anomaly DB layout under `dir`: `events/`, `index/`, `meta/`.
+- Event files rotate by size; hourly maintenance prunes `events` and matching `index` day files.
+
+## Project Structure
+
+- `src/main.rs`: startup, config validation, preflight checks, task wiring
+- `src/config.rs`: config schema + validation
+- `src/system.rs`: command execution with timeout/error model
+- `src/anomaly_db/`: anomaly model, write/read, retention maintenance
+- `src/commands/`: command definitions, router, helpers, feature handlers
+- `src/monitor/`: metrics provider, evaluation logic, monitor service
+
+## Code Modularity Policy
+
+- Any Rust source file crossing `200` lines must be split into a folder module (`feature/mod.rs` + focused submodules).
+- Any file containing 3 distinct responsibilities (for example: data collection, processing, exporting) must be split similarly.
+- The pre-commit hook blocks commits that stage `.rs` files above `200` lines.
+
+## Roadmap
+
+Detailed roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)

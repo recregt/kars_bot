@@ -36,6 +36,30 @@ pub trait MetricsProvider {
     async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError>;
 }
 
+pub enum ActiveMetricsProvider {
+    Real(Box<RealMetricsProvider>),
+    Simulated(SimulatedMetricsProvider),
+}
+
+impl ActiveMetricsProvider {
+    pub fn new(simulation_enabled: bool) -> Self {
+        if simulation_enabled {
+            Self::Simulated(SimulatedMetricsProvider::new())
+        } else {
+            Self::Real(Box::new(RealMetricsProvider::new()))
+        }
+    }
+}
+
+impl MetricsProvider for ActiveMetricsProvider {
+    async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
+        match self {
+            ActiveMetricsProvider::Real(provider) => provider.collect_metrics().await,
+            ActiveMetricsProvider::Simulated(provider) => provider.collect_metrics().await,
+        }
+    }
+}
+
 pub struct RealMetricsProvider {
     system: System,
 }
@@ -45,6 +69,45 @@ impl RealMetricsProvider {
         Self {
             system: System::new_all(),
         }
+    }
+}
+
+pub struct SimulatedMetricsProvider {
+    tick: u64,
+}
+
+impl SimulatedMetricsProvider {
+    pub fn new() -> Self {
+        Self { tick: 0 }
+    }
+}
+
+impl MetricsProvider for SimulatedMetricsProvider {
+    async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
+        self.tick = self.tick.saturating_add(1);
+        let phase = self.tick as f32 / 8.0;
+
+        let mut cpu = 45.0 + (phase.sin() * 20.0);
+        let mut ram = 55.0 + ((phase * 0.7).sin() * 12.0);
+        let mut disk = 60.0 + ((phase * 0.2).sin() * 5.0);
+
+        if self.tick.is_multiple_of(30) {
+            cpu = 95.0;
+        }
+
+        if self.tick.is_multiple_of(47) {
+            ram = 93.0;
+        }
+
+        if self.tick.is_multiple_of(83) {
+            disk = 91.0;
+        }
+
+        Ok(Metrics {
+            cpu: cpu.clamp(0.0, 100.0),
+            ram: ram.clamp(0.0, 100.0),
+            disk: disk.clamp(0.0, 100.0),
+        })
     }
 }
 
