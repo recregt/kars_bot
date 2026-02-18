@@ -43,7 +43,7 @@ jobs:
         run: scripts/check_tls_stack.sh
 
       - name: Build release binary (musl)
-        run: cargo build --release --target x86_64-unknown-linux-musl
+        run: cargo build --release --locked --target x86_64-unknown-linux-musl
 
       - name: Package binary
         run: |

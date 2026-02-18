@@ -23,10 +23,10 @@ fmt-check:
   cargo fmt --all -- --check
 
 clippy:
-  cargo clippy --all-targets --all-features -- -D warnings
+  cargo clippy --locked --all-targets --all-features -- -D warnings
 
 test:
-  cargo test
+  cargo test --locked
 
 quality:
   just fmt-check
@@ -43,7 +43,7 @@ docs:
   scripts/validate_docs.sh
 
 build-release:
-  cargo build --release
+  cargo build --release --locked
 
 build-musl:
   scripts/build_musl.sh
