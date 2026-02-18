@@ -12,6 +12,24 @@ if git diff --cached -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[
     echo "Use: ALLOW_VERSION_BUMP=1 git commit ... (prefer scripts/release_tag.sh)"
     exit 1
   fi
+
+  if ! git diff --cached --name-only | grep -qx "CHANGELOG.md"; then
+    echo "[pre-commit] Blocked: Cargo.toml version changed but CHANGELOG.md is not staged."
+    echo "Release commits must include changelog update in the same commit."
+    exit 1
+  fi
+
+  target_version=$(git show :Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
+  if [[ -z "$target_version" ]]; then
+    echo "[pre-commit] Blocked: could not read staged Cargo.toml version."
+    exit 1
+  fi
+
+  if ! git show :CHANGELOG.md | grep -q "^## v$target_version"; then
+    echo "[pre-commit] Blocked: staged CHANGELOG.md missing section '## v$target_version'."
+    echo "Run scripts/release_tag.sh v$target_version to keep release metadata synchronized."
+    exit 1
+  fi
 fi
 
 staged_rust_files=()

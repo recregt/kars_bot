@@ -10,7 +10,7 @@ Usage:
 Behavior:
 - Runs tests before any release mutation.
 - Updates Cargo.toml version only when needed.
-- Generates/updates CHANGELOG.md via git-cliff.
+- Generates/updates CHANGELOG.md via git-cliff (mandatory).
 - Captures release binary size in docs/releases/binary-size.csv.
 EOF
 }
@@ -74,7 +74,7 @@ timestamp_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 if [[ "$dry_run" -eq 1 ]]; then
   echo "[dry-run] Tests/build passed. Previewing changelog section for $tag"
-  git-cliff --tag "$tag" | head -n 60
+  git-cliff --unreleased --tag "$tag" | head -n 60
   echo "[dry-run] Binary size: $size_human ($size_bytes bytes)"
   echo "[dry-run] No files changed, no commit created, no tag created."
   exit 0
@@ -90,6 +90,23 @@ if [[ -f CHANGELOG.md ]]; then
   git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
 else
   git-cliff --unreleased --tag "$tag" > CHANGELOG.md
+fi
+
+if git diff --quiet -- CHANGELOG.md; then
+  echo "CHANGELOG.md was not updated by git-cliff."
+  echo "Release aborted: changelog update is mandatory in release flow."
+  exit 1
+fi
+
+if [[ ! -s CHANGELOG.md ]]; then
+  echo "CHANGELOG.md generation failed or resulted in empty output."
+  exit 1
+fi
+
+if ! grep -q "^## $tag" CHANGELOG.md; then
+  echo "CHANGELOG validation failed: missing section header '## $tag'."
+  echo "Release aborted to keep changelog and tag history synchronized."
+  exit 1
 fi
 
 echo "$timestamp_utc,$tag,$size_bytes,$size_human" >> docs/releases/binary-size.csv

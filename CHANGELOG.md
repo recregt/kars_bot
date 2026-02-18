@@ -2,6 +2,66 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.1.0 - 2026-02-18
+
+
+
+### Documentation
+
+- Add glibc-musl validation checklist
+
+
+### Features
+
+- Add optional musl build workflow and docs
+
+- Add inline quick-action keyboard
+
+- Fallback oversized outputs as file attachments
+
+- Add optional sensitive output redaction
+
+- Add persistent 7-day rollup summaries
+
+- Add release check and controlled restart command
+
+
+### Maintenance
+
+- Automate glibc-musl matrix validation
+
+- Bump version to 1.1.0
+
+
+### Tests
+
+- Verify runtime apply and invalid config rejection
+
+- Add concurrent config stress test and close roadmap
+
+
+### merge
+
+- Portable musl workflow into develop
+
+- Runtime validation checklist and reload safety tests
+
+- Inline quick actions for help
+
+- Command output file fallback
+
+- Optional sensitive output redaction
+
+- Reporting rollups and append-only guarantees
+
+- Runtime matrix automation and evidence
+
+- Self-update command flow
+
+- Runtime concurrency acceptance and roadmap closure
+
+- Start v1.1.0 from develop
+
 ## v1.0.0 - 2026-02-17
 
 
