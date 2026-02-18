@@ -12,8 +12,29 @@ if IFS= read -r -t 1 first_line; then
     push_lines+=("$line")
   done
 else
-  echo "[pre-push] Warning: no push refs received on stdin; skipping push guards."
-  exit 0
+  remote_name="${1:-origin}"
+  current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+  if [[ -n "$current_branch" ]]; then
+    local_ref="refs/heads/$current_branch"
+    local_sha="$(git rev-parse HEAD)"
+    remote_ref="refs/heads/$current_branch"
+    remote_sha="0000000000000000000000000000000000000000"
+
+    upstream_ref="$(git for-each-ref --format='%(upstream:short)' "refs/heads/$current_branch")"
+    if [[ -n "$upstream_ref" ]] && git rev-parse --verify "$upstream_ref" >/dev/null 2>&1; then
+      remote_sha="$(git rev-parse "$upstream_ref")"
+      upstream_branch="${upstream_ref#${remote_name}/}"
+      if [[ "$upstream_branch" != "$upstream_ref" ]]; then
+        remote_ref="refs/heads/$upstream_branch"
+      fi
+    fi
+
+    push_lines+=("$local_ref $local_sha $remote_ref $remote_sha")
+    echo "[pre-push] Warning: no stdin refs; using synthesized push line for $current_branch."
+  else
+    echo "[pre-push] Blocked: no push refs on stdin and detached HEAD; cannot enforce policy safely."
+    exit 1
+  fi
 fi
 
 if [[ -x scripts/enforce_git_flow.sh ]]; then

@@ -26,10 +26,10 @@ else
 fi
 
 echo "[ci-local] clippy"
-cargo clippy --all-targets --all-features -- -D warnings
+cargo clippy --locked --all-targets --all-features -- -D warnings
 
 echo "[ci-local] tests"
-cargo test
+cargo test --locked
 
 echo "[ci-local] tls graph policy"
 scripts/check_tls_stack.sh

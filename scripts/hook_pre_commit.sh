@@ -34,6 +34,14 @@ if git diff --cached -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[
     exit 1
   fi
 
+  if git ls-files --error-unmatch Cargo.lock >/dev/null 2>&1; then
+    if ! git diff --cached --name-only | grep -qx "Cargo.lock"; then
+      echo "[pre-commit] Blocked: Cargo.toml version changed but Cargo.lock is not staged."
+      echo "Run cargo generate-lockfile and include Cargo.lock in the release commit."
+      exit 1
+    fi
+  fi
+
   target_version=$(git show :Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
   if [[ -z "$target_version" ]]; then
     echo "[pre-commit] Blocked: could not read staged Cargo.toml version."

@@ -48,10 +48,10 @@ jobs:
         run: echo "No Rust file changes detected; skipping rustfmt check."
 
       - name: Clippy strict
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Run tests
-        run: cargo test
+        run: cargo test --locked
 
       - name: Enforce Rustls-only TLS graph
         run: scripts/check_tls_stack.sh

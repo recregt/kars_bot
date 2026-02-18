@@ -67,7 +67,7 @@ if [[ "${RELEASE_SKIP_CI:-0}" != "1" ]]; then
 fi
 
 echo "Building release binary for size snapshot..."
-cargo build --release -q
+cargo build --release --locked -q
 
 binary_path="target/release/kars_bot"
 if [[ ! -f "$binary_path" ]]; then
@@ -96,6 +96,9 @@ fi
 current_version=$(awk -F '"' '/^version = /{print $2; exit}' Cargo.toml)
 if [[ "$current_version" != "$version" ]]; then
   sed -i "s/^version = \".*\"/version = \"$version\"/" Cargo.toml
+  if [[ -f Cargo.lock ]]; then
+    cargo generate-lockfile
+  fi
 fi
 
 echo "Generating changelog with git-cliff..."
@@ -124,6 +127,9 @@ fi
 
 echo "$timestamp_utc,$tag,$size_bytes,$size_human" >> docs/releases/binary-size.csv
 
+if [[ -f Cargo.lock ]]; then
+  git add Cargo.lock
+fi
 git add Cargo.toml CHANGELOG.md docs/releases/binary-size.csv
 
 if [[ -n "$(git diff --cached --name-only)" ]]; then
