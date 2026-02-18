@@ -29,6 +29,11 @@ pub(crate) async fn build_weekly_cpu_report(
         history.latest_window(WEEKLY_WINDOW_MINUTES)
     };
 
+    let persisted_rollup = app_context
+        .reporting_store
+        .as_ref()
+        .and_then(|store| store.rolling_summary_days(7));
+
     if samples.len() < 2 {
         return Err("not enough samples yet".to_string());
     }
@@ -59,19 +64,49 @@ pub(crate) async fn build_weekly_cpu_report(
     .await
     .map_err(|error| format!("weekly render task failed: {}", error))??;
 
+    let (min_cpu, max_cpu, avg_cpu, samples_count, rollup_suffix) =
+        if let Some(rollup) = persisted_rollup {
+            let suffix = format!(
+                "\nRAM avg/min/max: {:.1}% / {:.1}% / {:.1}% | Disk avg/min/max: {:.1}% / {:.1}% / {:.1}%",
+                rollup.ram_avg,
+                rollup.ram_min,
+                rollup.ram_max,
+                rollup.disk_avg,
+                rollup.disk_min,
+                rollup.disk_max
+            );
+            (
+                rollup.cpu_min,
+                rollup.cpu_max,
+                rollup.cpu_avg,
+                rollup.sample_count,
+                suffix,
+            )
+        } else {
+            (
+                summary.min,
+                summary.max,
+                summary.avg,
+                samples.len() as u64,
+                String::new(),
+            )
+        };
+
     Ok(GeneratedGraphReport {
         png_bytes,
         file_name: "cpu-weekly-7d.png".to_string(),
         caption: format!(
-            "📈 Weekly CPU (7d) | min: {:.1}% | max: {:.1}% | avg: {:.1}%{}",
-            summary.min,
-            summary.max,
-            summary.avg,
+            "📈 Weekly CPU (7d) | samples: {} | min: {:.1}% | max: {:.1}% | avg: {:.1}%{}{}",
+            samples_count,
+            min_cpu,
+            max_cpu,
+            avg_cpu,
             if anomaly_labels.is_empty() {
                 "".to_string()
             } else {
                 format!(" | {}", anomaly_labels)
-            }
+            },
+            rollup_suffix,
         ),
     })
 }

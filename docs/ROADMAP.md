@@ -71,14 +71,14 @@ Make weekly and historical reporting accurate and efficient.
 
 ### Tasks
 - [x] Add lightweight reporting store (SQLite or sled) for aggregated windows.
-- [ ] Keep JSONL as source of raw event truth (append-only).
-- [ ] Write/update summary records for rolling 7-day analytics.
+- [x] Keep JSONL as source of raw event truth (append-only).
+- [x] Write/update summary records for rolling 7-day analytics.
 - [x] Make weekly report resilient to process restarts.
 - [x] Extend `/recent` query grammar for combined filters (example: `cpu>85 ram>80 6h`).
 - [x] Improve parse error guidance with actionable examples.
 
 ### Acceptance Criteria
-- [ ] Weekly report works after restart with consistent historical context.
+- [x] Weekly report works after restart with consistent historical context.
 - [x] Complex report queries are served without scanning full raw history each time.
 - [x] Parser test coverage for combined filters is added.
 
