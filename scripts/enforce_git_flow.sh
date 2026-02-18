@@ -96,6 +96,12 @@ assert_push_policy() {
           parent_count=$(awk '{print NF-1}' <<<"$parents_line")
           if (( parent_count < 2 )); then
             target_branch="${local_ref#refs/heads/}"
+            if [[ "$target_branch" == "main" ]]; then
+              subject="$(git log -1 --pretty=%s "$commit_sha")"
+              if [[ "$subject" =~ ^chore\(release\):\ prepare\ v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                continue
+              fi
+            fi
             echo "[git-flow] Blocked: non-merge commit $commit_sha detected in push to '$target_branch'."
             echo "Only first-parent merge commits are allowed on protected branches."
             exit 1
