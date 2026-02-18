@@ -123,7 +123,7 @@ Make deployment simpler across Linux environments.
 ## Bonus Backlog
 
 - [ ] Add self-update flow (`/update`) with release check + controlled restart.
-- [ ] Add output-as-file fallback for oversized Telegram command outputs.
+- [x] Add output-as-file fallback for oversized Telegram command outputs.
 - [ ] Add optional redaction for sensitive command outputs (`services`, `ports`, `network`).
 
 ---
