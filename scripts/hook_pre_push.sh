@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source scripts/lib/log.sh
+source scripts/lib/git_diff_scope.sh
+
+SCRIPT_NAME="pre-push"
+
 if [[ ! -f Cargo.toml ]]; then
   exit 0
 fi
@@ -30,9 +35,9 @@ else
     fi
 
     push_lines+=("$local_ref $local_sha $remote_ref $remote_sha")
-    echo "[pre-push] Warning: no stdin refs; using synthesized push line for $current_branch."
+    log_warn "no stdin refs; using synthesized push line for $current_branch."
   else
-    echo "[pre-push] Blocked: no push refs on stdin and detached HEAD; cannot enforce policy safely."
+    log_error "Blocked: no push refs on stdin and detached HEAD; cannot enforce policy safely."
     exit 1
   fi
 fi
@@ -40,7 +45,7 @@ fi
 if [[ -x scripts/enforce_git_flow.sh ]]; then
   printf '%s\n' "${push_lines[@]}" | scripts/enforce_git_flow.sh push
 else
-  echo "[pre-push] Blocked: scripts/enforce_git_flow.sh is missing or not executable."
+  log_error "Blocked: scripts/enforce_git_flow.sh is missing or not executable."
   exit 1
 fi
 
@@ -77,9 +82,9 @@ maybe_create_missing_release_tag() {
   fi
 
   git tag -a "v$version" "$target_sha" -m "Release v$version"
-  echo "[pre-push] Auto-created local tag v$version at $target_sha"
-  echo "[pre-push] Push stopped intentionally so git can recompute refs including the new tag."
-  echo "[pre-push] Re-run push with: git push --follow-tags"
+  log_info "Auto-created local tag v$version at $target_sha"
+  log_info "Push stopped intentionally so git can recompute refs including the new tag."
+  log_info "Re-run push with: git push --follow-tags"
   return 0
 }
 
@@ -96,25 +101,15 @@ for line in "${push_lines[@]}"; do
     expected="${BASH_REMATCH[1]}"
     actual=$(git show "${local_ref#refs/tags/}":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
     if [[ "$actual" != "$expected" ]]; then
-      echo "[pre-push] Blocked: tag ${local_ref#refs/tags/} points to Cargo.toml version $actual"
-      echo "Expected Cargo.toml version: $expected"
+      log_error "Blocked: tag ${local_ref#refs/tags/} points to Cargo.toml version $actual"
+      log_error "Expected Cargo.toml version: $expected"
       exit 1
     fi
     continue
   fi
 
   if [[ "$local_ref" =~ ^refs/heads/ ]]; then
-    if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
-      if git rev-parse --verify refs/remotes/origin/main >/dev/null 2>&1; then
-        base_sha=$(git merge-base "$local_sha" refs/remotes/origin/main)
-        range="$base_sha..$local_sha"
-      else
-        empty_tree=$(git hash-object -t tree /dev/null)
-        range="$empty_tree..$local_sha"
-      fi
-    else
-      range="$remote_sha..$local_sha"
-    fi
+    range="$(git_scope_push_range "$local_sha" "$remote_sha")"
 
     if git diff "$range" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
       target_version=$(git show "$local_sha":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
@@ -122,9 +117,9 @@ for line in "${push_lines[@]}"; do
         if maybe_create_missing_release_tag "$target_version" "$local_sha"; then
           exit 1
         fi
-        echo "[pre-push] Blocked: Cargo.toml version changed to $target_version but no matching tag v$target_version is in this push."
-        echo "Suggestion: run scripts/release_tag.sh v$target_version and push commit + tag together."
-        echo "Optional automation: AUTO_CREATE_MISSING_TAG=1 git push --follow-tags"
+        log_error "Blocked: Cargo.toml version changed to $target_version but no matching tag v$target_version is in this push."
+        log_info "Suggestion: run scripts/release_tag.sh v$target_version and push commit + tag together."
+        log_info "Optional automation: AUTO_CREATE_MISSING_TAG=1 git push --follow-tags"
         exit 1
       fi
     fi

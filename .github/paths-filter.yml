@@ -1,0 +1,28 @@
+rust_files:
+  - '**/*.rs'
+
+rust_related:
+  - '**/*.rs'
+  - Cargo.toml
+  - Cargo.lock
+  - build.rs
+  - rust-toolchain.toml
+  - .cargo/**
+  - scripts/check_tls_stack.sh
+
+docs_related:
+  - docs/**
+  - '*.md'
+
+ci_related:
+  - .github/workflows/**
+  - scripts/**
+
+release_inputs:
+  - src/**
+  - Cargo.lock
+  - build.rs
+  - rust-toolchain.toml
+  - .cargo/**
+  - scripts/build_musl.sh
+  - scripts/check_tls_stack.sh

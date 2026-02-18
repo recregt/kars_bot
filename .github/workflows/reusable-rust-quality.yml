@@ -2,11 +2,6 @@ name: Reusable Rust Quality
 
 on:
   workflow_call:
-    inputs:
-      validate_docs:
-        required: false
-        type: boolean
-        default: false
 
 jobs:
   quality:
@@ -18,78 +13,48 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Validate workflows with actionlint
-        uses: rhysd/actionlint@v1.7.11
-
-      - name: Collect changed Rust files
-        id: changed_rs
-        shell: bash
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin main || true
-          base_ref="$(git merge-base HEAD origin/main || git rev-parse HEAD~1)"
-          changed_files=$(git diff --name-only "$base_ref...HEAD" -- '*.rs' | tr '\n' ' ')
-          changed_all=$(git diff --name-only "$base_ref...HEAD" | tr '\n' ' ')
-
-          if [[ -z "$changed_files" ]]; then
-            changed_files=$(git diff --name-only HEAD~1...HEAD -- '*.rs' | tr '\n' ' ' || true)
-            changed_all=$(git diff --name-only HEAD~1...HEAD | tr '\n' ' ' || true)
-          fi
-
-          rust_related="false"
-          if grep -Eq '(^| )(Cargo.toml|Cargo.lock|rust-toolchain(\.toml)?|\.cargo/|scripts/check_tls_stack\.sh|.*\.rs)( |$)' <<<"$changed_all"; then
-            rust_related="true"
-          fi
-
-          echo "files=$changed_files" >> "$GITHUB_OUTPUT"
-          echo "rust_related=$rust_related" >> "$GITHUB_OUTPUT"
+      - name: Detect Rust scope changes
+        id: scope
+        uses: dorny/paths-filter@v3
+        with:
+          list-files: shell
+          filters: .github/paths-filter.yml
 
       - name: Install Rust toolchain
-        if: steps.changed_rs.outputs.rust_related == 'true' || steps.changed_rs.outputs.files != ''
+        if: steps.scope.outputs.rust_related == 'true' || steps.scope.outputs.rust_files == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-nextest
-        if: steps.changed_rs.outputs.rust_related == 'true'
+        if: steps.scope.outputs.rust_related == 'true'
         uses: taiki-e/install-action@nextest
 
       - name: Cache Rust build artifacts
-        if: steps.changed_rs.outputs.rust_related == 'true'
+        if: steps.scope.outputs.rust_related == 'true'
         uses: Swatinem/rust-cache@v2
 
       - name: Rust fmt check (changed files)
-        if: steps.changed_rs.outputs.files != ''
+        if: steps.scope.outputs.rust_files == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          rustfmt --edition 2024 --check ${{ steps.changed_rs.outputs.files }}
+          rustfmt --edition 2024 --check ${{ steps.scope.outputs.rust_files_files }}
 
       - name: Rust fmt check (no-op)
-        if: steps.changed_rs.outputs.files == ''
+        if: steps.scope.outputs.rust_files != 'true'
         run: echo "No Rust file changes detected; skipping rustfmt check."
 
       - name: Clippy strict
-        if: steps.changed_rs.outputs.rust_related == 'true'
+        if: steps.scope.outputs.rust_related == 'true'
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Run tests (nextest)
-        if: steps.changed_rs.outputs.rust_related == 'true'
+        if: steps.scope.outputs.rust_related == 'true'
         run: cargo nextest run --locked --all-targets
 
       - name: Enforce Rustls-only TLS graph
-        if: steps.changed_rs.outputs.rust_related == 'true'
+        if: steps.scope.outputs.rust_related == 'true'
         run: scripts/check_tls_stack.sh
 
       - name: Skip heavy Rust checks (non-Rust PR)
-        if: steps.changed_rs.outputs.rust_related != 'true'
+        if: steps.scope.outputs.rust_related != 'true'
         run: echo "No Rust/Cargo/TLS-relevant changes detected; skipping clippy/nextest/tls checks."
-
-      - name: Validate reliability docs baseline
-        run: |
-          test -f docs/reference/reliability-slo.md
-          test -f docs/releases/runtime-validation-checklist.md
-
-      - name: Validate docs references
-        if: inputs.validate_docs
-        run: |
-          scripts/generate_docs_reference.sh
-          scripts/validate_docs.sh

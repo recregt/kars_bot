@@ -4,10 +4,14 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+source scripts/lib/log.sh
+
+SCRIPT_NAME="doctor"
+
 MODE="${1:-default}"
 
-echo "[doctor] starting environment diagnostics"
-echo "[doctor] mode: $MODE"
+log_info "starting environment diagnostics"
+log_info "mode: $MODE"
 
 required_cmds=(git cargo rustc)
 optional_cmds=(just jq curl tar install systemctl actionlint cargo-nextest)
@@ -109,10 +113,10 @@ if (( missing_required > 0 )); then
 fi
 
 if (( ${#remediation[@]} > 0 )); then
-  echo "[doctor] suggestions:"
+  log_info "suggestions:"
   for item in "${remediation[@]}"; do
     echo "  - $item"
   done
 fi
 
-echo "[doctor] PASS"
+log_info "PASS"

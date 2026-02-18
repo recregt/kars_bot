@@ -54,11 +54,11 @@ AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
   The hook creates `vX.Y.Z` locally (at pushed commit) and intentionally stops once,
   so a second push includes the newly created tag.
 - Quality CI is scope-aware:
-  - docs/config-only PRs skip Rust build/test stages.
-  - Rust/Cargo-related changes still run full clippy/nextest/TLS checks.
-- Release workflow is build-aware:
-  - if source/runtime inputs are unchanged versus previous tag, previous release binary artifact is reused under the new tag.
-  - if source/runtime inputs changed, a fresh MUSL build is produced.
+  - policy-quality workflow runs actionlint/docs/guard checks.
+  - rust-quality workflow runs rustfmt/clippy/nextest/TLS checks only for Rust-relevant changes.
+- Tagged release workflow is hash-aware:
+  - if release input fingerprint is unchanged (src + Cargo.lock + release script inputs) and Cargo.toml changed only at version line, previous binary asset is reused.
+  - if release inputs change, Cargo.toml has non-version changes, compile-time version embedding is detected, or no previous tag exists, a fresh MUSL build is produced.
 
 Prerequisite:
 

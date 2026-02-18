@@ -46,12 +46,14 @@ jobs:
           ' CHANGELOG.md > release-notes.md
 
           if [[ ! -s release-notes.md ]]; then
-            echo "Release $tag" > release-notes.md
-            echo >> release-notes.md
-            echo "No explicit changelog section body was found for $tag." >> release-notes.md
+            {
+              echo "Release $tag"
+              echo
+              echo "No explicit changelog section body was found for $tag."
+            } > release-notes.md
           fi
 
-      - name: Detect whether release build is required
+      - name: Detect release mode (build vs reuse)
         id: release_mode
         shell: bash
         run: |
@@ -60,26 +62,73 @@ jobs:
           current_tag="${{ inputs.tag }}"
           git fetch --tags --force
 
+          write_output() {
+            {
+              echo "mode=$1"
+              echo "previous_tag=$2"
+              echo "reason=$3"
+            } >> "$GITHUB_OUTPUT"
+          }
+
           previous_tag="$(git tag --list 'v*' --sort=-v:refname | grep -Fvx "$current_tag" | head -n 1 || true)"
 
           if [[ -z "$previous_tag" ]]; then
-            echo "mode=build" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=" >> "$GITHUB_OUTPUT"
+            write_output "build" "" "no_previous_tag"
             echo "No previous tag found; build required."
             exit 0
           fi
 
-          src_changes=$(git diff --name-only "$previous_tag..$current_tag" -- 'src/**' 'build.rs' 'rust-toolchain.toml' '.cargo/**' 'scripts/check_tls_stack.sh' 'Cargo.lock')
-          cargo_non_version_changes=$(git diff -U0 "$previous_tag..$current_tag" -- Cargo.toml | grep -Ev '^(---|\+\+\+|@@|[-+]version = )' || true)
+          calc_release_fingerprint() {
+            local tag_ref="$1"
 
-          if [[ -z "$src_changes" && -z "$cargo_non_version_changes" ]]; then
-            echo "mode=reuse" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
-            echo "No source/runtime input changes since $previous_tag; reusing previous release assets."
+            mapfile -t tracked_paths < <(
+              git ls-tree -r --name-only "$tag_ref" -- \
+                src \
+                Cargo.lock \
+                build.rs \
+                rust-toolchain.toml \
+                .cargo \
+                scripts/build_musl.sh \
+                scripts/check_tls_stack.sh \
+                2>/dev/null | LC_ALL=C sort
+            )
+
+            if [[ ${#tracked_paths[@]} -eq 0 ]]; then
+              echo ""
+              return
+            fi
+
+            {
+              for path in "${tracked_paths[@]}"; do
+                blob="$(git rev-parse "$tag_ref:$path")"
+                printf '%s  %s\n' "$blob" "$path"
+              done
+            } | sha256sum | awk '{print $1}'
+          }
+
+          version_embed_used="false"
+          if git grep -nE 'CARGO_PKG_VERSION|crate_version!|built::' "$current_tag" -- src >/dev/null 2>&1; then
+            version_embed_used="true"
+          fi
+
+          release_fp_previous="$(calc_release_fingerprint "$previous_tag")"
+          release_fp_current="$(calc_release_fingerprint "$current_tag")"
+
+          cargo_non_version_changes="$(git diff -U0 "$previous_tag..$current_tag" -- Cargo.toml | grep -Ev '^(---|\+\+\+|@@|[-+]version = )' || true)"
+          version_line_changes="$(git diff -U0 "$previous_tag..$current_tag" -- Cargo.toml | grep -E '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"' || true)"
+
+          if [[ "$version_embed_used" == "true" ]]; then
+            write_output "build" "$previous_tag" "compile_time_version_detected"
+            echo "Compile-time version usage detected in source; fresh build required."
+            exit 0
+          fi
+
+          if [[ "$release_fp_previous" == "$release_fp_current" ]] && [[ -z "$cargo_non_version_changes" ]] && [[ -n "$version_line_changes" ]]; then
+            write_output "reuse" "$previous_tag" "only_version_bump"
+            echo "Release inputs fingerprint unchanged and Cargo.toml has only version-line changes; reuse enabled."
           else
-            echo "mode=build" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
-            echo "Source/runtime inputs changed since $previous_tag; build required."
+            write_output "build" "$previous_tag" "release_input_changed"
+            echo "Release inputs changed or Cargo.toml has non-version changes; fresh build required."
           fi
 
       - name: Install Rust target
@@ -121,6 +170,14 @@ jobs:
           gh release download "$previous_tag" --pattern "$prev_asset" --repo "$GITHUB_REPOSITORY"
           mv "$prev_asset" "$new_asset"
           sha256sum "$new_asset" > "$new_asset.sha256"
+
+          {
+            echo
+            echo "---"
+            echo
+            echo "Binary artifact reused from $previous_tag (reason: ${{ steps.release_mode.outputs.reason }})."
+            echo "Release input fingerprint was identical and only Cargo.toml version line changed."
+          } >> release-notes.md
 
       - name: Upload GitHub Release assets
         uses: softprops/action-gh-release@v2

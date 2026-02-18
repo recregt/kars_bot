@@ -13,7 +13,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  quality:
-    uses: ./.github/workflows/reusable-rust-quality.yml
+  policy_quality:
+    uses: ./.github/workflows/reusable-policy-quality.yml
     with:
       validate_docs: true
+
+  rust_quality:
+    uses: ./.github/workflows/reusable-rust-quality.yml
+
+  quality:
+    name: quality / quality
+    runs-on: ubuntu-latest
+    needs:
+      - policy_quality
+      - rust_quality
+    steps:
+      - name: Aggregate quality result
+        run: echo "All quality sub-checks passed."
