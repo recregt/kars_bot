@@ -53,6 +53,7 @@ jobs:
       - name: Upload GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag }}
           files: |
             kars_bot-${{ inputs.tag }}-x86_64-unknown-linux-musl.tar.gz
             kars_bot-${{ inputs.tag }}-x86_64-unknown-linux-musl.tar.gz.sha256
