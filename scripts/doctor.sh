@@ -10,7 +10,7 @@ echo "[doctor] starting environment diagnostics"
 echo "[doctor] mode: $MODE"
 
 required_cmds=(git cargo rustc)
-optional_cmds=(just jq curl tar install systemctl)
+optional_cmds=(just jq curl tar install systemctl actionlint cargo-nextest)
 
 missing_required=0
 remediation=()
