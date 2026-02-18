@@ -7,5 +7,5 @@ pub use io::load_config;
 #[allow(unused_imports)]
 pub use schema::{
     Alerts, AnomalyDb, Config, DailySummary, Graph, ReleaseNotifierConfig, ReportingStoreConfig,
-    RuntimeConfig, Simulation, WeeklyReport,
+    RuntimeConfig, Security, Simulation, WeeklyReport,
 };

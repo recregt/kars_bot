@@ -57,6 +57,9 @@ enabled = true
 dir = "logs"
 max_file_size_bytes = 10485760
 retention_days = 7
+
+[security]
+redact_sensitive_output = false
 ```
 
 `[anomaly_journal]` is also accepted as a backward-compatible alias.

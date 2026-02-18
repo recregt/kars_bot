@@ -6,8 +6,8 @@ use crate::system::run_cmd;
 use super::super::super::{
     command_def::MyCommands,
     helpers::{
-        acquire_command_slot, as_html_block, command_body, command_error_html, send_html_or_file,
-        timeout_for,
+        acquire_command_slot, as_html_block, command_body, command_error_html,
+        maybe_redact_sensitive_output, send_html_or_file, timeout_for,
     },
 };
 use super::common::unsupported_feature_message;
@@ -81,7 +81,11 @@ pub(crate) async fn handle_network(
     .await
     {
         Ok(output) => {
-            let body = command_body(&output);
+            let raw_body = command_body(&output);
+            let body = maybe_redact_sensitive_output(
+                &raw_body,
+                config.config.security.redact_sensitive_output,
+            );
             send_html_or_file(bot, msg.chat.id, "Network Statistics", &body).await?;
         }
         Err(error) => {

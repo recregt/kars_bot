@@ -1,6 +1,5 @@
 use super::schema::{
-    Alerts, AnomalyDb, DailySummary, Graph, ReleaseNotifierConfig, ReportingStoreConfig,
-    Simulation, WeeklyReport,
+    Alerts, AnomalyDb, DailySummary, Graph, ReportingStoreConfig, Simulation, WeeklyReport,
 };
 
 pub(super) fn default_monitor_interval() -> u64 {
@@ -111,6 +110,10 @@ pub(super) fn default_release_notifier_state_path() -> String {
     "data/release_notifier/state.json".to_string()
 }
 
+pub(super) fn default_redact_sensitive_output() -> bool {
+    false
+}
+
 impl Default for Alerts {
     fn default() -> Self {
         Self {
@@ -181,16 +184,6 @@ impl Default for ReportingStoreConfig {
             enabled: false,
             path: default_reporting_store_path(),
             retention_days: default_reporting_store_retention_days(),
-        }
-    }
-}
-
-impl Default for ReleaseNotifierConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            changelog_path: default_release_notifier_changelog_path(),
-            state_path: default_release_notifier_state_path(),
         }
     }
 }

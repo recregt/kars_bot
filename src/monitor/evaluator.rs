@@ -60,7 +60,7 @@ mod tests {
     use tokio::sync::Mutex;
 
     use crate::config::{
-        Alerts, Config, Graph, ReleaseNotifierConfig, ReportingStoreConfig, Simulation,
+        Alerts, Config, Graph, ReleaseNotifierConfig, ReportingStoreConfig, Security, Simulation,
         WeeklyReport,
     };
 
@@ -87,6 +87,7 @@ mod tests {
             simulation: Simulation::default(),
             reporting_store: ReportingStoreConfig::default(),
             release_notifier: ReleaseNotifierConfig::default(),
+            security: Security::default(),
         }
     }
 
