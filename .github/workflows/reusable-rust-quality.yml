@@ -1,0 +1,68 @@
+name: Reusable Rust Quality
+
+on:
+  workflow_call:
+    inputs:
+      validate_docs:
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Collect changed Rust files
+        id: changed_rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main || true
+          base_ref="$(git merge-base HEAD origin/main || git rev-parse HEAD~1)"
+          changed_files=$(git diff --name-only "$base_ref...HEAD" -- '*.rs' | tr '\n' ' ')
+
+          if [[ -z "$changed_files" ]]; then
+            changed_files=$(git diff --name-only HEAD~1...HEAD -- '*.rs' | tr '\n' ' ' || true)
+          fi
+
+          echo "files=$changed_files" >> "$GITHUB_OUTPUT"
+
+      - name: Rust fmt check (changed files)
+        if: steps.changed_rs.outputs.files != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check ${{ steps.changed_rs.outputs.files }}
+
+      - name: Rust fmt check (no-op)
+        if: steps.changed_rs.outputs.files == ''
+        run: echo "No Rust file changes detected; skipping rustfmt check."
+
+      - name: Clippy strict
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Enforce Rustls-only TLS graph
+        run: scripts/check_tls_stack.sh
+
+      - name: Validate reliability docs baseline
+        run: |
+          test -f docs/reference/reliability-slo.md
+          test -f docs/releases/runtime-validation-checklist.md
+
+      - name: Validate docs references
+        if: inputs.validate_docs
+        run: |
+          scripts/generate_docs_reference.sh
+          scripts/validate_docs.sh

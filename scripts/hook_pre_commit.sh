@@ -54,10 +54,9 @@ violations=()
 
 for file in "${staged_rust_files[@]}"; do
   [[ ! -f "$file" ]] && continue
-
   line_count=$(wc -l < "$file")
   if (( line_count > max_lines )); then
-  violations+=("$file:$line_count")
+    violations+=("$file:$line_count")
   fi
 done
 

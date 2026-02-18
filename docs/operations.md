@@ -2,14 +2,22 @@
 
 ## Versioning Guard and Release Tag Flow
 
-- This repository blocks accidental `Cargo.toml` version edits in normal commits via `.githooks/pre-commit`.
-- A pre-push guard (`.githooks/pre-push`) validates tag/version consistency.
+- This repository blocks accidental `Cargo.toml` version edits in normal commits via Lefthook pre-commit checks.
+- A Lefthook pre-push guard validates tag/version consistency.
 - Strict branch policy (`scripts/enforce_git_flow.sh`) blocks direct commit/push flows to `main` and `develop`.
 
 Install hooks once per clone:
 
 ```bash
 scripts/install_hooks.sh
+```
+
+Common local operations via `just`:
+
+```bash
+just --list
+just quality
+just docs
 ```
 
 Create a release tag with version sync:
