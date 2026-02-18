@@ -77,9 +77,18 @@ assert_push_policy() {
   for line in "${push_lines[@]}"; do
     local_ref=$(awk '{print $1}' <<<"$line")
     local_sha=$(awk '{print $2}' <<<"$line")
+    remote_ref=$(awk '{print $3}' <<<"$line")
     remote_sha=$(awk '{print $4}' <<<"$line")
 
-    [[ "$local_sha" == "0000000000000000000000000000000000000000" ]] && continue
+    if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
+      case "$remote_ref" in
+        refs/heads/main|refs/heads/develop)
+          echo "[git-flow] Blocked: deleting protected remote branch '${remote_ref#refs/heads/}' is forbidden."
+          exit 1
+          ;;
+      esac
+      continue
+    fi
 
     case "$local_ref" in
       refs/heads/main|refs/heads/develop)
