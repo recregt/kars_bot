@@ -5,7 +5,10 @@ use crate::system::run_cmd;
 
 use super::super::super::{
     command_def::MyCommands,
-    helpers::{acquire_command_slot, as_html_block, command_body, command_error_html, timeout_for},
+    helpers::{
+        acquire_command_slot, as_html_block, command_body, command_error_html, send_html_or_file,
+        timeout_for,
+    },
 };
 use super::common::unsupported_feature_message;
 
@@ -70,15 +73,23 @@ pub(crate) async fn handle_network(
     let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
         return Ok(());
     };
-    let message =
-        match run_cmd("ip", &["-s", "link"], timeout_for(cmd, runtime_config.command_timeout_secs)).await {
-            Ok(output) => as_html_block("Network Statistics", &command_body(&output)),
-            Err(error) => command_error_html(&error),
-        };
-
-    bot.send_message(msg.chat.id, message)
-        .parse_mode(ParseMode::Html)
-        .await?;
+    match run_cmd(
+        "ip",
+        &["-s", "link"],
+        timeout_for(cmd, runtime_config.command_timeout_secs),
+    )
+    .await
+    {
+        Ok(output) => {
+            let body = command_body(&output);
+            send_html_or_file(bot, msg.chat.id, "Network Statistics", &body).await?;
+        }
+        Err(error) => {
+            bot.send_message(msg.chat.id, command_error_html(&error))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+    }
 
     Ok(())
 }
@@ -104,15 +115,23 @@ pub(crate) async fn handle_uptime(
     let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
         return Ok(());
     };
-    let message =
-        match run_cmd("uptime", &[], timeout_for(cmd, runtime_config.command_timeout_secs)).await {
-            Ok(output) => as_html_block("System Uptime", &command_body(&output)),
-            Err(error) => command_error_html(&error),
-        };
-
-    bot.send_message(msg.chat.id, message)
-        .parse_mode(ParseMode::Html)
-        .await?;
+    match run_cmd(
+        "uptime",
+        &[],
+        timeout_for(cmd, runtime_config.command_timeout_secs),
+    )
+    .await
+    {
+        Ok(output) => {
+            let body = command_body(&output);
+            send_html_or_file(bot, msg.chat.id, "System Uptime", &body).await?;
+        }
+        Err(error) => {
+            bot.send_message(msg.chat.id, command_error_html(&error))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+    }
 
     Ok(())
 }
@@ -138,15 +157,23 @@ pub(crate) async fn handle_temp(
     let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
         return Ok(());
     };
-    let message =
-        match run_cmd("sensors", &[], timeout_for(cmd, runtime_config.command_timeout_secs)).await {
-            Ok(output) => as_html_block("Temperature Sensors", &command_body(&output)),
-            Err(error) => command_error_html(&error),
-        };
-
-    bot.send_message(msg.chat.id, message)
-        .parse_mode(ParseMode::Html)
-        .await?;
+    match run_cmd(
+        "sensors",
+        &[],
+        timeout_for(cmd, runtime_config.command_timeout_secs),
+    )
+    .await
+    {
+        Ok(output) => {
+            let body = command_body(&output);
+            send_html_or_file(bot, msg.chat.id, "Temperature Sensors", &body).await?;
+        }
+        Err(error) => {
+            bot.send_message(msg.chat.id, command_error_html(&error))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+    }
 
     Ok(())
 }
