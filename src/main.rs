@@ -10,6 +10,7 @@ mod release_notes;
 mod system;
 
 use teloxide::prelude::*;
+use tokio::net::lookup_host;
 use tracing_subscriber::EnvFilter;
 
 use crate::app_context::AppContext;
@@ -73,6 +74,24 @@ fn log_capability_warnings(capabilities: &Capabilities) {
     }
 }
 
+async fn log_dns_probe() {
+    match lookup_host(("api.telegram.org", 443)).await {
+        Ok(mut addresses) => {
+            if let Some(address) = addresses.next() {
+                log::info!("dns_probe_ok host=api.telegram.org address={}", address);
+            } else {
+                log::warn!("dns_probe_degraded host=api.telegram.org reason=no_records");
+            }
+        }
+        Err(error) => {
+            log::warn!(
+                "dns_probe_degraded host=api.telegram.org reason=lookup_failed error={}",
+                error
+            );
+        }
+    }
+}
+
 // Main
 #[tokio::main]
 async fn main() {
@@ -94,6 +113,7 @@ async fn main() {
     log::info!("Kars Server Bot is starting...");
     let capabilities = Capabilities::detect();
     log_capability_warnings(&capabilities);
+    log_dns_probe().await;
 
     let bot = Bot::new(&config.bot_token);
 

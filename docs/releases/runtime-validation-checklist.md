@@ -17,6 +17,12 @@ This checklist is used before promoting `develop` to `main` for `v1.2.x` and lat
 
 ## Build Checks
 
+### TLS dependency policy
+
+```bash
+scripts/check_tls_stack.sh
+```
+
 ### glibc build
 
 ```bash

@@ -23,7 +23,6 @@ plotters = { version = "0.3", default-features = false, features = ["bitmap_back
 image = { version = "0.25", default-features = false, features = ["png"] }
 notify = "6"
 sled = "0.34"
-openssl = { version = "0.10", features = ["vendored"] }
 
 [dev-dependencies]
 tempfile = "3"
