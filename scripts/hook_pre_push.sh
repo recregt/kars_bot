@@ -5,7 +5,16 @@ if [[ ! -f Cargo.toml ]]; then
   exit 0
 fi
 
-readarray -t push_lines
+push_lines=()
+if IFS= read -r -t 1 first_line; then
+  push_lines+=("$first_line")
+  while IFS= read -r line; do
+    push_lines+=("$line")
+  done
+else
+  echo "[pre-push] Warning: no push refs received on stdin; skipping push guards."
+  exit 0
+fi
 
 if [[ -x scripts/enforce_git_flow.sh ]]; then
   printf '%s\n' "${push_lines[@]}" | scripts/enforce_git_flow.sh push
