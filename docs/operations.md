@@ -16,8 +16,9 @@ Common local operations via `just`:
 
 ```bash
 just --list
-just quality
+just ci
 just docs
+just release-preflight v1.3.2-pre
 ```
 
 Create a release tag with version sync:
@@ -33,7 +34,7 @@ scripts/release_tag.sh --dry-run v0.8.0
 ```
 
 Notes:
-- The script runs `cargo test` before any release mutation.
+- The script runs `just ci` parity checks before any release mutation.
 - The script generates an English `CHANGELOG.md` section via `git-cliff`.
 - The script logs binary size to `docs/releases/binary-size.csv`.
 - The script bumps `Cargo.toml` only when needed.
