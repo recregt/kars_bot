@@ -63,7 +63,10 @@ pub(crate) async fn handle_update(
             msg.chat.id,
             as_html_block(
                 "Update",
-                &format!("No newer release found. Current v{} is up to date.", CURRENT_VERSION),
+                &format!(
+                    "No newer release found. Current v{} is up to date.",
+                    CURRENT_VERSION
+                ),
             ),
         )
         .parse_mode(ParseMode::Html)

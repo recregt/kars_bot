@@ -11,7 +11,9 @@ async fn apply_runtime_reload_from_path(
 ) -> Result<crate::config::RuntimeConfig, String> {
     let new_config = load_config(config_path).map_err(|error| error.to_string())?;
     let runtime_config = crate::config::RuntimeConfig::from_config(&new_config);
-    app_context.update_runtime_config(runtime_config.clone()).await;
+    app_context
+        .update_runtime_config(runtime_config.clone())
+        .await;
     Ok(runtime_config)
 }
 
@@ -33,7 +35,8 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
             }
         };
 
-        if let Err(error) = watcher.watch(Path::new(config_path.as_str()), RecursiveMode::NonRecursive)
+        if let Err(error) =
+            watcher.watch(Path::new(config_path.as_str()), RecursiveMode::NonRecursive)
         {
             log::warn!(
                 "config hot-reload disabled: failed to watch {}: {}",
@@ -62,7 +65,6 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
 
             match apply_runtime_reload_from_path(&app_context, config_path.as_str()).await {
                 Ok(runtime_config) => {
-
                     let graph = runtime_config.graph;
                     log::info!(
                         "config_hot_reload_applied target=runtime alerts_cpu={} alerts_ram={} alerts_disk={} monitor_interval={} command_timeout_secs={} graph_enabled={} default_window_minutes={} max_window_hours={} max_points={}",

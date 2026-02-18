@@ -30,8 +30,12 @@ pub(crate) fn downsample_points(
             .collect();
     }
 
-    let start_ts = samples.first().map(|sample| sample.timestamp.timestamp_millis());
-    let end_ts = samples.last().map(|sample| sample.timestamp.timestamp_millis());
+    let start_ts = samples
+        .first()
+        .map(|sample| sample.timestamp.timestamp_millis());
+    let end_ts = samples
+        .last()
+        .map(|sample| sample.timestamp.timestamp_millis());
     let (Some(start_ts), Some(end_ts)) = (start_ts, end_ts) else {
         return Vec::new();
     };

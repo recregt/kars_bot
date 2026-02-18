@@ -30,11 +30,7 @@ fn extract_release_section(content: &str, version: &str) -> Option<String> {
     }
 
     let notes = lines.join("\n").trim().to_string();
-    if notes.is_empty() {
-        None
-    } else {
-        Some(notes)
-    }
+    if notes.is_empty() { None } else { Some(notes) }
 }
 
 #[cfg(test)]
@@ -43,7 +39,8 @@ mod tests {
 
     #[test]
     fn extracts_version_section_with_v_prefix() {
-        let changelog = "# Changelog\n\n## v0.8.0 - 2026-02-17\n\n### Features\n- Added X\n\n## v0.7.0\n- Old";
+        let changelog =
+            "# Changelog\n\n## v0.8.0 - 2026-02-17\n\n### Features\n- Added X\n\n## v0.7.0\n- Old";
         let notes = extract_release_section(changelog, "0.8.0").expect("notes");
         assert!(notes.contains("### Features"));
         assert!(notes.contains("Added X"));

@@ -3,9 +3,11 @@ use std::sync::Arc;
 use chrono::{Duration as ChronoDuration, Utc};
 use tokio::sync::Mutex;
 
-use crate::monitor::{provider::Metrics, AlertState};
+use crate::monitor::{AlertState, provider::Metrics};
 
-use super::{alert_snapshot, mute_alerts_for, take_daily_summary_report, unmute_alerts, MuteActionError};
+use super::{
+    MuteActionError, alert_snapshot, mute_alerts_for, take_daily_summary_report, unmute_alerts,
+};
 
 #[tokio::test]
 async fn mute_unmute_contract_is_consistent() {

@@ -3,7 +3,7 @@ use std::{fs, path::Path, path::PathBuf};
 use chrono::Utc;
 use serde_json::json;
 use teloxide::prelude::*;
-use tokio::time::{sleep, Duration};
+use tokio::time::{Duration, sleep};
 
 use crate::app_context::AppContext;
 use crate::release_notes::release_notes_for_version;
@@ -23,11 +23,9 @@ pub(super) fn start_release_notify_job(bot: Bot, app_context: AppContext) {
             return;
         }
 
-        let notes = release_notes_for_version(
-            &app_context.config.release_notifier.changelog_path,
-            version,
-        )
-        .unwrap_or_else(|| "No changelog notes found for this release.".to_string());
+        let notes =
+            release_notes_for_version(&app_context.config.release_notifier.changelog_path, version)
+                .unwrap_or_else(|| "No changelog notes found for this release.".to_string());
 
         let owner_chat_id = match app_context.config.owner_chat_id() {
             Ok(chat_id) => chat_id,

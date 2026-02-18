@@ -148,10 +148,8 @@ pub(crate) async fn handle_services(
             } else {
                 &short
             };
-            let redacted = maybe_redact_sensitive_output(
-                body,
-                config.config.security.redact_sensitive_output,
-            );
+            let redacted =
+                maybe_redact_sensitive_output(body, config.config.security.redact_sensitive_output);
             send_html_or_file(bot, msg.chat.id, "Active Services", &redacted).await?;
         }
         Err(error) => {

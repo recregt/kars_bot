@@ -10,12 +10,30 @@ impl DailySummaryAccumulator {
         self.ram_sum += metrics.ram as f64;
         self.disk_sum += metrics.disk as f64;
 
-        self.cpu_min = Some(self.cpu_min.map_or(metrics.cpu, |value| value.min(metrics.cpu)));
-        self.cpu_max = Some(self.cpu_max.map_or(metrics.cpu, |value| value.max(metrics.cpu)));
-        self.ram_min = Some(self.ram_min.map_or(metrics.ram, |value| value.min(metrics.ram)));
-        self.ram_max = Some(self.ram_max.map_or(metrics.ram, |value| value.max(metrics.ram)));
-        self.disk_min = Some(self.disk_min.map_or(metrics.disk, |value| value.min(metrics.disk)));
-        self.disk_max = Some(self.disk_max.map_or(metrics.disk, |value| value.max(metrics.disk)));
+        self.cpu_min = Some(
+            self.cpu_min
+                .map_or(metrics.cpu, |value| value.min(metrics.cpu)),
+        );
+        self.cpu_max = Some(
+            self.cpu_max
+                .map_or(metrics.cpu, |value| value.max(metrics.cpu)),
+        );
+        self.ram_min = Some(
+            self.ram_min
+                .map_or(metrics.ram, |value| value.min(metrics.ram)),
+        );
+        self.ram_max = Some(
+            self.ram_max
+                .map_or(metrics.ram, |value| value.max(metrics.ram)),
+        );
+        self.disk_min = Some(
+            self.disk_min
+                .map_or(metrics.disk, |value| value.min(metrics.disk)),
+        );
+        self.disk_max = Some(
+            self.disk_max
+                .map_or(metrics.disk, |value| value.max(metrics.disk)),
+        );
     }
 
     pub(super) fn add_alerts(&mut self, count: u64) {

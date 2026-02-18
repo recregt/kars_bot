@@ -26,11 +26,15 @@ pub enum MyCommands {
     #[command(description = "List open ports.")]
     Ports,
 
-    #[command(description = "Smart recent query. Examples: /recent, /recent 5, /recent 6h, /recent cpu>85")]
+    #[command(
+        description = "Smart recent query. Examples: /recent, /recent 5, /recent 6h, /recent cpu>85"
+    )]
     Recent(String),
     #[command(description = "Render metric graph. Usage: /graph cpu|ram|disk [30m|1h|6h|24h]")]
     Graph(String),
-    #[command(description = "Export metric snapshot. Usage: /export cpu|ram|disk [30m|1h|6h|24h] [csv|json]")]
+    #[command(
+        description = "Export metric snapshot. Usage: /export cpu|ram|disk [30m|1h|6h|24h] [csv|json]"
+    )]
     Export(String),
     #[command(description = "Show alert thresholds and current alert states.")]
     Alerts,

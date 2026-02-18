@@ -15,9 +15,9 @@ Do not edit manually. Run scripts/generate_docs_reference.sh.
 | `/uptime` | No | Show system uptime. |
 | `/services` | No | List running services. |
 | `/ports` | No | List open ports. |
-| `/recent` | Yes | Smart recent query. Examples: /recent, /recent 5, /recent 6h, /recent cpu>85 |
+| `/recent` | Yes |  |
 | `/graph` | Yes | Render metric graph. Usage: /graph cpu\|ram\|disk [30m\|1h\|6h\|24h] |
-| `/export` | Yes | Export metric snapshot. Usage: /export cpu\|ram\|disk [30m\|1h\|6h\|24h] [csv\|json] |
+| `/export` | Yes |  |
 | `/alerts` | No | Show alert thresholds and current alert states. |
 | `/mute` | Yes | Mute alerts for a duration, e.g. /mute 30m |
 | `/unmute` | No | Unmute alerts immediately. |

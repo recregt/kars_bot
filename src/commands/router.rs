@@ -10,11 +10,11 @@ use super::features::{
     health::{handle_health, handle_help},
     recent::handle_recent_anomalies,
     status::handle_status_overview,
-    update::handle_update,
     system_info::{
-        handle_cpu, handle_network, handle_ports, handle_services, handle_sys_status,
-        handle_temp, handle_uptime,
+        handle_cpu, handle_network, handle_ports, handle_services, handle_sys_status, handle_temp,
+        handle_uptime,
     },
+    update::handle_update,
 };
 
 pub(super) async fn route_command(
@@ -37,14 +37,12 @@ pub(super) async fn route_command(
         MyCommands::Alerts => handle_alerts(&bot, &msg, app_context).await?,
         MyCommands::Graph(query) => handle_graph(&bot, &msg, app_context, &query).await?,
         MyCommands::Export(query) => handle_export(&bot, &msg, app_context, &query).await?,
-        MyCommands::Recent(query) => handle_recent_anomalies(
-            &bot,
-            &msg,
-            app_context,
-            normalize_recent_query(&query),
-        )
-        .await?,
-        MyCommands::Mute(duration_str) => handle_mute(&bot, &msg, app_context, &duration_str).await?,
+        MyCommands::Recent(query) => {
+            handle_recent_anomalies(&bot, &msg, app_context, normalize_recent_query(&query)).await?
+        }
+        MyCommands::Mute(duration_str) => {
+            handle_mute(&bot, &msg, app_context, &duration_str).await?
+        }
         MyCommands::Unmute => handle_unmute(&bot, &msg, app_context).await?,
         MyCommands::Update(args) => handle_update(&bot, &msg, app_context, &args).await?,
     }

@@ -95,7 +95,11 @@ fn detect_spike(samples: &[MetricSample], metric: GraphMetric, mean: f64, stddev
     false
 }
 
-fn detect_sustained_high_load(samples: &[MetricSample], metric: GraphMetric, threshold: f32) -> bool {
+fn detect_sustained_high_load(
+    samples: &[MetricSample],
+    metric: GraphMetric,
+    threshold: f32,
+) -> bool {
     let mut block_start: Option<DateTime<Utc>> = None;
 
     for sample in samples {

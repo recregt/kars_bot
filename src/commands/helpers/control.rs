@@ -106,8 +106,11 @@ pub(crate) async fn send_html_or_file(
         "{}-output.txt",
         title.to_lowercase().replace([' ', '/'], "-")
     );
-    bot.send_document(chat_id, InputFile::memory(body.as_bytes().to_vec()).file_name(file_name))
-        .await?;
+    bot.send_document(
+        chat_id,
+        InputFile::memory(body.as_bytes().to_vec()).file_name(file_name),
+    )
+    .await?;
 
     Ok(())
 }

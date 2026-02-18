@@ -4,7 +4,7 @@ use crate::anomaly_db::recent_anomalies;
 use crate::app_context::AppContext;
 
 use super::super::helpers::as_html_block;
-use super::recent_query::{apply_recent_query, parse_recent_query, RecentQuery};
+use super::recent_query::{RecentQuery, apply_recent_query, parse_recent_query};
 
 pub(crate) async fn handle_recent_anomalies(
     bot: &Bot,
@@ -87,9 +87,5 @@ pub(crate) async fn handle_recent_anomalies(
 }
 
 fn yes_no(value: bool) -> &'static str {
-    if value {
-        "yes"
-    } else {
-        "no"
-    }
+    if value { "yes" } else { "no" }
 }

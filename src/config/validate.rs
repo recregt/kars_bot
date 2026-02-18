@@ -1,5 +1,5 @@
-use thiserror::Error;
 use teloxide::types::{ChatId, UserId};
+use thiserror::Error;
 
 use super::schema::Config;
 
@@ -128,9 +128,7 @@ impl Config {
                 "reporting_store.retention_days must be greater than 0".to_string(),
             ));
         }
-        if self.release_notifier.enabled
-            && self.release_notifier.changelog_path.trim().is_empty()
-        {
+        if self.release_notifier.enabled && self.release_notifier.changelog_path.trim().is_empty() {
             return Err(ConfigError::Validation(
                 "release_notifier.changelog_path must not be empty when release_notifier.enabled is true"
                     .to_string(),

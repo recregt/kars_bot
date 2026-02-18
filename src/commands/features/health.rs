@@ -28,7 +28,10 @@ pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> 
 
     bot.send_message(
         msg.chat.id,
-        as_html_block("Available commands", &MyCommands::descriptions().to_string()),
+        as_html_block(
+            "Available commands",
+            &MyCommands::descriptions().to_string(),
+        ),
     )
     .reply_markup(quick_actions)
     .parse_mode(ParseMode::Html)

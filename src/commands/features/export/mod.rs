@@ -37,9 +37,12 @@ pub(crate) async fn handle_export(
         graph_runtime.default_window_minutes as i64,
         graph_runtime.max_window_hours as i64,
     ) else {
-        bot.send_message(msg.chat.id, as_html_block("Export Usage", EXPORT_USAGE_TEXT))
-            .parse_mode(ParseMode::Html)
-            .await?;
+        bot.send_message(
+            msg.chat.id,
+            as_html_block("Export Usage", EXPORT_USAGE_TEXT),
+        )
+        .parse_mode(ParseMode::Html)
+        .await?;
         return Ok(());
     };
 
