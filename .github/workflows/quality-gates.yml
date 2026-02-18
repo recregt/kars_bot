@@ -27,6 +27,9 @@ jobs:
       - name: Run tests
         run: cargo test
 
+      - name: Enforce Rustls-only TLS graph
+        run: scripts/check_tls_stack.sh
+
       - name: Validate reliability docs baseline
         run: |
           test -f docs/reference/reliability-slo.md
