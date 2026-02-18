@@ -28,8 +28,8 @@ pub(crate) fn timeout_for(cmd: &MyCommands, command_timeout_secs: u64) -> u64 {
         | MyCommands::Recent(_)
         | MyCommands::Mute(_)
         | MyCommands::Unmute
-        | MyCommands::Help
-        | MyCommands::Update(_) => FAST_TIMEOUT_SECS,
+        | MyCommands::Help => FAST_TIMEOUT_SECS,
+        MyCommands::Update(_) => command_timeout_secs,
         MyCommands::Services | MyCommands::Temp => command_timeout_secs,
     }
 }
