@@ -10,6 +10,7 @@ use super::features::{
     health::{handle_health, handle_help},
     recent::handle_recent_anomalies,
     status::handle_status_overview,
+    update::handle_update,
     system_info::{
         handle_cpu, handle_network, handle_ports, handle_services, handle_sys_status,
         handle_temp, handle_uptime,
@@ -45,6 +46,7 @@ pub(super) async fn route_command(
         .await?,
         MyCommands::Mute(duration_str) => handle_mute(&bot, &msg, app_context, &duration_str).await?,
         MyCommands::Unmute => handle_unmute(&bot, &msg, app_context).await?,
+        MyCommands::Update(args) => handle_update(&bot, &msg, app_context, &args).await?,
     }
 
     Ok(())

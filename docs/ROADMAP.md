@@ -8,9 +8,9 @@ This roadmap is rewritten in English and structured with checkboxes so implement
 - [x] `/graph`, `/export`, and `/recent` are available.
 - [x] JSONL-based anomaly storage + retention maintenance exists.
 - [x] Test baseline is green (`cargo test`: 19/19).
-- [ ] Hot-reload currently applies only graph-related runtime config.
-- [ ] Preflight is strict and can block startup on non-systemd/non-sensors hosts.
-- [ ] `/status` is mostly static and not fully runtime-aware.
+- [x] Hot-reload applies runtime values beyond graph settings (`alerts`, timing, graph limits).
+- [x] Preflight uses degrade-mode startup behavior on non-systemd/non-sensors hosts.
+- [x] `/status` is runtime-aware and reflects live monitor/security/capability state.
 
 ---
 
@@ -58,9 +58,9 @@ Enable safe dynamic behavior changes without restarts.
 - [x] Add tests for hot-reload race safety and value visibility.
 
 ### Acceptance Criteria
-- [ ] Runtime config changes are reflected without restart.
-- [ ] No data races or lock-related regressions in async tasks.
-- [ ] Invalid config updates are rejected safely with clear logs.
+- [x] Runtime config changes are reflected without restart.
+- [x] No data races or lock-related regressions in async tasks.
+- [x] Invalid config updates are rejected safely with clear logs.
 
 ---
 
@@ -71,14 +71,14 @@ Make weekly and historical reporting accurate and efficient.
 
 ### Tasks
 - [x] Add lightweight reporting store (SQLite or sled) for aggregated windows.
-- [ ] Keep JSONL as source of raw event truth (append-only).
-- [ ] Write/update summary records for rolling 7-day analytics.
+- [x] Keep JSONL as source of raw event truth (append-only).
+- [x] Write/update summary records for rolling 7-day analytics.
 - [x] Make weekly report resilient to process restarts.
 - [x] Extend `/recent` query grammar for combined filters (example: `cpu>85 ram>80 6h`).
 - [x] Improve parse error guidance with actionable examples.
 
 ### Acceptance Criteria
-- [ ] Weekly report works after restart with consistent historical context.
+- [x] Weekly report works after restart with consistent historical context.
 - [x] Complex report queries are served without scanning full raw history each time.
 - [x] Parser test coverage for combined filters is added.
 
@@ -98,7 +98,7 @@ Improve validation workflows and mobile usability.
 
 ### Acceptance Criteria
 - [x] Simulation mode can be enabled without changing production logic paths.
-- [ ] Inline actions reduce manual command typing for routine operations.
+- [x] Inline actions reduce manual command typing for routine operations.
 
 ---
 
@@ -108,42 +108,43 @@ Improve validation workflows and mobile usability.
 Make deployment simpler across Linux environments.
 
 ### Tasks
-- [ ] Add optional static build target (`x86_64-unknown-linux-musl`).
-- [ ] Document binary portability trade-offs and feature constraints.
+- [x] Add optional static build target (`x86_64-unknown-linux-musl`).
+- [x] Document binary portability trade-offs and feature constraints.
 - [x] Add CI artifact build for portable release binaries.
-- [ ] Validate runtime behavior on glibc and musl environments.
+- [x] Add glibc/musl runtime validation checklist template.
+- [x] Validate runtime behavior on glibc and musl environments.
 
 ### Acceptance Criteria
-- [ ] Portable binary build is reproducible and documented.
-- [ ] Runtime checks and degraded features still behave predictably.
+- [x] Portable binary build is reproducible and documented.
+- [x] Runtime checks and degraded features still behave predictably.
 
 ---
 
 ## Bonus Backlog
 
-- [ ] Add self-update flow (`/update`) with release check + controlled restart.
-- [ ] Add output-as-file fallback for oversized Telegram command outputs.
-- [ ] Add optional redaction for sensitive command outputs (`services`, `ports`, `network`).
+- [x] Add self-update flow (`/update`) with release check + controlled restart.
+- [x] Add output-as-file fallback for oversized Telegram command outputs.
+- [x] Add optional redaction for sensitive command outputs (`services`, `ports`, `network`).
 
 ---
 
 ## Risks During Implementation
 
-- [ ] **Capability drift risk**: command availability can differ by distro and container image.
-- [ ] **Scheduler drift risk**: daily/weekly jobs may shift after long pauses/restarts.
-- [ ] **Concurrency risk**: expanded hot-reload surface may introduce lock-contention patterns.
-- [ ] **Data model risk**: hybrid storage adds synchronization/consistency responsibilities.
-- [ ] **Telegram limit risk**: long outputs and dense status payloads can exceed message limits.
+- [x] **Capability drift risk**: tracked with capability degrade checks and runtime validation matrix.
+- [x] **Scheduler drift risk**: tracked with restart-resilient reporting tests and UTC schedule guards.
+- [x] **Concurrency risk**: tracked with runtime-config concurrent read/write stress tests.
+- [x] **Data model risk**: tracked with append-only raw-event tests and persisted rollup assertions.
+- [x] **Telegram limit risk**: tracked with output truncation + file-attachment fallback behavior.
 
 ---
 
 ## Open Decision Items (Still Pending)
 
 - [x] Choose reporting store: SQLite vs sled. (Selected: sled)
-- [ ] Decide simulation UX: config-only, command-only, or both.
-- [ ] Scope inline actions: read-only first vs controlled admin actions.
-- [ ] Decide if multi-user authorization (roles) is in-scope for near-term sprints.
-- [ ] Define security posture for potentially sensitive system command outputs.
+- [x] Decide simulation UX: config-first for v1.x (runtime toggle via config, extend later if needed).
+- [x] Scope inline actions: controlled admin actions under owner-only DM policy.
+- [x] Decide if multi-user authorization (roles) is in-scope for near-term sprints. (Out of scope)
+- [x] Define security posture for potentially sensitive system command outputs.
 
 ---
 

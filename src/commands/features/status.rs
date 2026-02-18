@@ -31,7 +31,7 @@ pub(crate) async fn handle_status_overview(
     let capabilities = app_context.capabilities.as_ref();
 
     let body = format!(
-        "Auth Mode: Owner Only (DM)\nStorage: Hierarchical JSONL + Indexed\nMaintenance: {}\nRetention: {} days\nAnomaly dir: {}\n\nRuntime:\n- Monitor interval: {}s\n- Last monitor tick: {}\n- Mute state: {}\n\nReporting Store:\n- enabled: {}\n- path: {}\n- retention: {} days\n\nSimulation:\n- enabled: {}\n- profile: {}\n\nGraph Runtime:\n- enabled: {}\n- default window: {}m\n- max window: {}h\n- max points: {}\n\nCapabilities:\n- is_systemd: {}\n- has_sensors: {}\n- has_free: {}\n- has_top: {}\n- has_ip: {}\n- has_ss: {}\n- has_uptime: {}\n\nQuick Action Safety:\n- Buttons prefill commands only; execution happens after you manually send.\n\nSmart Query Examples:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85",
+        "Auth Mode: Owner Only (DM)\nStorage: Hierarchical JSONL + Indexed\nMaintenance: {}\nRetention: {} days\nAnomaly dir: {}\n\nRuntime:\n- Monitor interval: {}s\n- Last monitor tick: {}\n- Mute state: {}\n\nReporting Store:\n- enabled: {}\n- path: {}\n- retention: {} days\n\nSecurity:\n- redact_sensitive_output: {}\n\nSimulation:\n- enabled: {}\n- profile: {}\n\nGraph Runtime:\n- enabled: {}\n- default window: {}m\n- max window: {}h\n- max points: {}\n\nCapabilities:\n- is_systemd: {}\n- has_sensors: {}\n- has_free: {}\n- has_top: {}\n- has_ip: {}\n- has_ss: {}\n- has_uptime: {}\n\nQuick Action Safety:\n- Buttons prefill commands only; execution happens after you manually send.\n\nSmart Query Examples:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85",
         if app_context.config.anomaly_db.enabled {
             "Active (Hourly)"
         } else {
@@ -45,6 +45,7 @@ pub(crate) async fn handle_status_overview(
         app_context.config.reporting_store.enabled,
         app_context.config.reporting_store.path,
         app_context.config.reporting_store.retention_days,
+        app_context.config.security.redact_sensitive_output,
         app_context.config.simulation.enabled,
         app_context.config.simulation.profile,
         graph_runtime.enabled,

@@ -5,7 +5,10 @@ use crate::system::run_cmd;
 
 use super::super::super::{
     command_def::MyCommands,
-    helpers::{acquire_command_slot, as_html_block, command_body, command_error_html, timeout_for},
+    helpers::{
+        acquire_command_slot, command_body, command_error_html, maybe_redact_sensitive_output,
+        send_html_or_file, timeout_for,
+    },
 };
 use super::common::unsupported_feature_message;
 
@@ -35,21 +38,21 @@ pub(crate) async fn handle_sys_status(
     let ram = run_cmd("free", &["-h"], timeout).await;
     let disk = run_cmd("df", &["-h", "/"], timeout).await;
 
-    let message = match (ram, disk) {
+    match (ram, disk) {
         (Ok(ram_out), Ok(disk_out)) => {
             let body = format!(
                 "RAM:\n{}\n\nDisk:\n{}",
                 command_body(&ram_out),
                 command_body(&disk_out)
             );
-            as_html_block("System Snapshot", &body)
+            send_html_or_file(bot, msg.chat.id, "System Snapshot", &body).await?;
         }
-        (Err(error), _) | (_, Err(error)) => command_error_html(&error),
-    };
-
-    bot.send_message(msg.chat.id, message)
-        .parse_mode(ParseMode::Html)
-        .await?;
+        (Err(error), _) | (_, Err(error)) => {
+            bot.send_message(msg.chat.id, command_error_html(&error))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+    }
 
     Ok(())
 }
@@ -72,20 +75,27 @@ pub(crate) async fn handle_ports(
     let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
         return Ok(());
     };
-    let message = match run_cmd(
+    match run_cmd(
         "ss",
         &["-tuln"],
         timeout_for(cmd, runtime_config.command_timeout_secs),
     )
     .await
     {
-        Ok(output) => as_html_block("Open Ports", &command_body(&output)),
-        Err(error) => command_error_html(&error),
-    };
-
-    bot.send_message(msg.chat.id, message)
-        .parse_mode(ParseMode::Html)
-        .await?;
+        Ok(output) => {
+            let raw_body = command_body(&output);
+            let body = maybe_redact_sensitive_output(
+                &raw_body,
+                config.config.security.redact_sensitive_output,
+            );
+            send_html_or_file(bot, msg.chat.id, "Open Ports", &body).await?;
+        }
+        Err(error) => {
+            bot.send_message(msg.chat.id, command_error_html(&error))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+    }
 
     Ok(())
 }
@@ -124,7 +134,7 @@ pub(crate) async fn handle_services(
     )
     .await;
 
-    let message = match services {
+    match services {
         Ok(output) => {
             let short = output
                 .stdout
@@ -138,14 +148,18 @@ pub(crate) async fn handle_services(
             } else {
                 &short
             };
-            as_html_block("Active Services", body)
+            let redacted = maybe_redact_sensitive_output(
+                body,
+                config.config.security.redact_sensitive_output,
+            );
+            send_html_or_file(bot, msg.chat.id, "Active Services", &redacted).await?;
         }
-        Err(error) => command_error_html(&error),
-    };
-
-    bot.send_message(msg.chat.id, message)
-        .parse_mode(ParseMode::Html)
-        .await?;
+        Err(error) => {
+            bot.send_message(msg.chat.id, command_error_html(&error))
+                .parse_mode(ParseMode::Html)
+                .await?;
+        }
+    }
 
     Ok(())
 }
