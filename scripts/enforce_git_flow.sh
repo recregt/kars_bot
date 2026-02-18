@@ -106,6 +106,50 @@ assert_push_policy() {
   done
 }
 
+cleanup_merged_feature_branch() {
+  local is_squash_merge="${1:-0}"
+
+  if [[ "$(current_branch)" != "develop" ]]; then
+    return 0
+  fi
+
+  if [[ "$is_squash_merge" == "1" ]]; then
+    return 0
+  fi
+
+  local parents_line
+  parents_line="$(git rev-list --parents -n 1 HEAD)"
+  local parent_count
+  parent_count="$(awk '{print NF-1}' <<<"$parents_line")"
+  if (( parent_count < 2 )); then
+    return 0
+  fi
+
+  local merged_head
+  merged_head="$(git rev-parse HEAD^2)"
+
+  local feature_branches=()
+  while IFS= read -r feature_branch; do
+    [[ -z "$feature_branch" ]] && continue
+    if [[ "$(git rev-parse "refs/heads/$feature_branch")" == "$merged_head" ]]; then
+      feature_branches+=("$feature_branch")
+    fi
+  done < <(git for-each-ref --format='%(refname:short)' refs/heads/feature)
+
+  if (( ${#feature_branches[@]} == 0 )); then
+    return 0
+  fi
+
+  for feature_branch in "${feature_branches[@]}"; do
+    if git branch -d "$feature_branch" >/dev/null 2>&1; then
+      echo "[git-flow] Cleaned up merged local branch '$feature_branch'."
+    else
+      echo "[git-flow] Note: could not auto-delete '$feature_branch' with -d."
+      echo "Run manually if needed: git branch -d $feature_branch"
+    fi
+  done
+}
+
 case "$mode" in
   commit)
     assert_commit_policy
@@ -113,8 +157,11 @@ case "$mode" in
   push)
     assert_push_policy
     ;;
+  post-merge)
+    cleanup_merged_feature_branch "${2:-0}"
+    ;;
   *)
-    echo "Usage: scripts/enforce_git_flow.sh [commit|push]"
+    echo "Usage: scripts/enforce_git_flow.sh [commit|push|post-merge]"
     exit 1
     ;;
 esac
