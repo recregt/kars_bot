@@ -8,9 +8,9 @@ This roadmap is rewritten in English and structured with checkboxes so implement
 - [x] `/graph`, `/export`, and `/recent` are available.
 - [x] JSONL-based anomaly storage + retention maintenance exists.
 - [x] Test baseline is green (`cargo test`: 19/19).
-- [ ] Hot-reload currently applies only graph-related runtime config.
-- [ ] Preflight is strict and can block startup on non-systemd/non-sensors hosts.
-- [ ] `/status` is mostly static and not fully runtime-aware.
+- [x] Hot-reload applies runtime values beyond graph settings (`alerts`, timing, graph limits).
+- [x] Preflight uses degrade-mode startup behavior on non-systemd/non-sensors hosts.
+- [x] `/status` is runtime-aware and reflects live monitor/security/capability state.
 
 ---
 
@@ -59,7 +59,7 @@ Enable safe dynamic behavior changes without restarts.
 
 ### Acceptance Criteria
 - [x] Runtime config changes are reflected without restart.
-- [ ] No data races or lock-related regressions in async tasks.
+- [x] No data races or lock-related regressions in async tasks.
 - [x] Invalid config updates are rejected safely with clear logs.
 
 ---
@@ -130,20 +130,20 @@ Make deployment simpler across Linux environments.
 
 ## Risks During Implementation
 
-- [ ] **Capability drift risk**: command availability can differ by distro and container image.
-- [ ] **Scheduler drift risk**: daily/weekly jobs may shift after long pauses/restarts.
-- [ ] **Concurrency risk**: expanded hot-reload surface may introduce lock-contention patterns.
-- [ ] **Data model risk**: hybrid storage adds synchronization/consistency responsibilities.
-- [ ] **Telegram limit risk**: long outputs and dense status payloads can exceed message limits.
+- [x] **Capability drift risk**: tracked with capability degrade checks and runtime validation matrix.
+- [x] **Scheduler drift risk**: tracked with restart-resilient reporting tests and UTC schedule guards.
+- [x] **Concurrency risk**: tracked with runtime-config concurrent read/write stress tests.
+- [x] **Data model risk**: tracked with append-only raw-event tests and persisted rollup assertions.
+- [x] **Telegram limit risk**: tracked with output truncation + file-attachment fallback behavior.
 
 ---
 
 ## Open Decision Items (Still Pending)
 
 - [x] Choose reporting store: SQLite vs sled. (Selected: sled)
-- [ ] Decide simulation UX: config-only, command-only, or both.
-- [ ] Scope inline actions: read-only first vs controlled admin actions.
-- [ ] Decide if multi-user authorization (roles) is in-scope for near-term sprints.
+- [x] Decide simulation UX: config-first for v1.x (runtime toggle via config, extend later if needed).
+- [x] Scope inline actions: controlled admin actions under owner-only DM policy.
+- [x] Decide if multi-user authorization (roles) is in-scope for near-term sprints. (Out of scope)
 - [x] Define security posture for potentially sensitive system command outputs.
 
 ---

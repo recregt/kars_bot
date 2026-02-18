@@ -142,4 +142,44 @@ mod tests {
             .expect("notify wait should complete")
             .expect("join should succeed");
     }
+
+    #[tokio::test]
+    async fn runtime_config_concurrent_reads_and_updates_remain_consistent() {
+        let app = AppContext::new(test_config(), 2, "config.toml", Capabilities::detect());
+
+        let writer_app = app.clone();
+        let writer = tokio::spawn(async move {
+            for offset in 0..100u64 {
+                writer_app
+                    .update_runtime_config(RuntimeConfig {
+                        alerts: writer_app.config.alerts.clone(),
+                        monitor_interval: 10 + offset,
+                        command_timeout_secs: 30 + offset,
+                        graph: writer_app.config.graph.clone(),
+                    })
+                    .await;
+            }
+        });
+
+        let mut readers = Vec::new();
+        for _ in 0..8 {
+            let reader_app = app.clone();
+            readers.push(tokio::spawn(async move {
+                for _ in 0..200 {
+                    let snapshot = reader_app.runtime_config.read().await.clone();
+                    assert!(snapshot.monitor_interval >= 10);
+                    assert!(snapshot.command_timeout_secs >= 30);
+                }
+            }));
+        }
+
+        writer.await.expect("writer should complete");
+        for reader in readers {
+            reader.await.expect("reader should complete");
+        }
+
+        let final_snapshot = app.runtime_config.read().await.clone();
+        assert!(final_snapshot.monitor_interval >= 10);
+        assert!(final_snapshot.command_timeout_secs >= 30);
+    }
 }
