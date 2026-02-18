@@ -5,6 +5,13 @@ if [[ ! -f Cargo.toml ]]; then
   exit 0
 fi
 
+if [[ -x scripts/enforce_git_flow.sh ]]; then
+  scripts/enforce_git_flow.sh commit
+else
+  echo "[pre-commit] Blocked: scripts/enforce_git_flow.sh is missing or not executable."
+  exit 1
+fi
+
 if git diff --cached -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
   if [[ "${ALLOW_VERSION_BUMP:-}" != "1" ]]; then
     echo "[pre-commit] Blocked: Cargo.toml version change detected."
