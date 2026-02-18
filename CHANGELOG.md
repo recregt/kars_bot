@@ -2,6 +2,46 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.3.0 - 2026-02-18
+
+
+
+### Features
+
+- Harden update orchestration and signal handling
+
+
+### ci
+
+- Fix quality gate fmt scope and auto-sync branches
+
+
+### merge
+
+- Release metadata v1.2.0
+
+- Promote develop to main for v1.2.0
+
+- Phase3 update orchestration and signal handling
+
+- Phase3 validator and update-signal hardening
+
+- Ci quality and branch sync automation
+
+- Promote ci gate fixes
+
+
+
+## v1.1.1 - 2026-02-18
+
+
+
+
+## v1.0.1 - 2026-02-18
+
+
+
+
 ## v1.2.0 - 2026-02-18
 
 
