@@ -2,6 +2,29 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.2.0 - 2026-02-18
+
+
+
+### Features
+
+- Add phase0 baselines and quality gates
+
+- Phase1 rustls-only tls and dns probe
+
+- Phase2 deterministic render and error integrity
+
+
+### merge
+
+- Phase0 reliability baselines and gates
+
+- Phase1 rustls-only transition
+
+- Phase2 graph determinism and error integrity
+
+
+
 ## v1.1.1 - 2026-02-18
 
 

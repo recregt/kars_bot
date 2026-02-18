@@ -1,6 +1,6 @@
 # Runtime Validation Checklist (glibc + musl)
 
-This checklist is used before promoting `develop` to `main` for `v1.1.x` and later.
+This checklist is used before promoting `develop` to `main` for `v1.2.x` and later.
 
 ## Scope
 
@@ -16,6 +16,12 @@ This checklist is used before promoting `develop` to `main` for `v1.1.x` and lat
 | A2 | Alpine/minimal (musl) | `target/x86_64-unknown-linux-musl/release/kars_bot` | Graceful degrade for unavailable host tools |
 
 ## Build Checks
+
+### TLS dependency policy
+
+```bash
+scripts/check_tls_stack.sh
+```
 
 ### glibc build
 
@@ -53,6 +59,8 @@ Run and verify:
 
 - Verify pre-commit blocks disallowed `Cargo.toml` version bumps outside release flow.
 - Verify pre-push blocks branch pushes that include version bump without matching release tag.
+- Verify quality gates pass: fmt, clippy, tests.
+- Verify reliability SLO document exists and is updated (`docs/reference/reliability-slo.md`).
 
 ## Evidence Template
 

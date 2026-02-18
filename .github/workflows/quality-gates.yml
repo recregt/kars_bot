@@ -1,0 +1,36 @@
+name: Quality Gates
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - main
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust fmt check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy strict
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Run tests
+        run: cargo test
+
+      - name: Enforce Rustls-only TLS graph
+        run: scripts/check_tls_stack.sh
+
+      - name: Validate reliability docs baseline
+        run: |
+          test -f docs/reference/reliability-slo.md
+          test -f docs/releases/runtime-validation-checklist.md

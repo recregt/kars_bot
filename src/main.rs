@@ -5,17 +5,18 @@ mod commands;
 mod config;
 mod jobs;
 mod monitor;
-mod reporting_store;
 mod release_notes;
+mod reporting_store;
 mod system;
 
 use teloxide::prelude::*;
+use tokio::net::lookup_host;
 use tracing_subscriber::EnvFilter;
 
 use crate::app_context::AppContext;
 use crate::capabilities::Capabilities;
-use crate::commands::{answer, MyCommands};
-use crate::config::{load_config, Config};
+use crate::commands::{MyCommands, answer, check_graph_render_readiness};
+use crate::config::{Config, load_config};
 use crate::jobs::start_background_jobs;
 
 fn init_json_logging() {
@@ -73,6 +74,24 @@ fn log_capability_warnings(capabilities: &Capabilities) {
     }
 }
 
+async fn log_dns_probe() {
+    match lookup_host(("api.telegram.org", 443)).await {
+        Ok(mut addresses) => {
+            if let Some(address) = addresses.next() {
+                log::info!("dns_probe_ok host=api.telegram.org address={}", address);
+            } else {
+                log::warn!("dns_probe_degraded host=api.telegram.org reason=no_records");
+            }
+        }
+        Err(error) => {
+            log::warn!(
+                "dns_probe_degraded host=api.telegram.org reason=lookup_failed error={}",
+                error
+            );
+        }
+    }
+}
+
 // Main
 #[tokio::main]
 async fn main() {
@@ -94,18 +113,36 @@ async fn main() {
     log::info!("Kars Server Bot is starting...");
     let capabilities = Capabilities::detect();
     log_capability_warnings(&capabilities);
+    log_dns_probe().await;
 
     let bot = Bot::new(&config.bot_token);
 
     let app_context = AppContext::new(config.clone(), 2, CONFIG_PATH, capabilities);
 
+    if app_context.graph_runtime.read().await.enabled
+        && let Err(error) = check_graph_render_readiness()
+    {
+        log::warn!(
+            "graph_startup_degraded action=disable_graph_feature reason={}",
+            error
+        );
+
+        {
+            let mut graph_runtime = app_context.graph_runtime.write().await;
+            graph_runtime.enabled = false;
+        }
+
+        {
+            let mut runtime_config = app_context.runtime_config.write().await;
+            runtime_config.graph.enabled = false;
+        }
+    }
+
     start_background_jobs(bot.clone(), app_context.clone());
 
     MyCommands::repl(bot, move |bot, msg, cmd| {
         let app_context = app_context.clone();
-        async move {
-            answer(bot, msg, cmd, &app_context).await
-        }
+        async move { answer(bot, msg, cmd, &app_context).await }
     })
     .await;
 }
