@@ -1,0 +1,21 @@
+name: Docs Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  docs-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate references
+        run: scripts/generate_docs_reference.sh
+
+      - name: Validate docs
+        run: scripts/validate_docs.sh

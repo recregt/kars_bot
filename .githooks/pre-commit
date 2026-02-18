@@ -60,3 +60,22 @@ if (( ${#violations[@]} > 0 )); then
   printf ' - %s\n' "${violations[@]}"
   exit 1
 fi
+
+docs_related_changed=0
+while IFS= read -r changed_file; do
+  case "$changed_file" in
+    README.md|docs/*|docs/**/*|src/commands/command_def.rs|src/config/schema.rs|scripts/generate_docs_reference.sh|scripts/validate_docs.sh)
+      docs_related_changed=1
+      break
+      ;;
+  esac
+done < <(git diff --cached --name-only)
+
+if [[ "$docs_related_changed" -eq 1 ]]; then
+  if [[ -x scripts/validate_docs.sh ]]; then
+    scripts/validate_docs.sh
+  else
+    echo "[pre-commit] Blocked: scripts/validate_docs.sh is missing or not executable."
+    exit 1
+  fi
+fi

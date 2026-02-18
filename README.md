@@ -235,3 +235,10 @@ RUST_LOG=info ./target/release/kars_bot | jq 'select(.target == "monitor" and .f
 ## Roadmap
 
 Detailed roadmap: [docs/ROADMAP.md](docs/ROADMAP.md)
+
+## Documentation
+
+- Documentation index: [docs/README.md](docs/README.md)
+- Runbooks: [docs/runbooks/release.md](docs/runbooks/release.md)
+- Architecture: [docs/architecture/overview.md](docs/architecture/overview.md)
+- Generated references: [docs/reference/commands.md](docs/reference/commands.md), [docs/reference/config.md](docs/reference/config.md)

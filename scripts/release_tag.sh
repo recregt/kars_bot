@@ -53,6 +53,11 @@ fi
 echo "Running test gate before release..."
 cargo test -q
 
+if [[ -x scripts/validate_docs.sh ]]; then
+  echo "Running docs validation gate..."
+  scripts/validate_docs.sh
+fi
+
 echo "Building release binary for size snapshot..."
 cargo build --release -q
 
