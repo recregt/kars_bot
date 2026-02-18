@@ -18,6 +18,13 @@ A Telegram server monitoring bot built with Rust + Teloxide.
 - Runtime behavior notes: [docs/runtime.md](docs/runtime.md)
 - Project structure and modularity policy: [docs/project-structure.md](docs/project-structure.md)
 
+## Local Automation
+
+- Install hook manager: `scripts/install_hooks.sh`
+- List task commands: `just --list`
+- Full local quality gate: `just quality`
+- Release prep (official flow): `just release vX.Y.Z`
+
 ## Documentation
 
 - Documentation index: [docs/README.md](docs/README.md)

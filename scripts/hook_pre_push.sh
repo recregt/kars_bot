@@ -37,7 +37,6 @@ has_release_tag_for_version() {
 for line in "${push_lines[@]}"; do
   local_ref=$(awk '{print $1}' <<<"$line")
   local_sha=$(awk '{print $2}' <<<"$line")
-  remote_ref=$(awk '{print $3}' <<<"$line")
   remote_sha=$(awk '{print $4}' <<<"$line")
 
   if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then

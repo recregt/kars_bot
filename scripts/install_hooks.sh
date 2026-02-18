@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-git config core.hooksPath .githooks
-chmod +x .githooks/*
-echo "Git hooks path set to .githooks"
-echo "Installed hooks:"
-ls -1 .githooks
+if ! command -v lefthook >/dev/null 2>&1; then
+	echo "lefthook is required."
+	echo "Install one of:"
+	echo "  brew install lefthook"
+	echo "  npm i -g @evilmartians/lefthook"
+	exit 1
+fi
+
+chmod +x scripts/hook_pre_commit.sh scripts/hook_pre_push.sh scripts/hook_post_merge.sh
+lefthook install
+echo "Lefthook installed successfully."

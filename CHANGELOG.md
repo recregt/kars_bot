@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.3.1 - 2026-02-18
+
+
+
+### Bug Fixes
+
+- Allow existing remote release tag in pre-push guard
+
+
+### Maintenance
+
+- Consolidate automation with just, lefthook, and reusable workflows
+
+
+### merge
+
+- Release v1.3.0 from feature branch
+
+- Pre-push release tag guard fix
+
+- Promote v1.3.0 and hook fixes from develop
+
+
+
 ## v1.3.0 - 2026-02-18
 
 

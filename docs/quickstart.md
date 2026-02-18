@@ -3,8 +3,21 @@
 ## Build and Run Locally
 
 ```bash
-cargo build --release
+just build-release
 ./target/release/kars_bot
+```
+
+## Install Development Hooks
+
+```bash
+scripts/install_hooks.sh
+```
+
+## Developer Command Hub
+
+```bash
+just --list
+just quality
 ```
 
 ## Minimal Configuration

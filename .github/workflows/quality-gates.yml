@@ -9,57 +9,6 @@ on:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Collect changed Rust files
-        id: changed_rs
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base_ref="origin/${{ github.base_ref }}"
-            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-            range="$base_ref...${{ github.sha }}"
-          else
-            before="${{ github.event.before }}"
-            if [[ -z "$before" || "$before" == "0000000000000000000000000000000000000000" ]]; then
-              range="${{ github.sha }}~1...${{ github.sha }}"
-            else
-              range="$before...${{ github.sha }}"
-            fi
-          fi
-
-          changed_files=$(git diff --name-only "$range" -- '*.rs' | tr '\n' ' ')
-          echo "files=$changed_files" >> "$GITHUB_OUTPUT"
-
-      - name: Rust fmt check (changed files)
-        if: steps.changed_rs.outputs.files != ''
-        shell: bash
-        run: |
-          set -euo pipefail
-          cargo fmt --all -- --check ${{ steps.changed_rs.outputs.files }}
-
-      - name: Rust fmt check (no-op)
-        if: steps.changed_rs.outputs.files == ''
-        run: echo "No Rust file changes detected; skipping rustfmt check."
-
-      - name: Clippy strict
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-      - name: Run tests
-        run: cargo test
-
-      - name: Enforce Rustls-only TLS graph
-        run: scripts/check_tls_stack.sh
-
-      - name: Validate reliability docs baseline
-        run: |
-          test -f docs/reference/reliability-slo.md
-          test -f docs/releases/runtime-validation-checklist.md
+    uses: ./.github/workflows/reusable-rust-quality.yml
+    with:
+      validate_docs: true
