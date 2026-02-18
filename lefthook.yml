@@ -1,0 +1,14 @@
+pre-commit:
+  commands:
+    guard:
+      run: scripts/hook_pre_commit.sh
+
+pre-push:
+  commands:
+    guard:
+      run: scripts/hook_pre_push.sh
+
+post-merge:
+  commands:
+    cleanup:
+      run: scripts/hook_post_merge.sh

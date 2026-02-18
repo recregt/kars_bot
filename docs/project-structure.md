@@ -11,4 +11,4 @@
 
 - Any Rust source file crossing `200` lines must be split into a folder module (`feature/mod.rs` + focused submodules).
 - Any file containing 3 distinct responsibilities (for example: data collection, processing, exporting) must be split similarly.
-- The pre-commit hook blocks commits that stage `.rs` files above `200` lines.
+- Lefthook pre-commit checks block commits that stage `.rs` files above `200` lines.
