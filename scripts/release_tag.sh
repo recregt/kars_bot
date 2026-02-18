@@ -46,8 +46,12 @@ if [[ -n "$(git status --porcelain)" ]]; then
 fi
 
 if git rev-parse "$tag" >/dev/null 2>&1; then
-  echo "Tag already exists: $tag"
-  exit 1
+  if [[ "$dry_run" -eq 1 ]]; then
+    echo "[dry-run] Tag already exists: $tag (continuing preflight validation)"
+  else
+    echo "Tag already exists: $tag"
+    exit 1
+  fi
 fi
 
 if [[ "${RELEASE_SKIP_CI:-0}" != "1" ]]; then
