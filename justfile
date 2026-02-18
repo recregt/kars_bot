@@ -6,6 +6,16 @@ default:
 install-hooks:
   scripts/install_hooks.sh
 
+bootstrap:
+  scripts/install_hooks.sh
+  just doctor
+
+doctor:
+  scripts/doctor.sh
+
+doctor-release:
+  scripts/doctor.sh --release
+
 fmt:
   cargo fmt --all
 
@@ -25,6 +35,7 @@ quality:
   scripts/check_tls_stack.sh
 
 ci:
+  just doctor
   scripts/ci_local.sh
 
 docs:
@@ -54,3 +65,8 @@ release-dry tag:
 release-preflight candidate:
   just ci
   scripts/validate_release_flow.sh {{candidate}}
+
+release-safe tag:
+  just doctor-release
+  just release-preflight {{tag}}-pre
+  just release {{tag}}

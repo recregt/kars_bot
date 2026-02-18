@@ -15,10 +15,14 @@ scripts/install_hooks.sh
 Common local operations via `just`:
 
 ```bash
+just bootstrap
 just --list
 just ci
+just doctor
+just doctor-release
 just docs
 just release-preflight v1.3.2-pre
+just release-safe v1.3.2
 ```
 
 Create a release tag with version sync:
@@ -35,6 +39,7 @@ scripts/release_tag.sh --dry-run v0.8.0
 
 Notes:
 - The script runs `just ci` parity checks before any release mutation.
+- Use `just doctor` first if local environment drift is suspected.
 - The script generates an English `CHANGELOG.md` section via `git-cliff`.
 - The script logs binary size to `docs/releases/binary-size.csv`.
 - The script bumps `Cargo.toml` only when needed.

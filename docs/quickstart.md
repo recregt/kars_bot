@@ -16,9 +16,13 @@ scripts/install_hooks.sh
 ## Developer Command Hub
 
 ```bash
+just bootstrap
 just --list
 just ci
+just doctor
+just doctor-release
 just release-preflight v1.3.2-pre
+just release-safe v1.3.2
 ```
 
 ## Minimal Configuration
