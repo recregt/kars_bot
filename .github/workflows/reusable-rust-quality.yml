@@ -59,7 +59,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo fmt --all -- --check ${{ steps.changed_rs.outputs.files }}
+          rustfmt --check ${{ steps.changed_rs.outputs.files }}
 
       - name: Rust fmt check (no-op)
         if: steps.changed_rs.outputs.files == ''
