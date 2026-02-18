@@ -88,7 +88,7 @@ mod tests {
         capabilities::Capabilities,
         config::{
             Alerts, AnomalyDb, Config, DailySummary, Graph, ReportingStoreConfig, RuntimeConfig,
-            ReleaseNotifierConfig, Simulation, WeeklyReport,
+            ReleaseNotifierConfig, Security, Simulation, WeeklyReport,
         },
     };
 
@@ -117,6 +117,7 @@ mod tests {
                 ..ReportingStoreConfig::default()
             },
             release_notifier: ReleaseNotifierConfig::default(),
+            security: Security::default(),
         }
     }
 

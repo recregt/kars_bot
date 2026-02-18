@@ -124,7 +124,7 @@ Make deployment simpler across Linux environments.
 
 - [ ] Add self-update flow (`/update`) with release check + controlled restart.
 - [x] Add output-as-file fallback for oversized Telegram command outputs.
-- [ ] Add optional redaction for sensitive command outputs (`services`, `ports`, `network`).
+- [x] Add optional redaction for sensitive command outputs (`services`, `ports`, `network`).
 
 ---
 
@@ -144,7 +144,7 @@ Make deployment simpler across Linux environments.
 - [ ] Decide simulation UX: config-only, command-only, or both.
 - [ ] Scope inline actions: read-only first vs controlled admin actions.
 - [ ] Decide if multi-user authorization (roles) is in-scope for near-term sprints.
-- [ ] Define security posture for potentially sensitive system command outputs.
+- [x] Define security posture for potentially sensitive system command outputs.
 
 ---
 

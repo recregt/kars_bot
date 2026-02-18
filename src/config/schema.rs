@@ -26,6 +26,8 @@ pub struct Config {
     pub reporting_store: ReportingStoreConfig,
     #[serde(default)]
     pub release_notifier: ReleaseNotifierConfig,
+    #[serde(default)]
+    pub security: Security,
 }
 
 #[derive(Debug, Clone)]
@@ -133,4 +135,28 @@ pub struct ReleaseNotifierConfig {
     pub changelog_path: String,
     #[serde(default = "default_release_notifier_state_path")]
     pub state_path: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Security {
+    #[serde(default = "default_redact_sensitive_output")]
+    pub redact_sensitive_output: bool,
+}
+
+impl Default for ReleaseNotifierConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            changelog_path: default_release_notifier_changelog_path(),
+            state_path: default_release_notifier_state_path(),
+        }
+    }
+}
+
+impl Default for Security {
+    fn default() -> Self {
+        Self {
+            redact_sensitive_output: default_redact_sensitive_output(),
+        }
+    }
 }

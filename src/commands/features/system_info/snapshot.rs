@@ -6,7 +6,8 @@ use crate::system::run_cmd;
 use super::super::super::{
     command_def::MyCommands,
     helpers::{
-        acquire_command_slot, command_body, command_error_html, send_html_or_file, timeout_for,
+        acquire_command_slot, command_body, command_error_html, maybe_redact_sensitive_output,
+        send_html_or_file, timeout_for,
     },
 };
 use super::common::unsupported_feature_message;
@@ -82,7 +83,11 @@ pub(crate) async fn handle_ports(
     .await
     {
         Ok(output) => {
-            let body = command_body(&output);
+            let raw_body = command_body(&output);
+            let body = maybe_redact_sensitive_output(
+                &raw_body,
+                config.config.security.redact_sensitive_output,
+            );
             send_html_or_file(bot, msg.chat.id, "Open Ports", &body).await?;
         }
         Err(error) => {
@@ -143,7 +148,11 @@ pub(crate) async fn handle_services(
             } else {
                 &short
             };
-            send_html_or_file(bot, msg.chat.id, "Active Services", body).await?;
+            let redacted = maybe_redact_sensitive_output(
+                body,
+                config.config.security.redact_sensitive_output,
+            );
+            send_html_or_file(bot, msg.chat.id, "Active Services", &redacted).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
