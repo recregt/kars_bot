@@ -3,6 +3,8 @@
 Target profile: 99.9% production reliability on GCP/VPS with a MUSL-target static binary.
 Stack context: Teloxide, Tokio, Sled, Plotters, Sysinfo, Linux systemd service runtime.
 
+v1.2.0 implementation status: Phase 0, Phase 1, and Phase 2 are completed.
+
 ---
 
 ## Stage 1 — Precise Technical Translation (Scope-Preserved)
@@ -238,65 +240,65 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 ## Phase 0 — Baseline, Invariants, and Reliability Gates (P0)
 
 ### Deliverables
-- [ ] Runtime baseline report for build, startup, graph render, update flow.
-- [ ] Reliability SLO map (99.9 target translated into measurable SLIs).
-- [ ] Reliability gates integrated into CI and pre-release checklist.
+- [x] Runtime baseline report for build, startup, graph render, update flow.
+- [x] Reliability SLO map (99.9 target translated into measurable SLIs).
+- [x] Reliability gates integrated into CI and pre-release checklist.
 
 ### Tasks
-- [ ] Define SLIs: bot availability, command success rate, graph success rate, update success rate.
-- [ ] Define error budget policy and release freeze criteria.
-- [ ] Add deterministic build metadata and artifact manifest.
+- [x] Define SLIs: bot availability, command success rate, graph success rate, update success rate.
+- [x] Define error budget policy and release freeze criteria.
+- [x] Add deterministic build metadata and artifact manifest.
 
 ### Potential Failure Mode
-- [ ] Baseline metrics are incomplete and cannot prove reliability gains.
+- [x] Baseline metrics are incomplete and cannot prove reliability gains.
 
 ### Mitigation Strategy
-- [ ] Reject release candidates that lack full SLI bundle and reproducibility metadata.
+- [x] Reject release candidates that lack full SLI bundle and reproducibility metadata.
 
 ---
 
 ## Phase 1 — TLS, MUSL, and Dependency Hardening (P0)
 
 ### Deliverables
-- [ ] Rustls-only transport path.
-- [ ] No unintended OpenSSL/native-tls in transitive graph.
-- [ ] Stable MUSL static artifact validation path.
+- [x] Rustls-only transport path.
+- [x] No unintended OpenSSL/native-tls in transitive graph.
+- [x] Stable MUSL static artifact validation path.
 
 ### Tasks
-- [ ] Remove direct OpenSSL dependency and verify lockfile impact.
-- [ ] Add dependency policy checks in CI.
-- [ ] Validate artifact properties:
-  - [ ] Static-PIE expectation and symbol stripping validation.
-  - [ ] Reproducible release profile settings review.
-- [ ] Validate DNS behavior under MUSL with production-like resolver settings.
+- [x] Remove direct OpenSSL dependency and verify lockfile impact.
+- [x] Add dependency policy checks in CI.
+- [x] Validate artifact properties:
+  - [x] Static-PIE expectation and symbol stripping validation.
+  - [x] Reproducible release profile settings review.
+- [x] Validate DNS behavior under MUSL with production-like resolver settings.
 
 ### Potential Failure Mode
-- [ ] TLS handshake regressions appear after dependency cleanup.
+- [x] TLS handshake regressions appear after dependency cleanup.
 
 ### Mitigation Strategy
-- [ ] Add canary rollout with handshake/error-rate telemetry and immediate rollback trigger.
+- [x] Add canary rollout with handshake/error-rate telemetry and immediate rollback trigger.
 
 ---
 
 ## Phase 2 — Graph Runtime Determinism and Error Integrity (P0)
 
 ### Deliverables
-- [ ] Deterministic font lifecycle.
-- [ ] Typed render error taxonomy with end-to-end propagation.
-- [ ] Queue/slot pressure visibility and overload protection.
+- [x] Deterministic font lifecycle.
+- [x] Typed render error taxonomy with end-to-end propagation.
+- [x] Queue/slot pressure visibility and overload protection.
 
 ### Tasks
-- [ ] Implement font readiness preflight and fallback policy.
-- [ ] Introduce GraphRenderError and stable error codes.
-- [ ] Bound render execution with timeout and queue depth metrics.
-- [ ] Ensure lock scope minimization for metric history snapshot operations.
-- [ ] Add test matrix for font missing, backend failure, timeout, join failure, panic boundary behavior.
+- [x] Implement font readiness preflight and fallback policy.
+- [x] Introduce GraphRenderError and stable error codes.
+- [x] Bound render execution with timeout and queue depth metrics.
+- [x] Ensure lock scope minimization for metric history snapshot operations.
+- [x] Add test matrix for font missing, backend failure, timeout, join failure, panic boundary behavior.
 
 ### Potential Failure Mode
-- [ ] High-load periods exhaust render slots and trigger command timeout cascades.
+- [x] High-load periods exhaust render slots and trigger command timeout cascades.
 
 ### Mitigation Strategy
-- [ ] Apply adaptive backpressure (temporary graph cooldown, queue cap, degrade messaging).
+- [x] Apply adaptive backpressure (temporary graph cooldown, queue cap, degrade messaging).
 
 ---
 
