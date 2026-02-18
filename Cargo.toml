@@ -21,7 +21,7 @@ tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "chrono"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
-notify = "6"
+notify = "8"
 sled = "0.34"
 
 [dev-dependencies]
