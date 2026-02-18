@@ -46,9 +46,11 @@ jobs:
           ' CHANGELOG.md > release-notes.md
 
           if [[ ! -s release-notes.md ]]; then
-            echo "Release $tag" > release-notes.md
-            echo >> release-notes.md
-            echo "No explicit changelog section body was found for $tag." >> release-notes.md
+            {
+              echo "Release $tag"
+              echo
+              echo "No explicit changelog section body was found for $tag."
+            } > release-notes.md
           fi
 
       - name: Detect release mode (build vs reuse)
@@ -60,12 +62,18 @@ jobs:
           current_tag="${{ inputs.tag }}"
           git fetch --tags --force
 
+          write_output() {
+            {
+              echo "mode=$1"
+              echo "previous_tag=$2"
+              echo "reason=$3"
+            } >> "$GITHUB_OUTPUT"
+          }
+
           previous_tag="$(git tag --list 'v*' --sort=-v:refname | grep -Fvx "$current_tag" | head -n 1 || true)"
 
           if [[ -z "$previous_tag" ]]; then
-            echo "mode=build" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=" >> "$GITHUB_OUTPUT"
-            echo "reason=no_previous_tag" >> "$GITHUB_OUTPUT"
+            write_output "build" "" "no_previous_tag"
             echo "No previous tag found; build required."
             exit 0
           fi
@@ -110,22 +118,16 @@ jobs:
           version_line_changes="$(git diff -U0 "$previous_tag..$current_tag" -- Cargo.toml | grep -E '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"' || true)"
 
           if [[ "$version_embed_used" == "true" ]]; then
-            echo "mode=build" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
-            echo "reason=compile_time_version_detected" >> "$GITHUB_OUTPUT"
+            write_output "build" "$previous_tag" "compile_time_version_detected"
             echo "Compile-time version usage detected in source; fresh build required."
             exit 0
           fi
 
           if [[ "$release_fp_previous" == "$release_fp_current" ]] && [[ -z "$cargo_non_version_changes" ]] && [[ -n "$version_line_changes" ]]; then
-            echo "mode=reuse" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
-            echo "reason=only_version_bump" >> "$GITHUB_OUTPUT"
+            write_output "reuse" "$previous_tag" "only_version_bump"
             echo "Release inputs fingerprint unchanged and Cargo.toml has only version-line changes; reuse enabled."
           else
-            echo "mode=build" >> "$GITHUB_OUTPUT"
-            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
-            echo "reason=release_input_changed" >> "$GITHUB_OUTPUT"
+            write_output "build" "$previous_tag" "release_input_changed"
             echo "Release inputs changed or Cargo.toml has non-version changes; fresh build required."
           fi
 
