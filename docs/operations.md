@@ -63,6 +63,9 @@ AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
 - Staged migration (non-breaking):
   - Stage 1: `release-plz` preview is available via `Release Plz Preview` workflow and `just release-plz-preview`.
   - Stage 2: `cargo-dist` preview is available via `Cargo Dist Preview` workflow and `just dist-preview`.
+  - Preview workflows download official Linux binaries directly from upstream releases (no source compile in CI preview jobs).
+  - `release-plz` preview uses latest release tag as local baseline manifest for unpublished-crate compatibility.
+  - Local `just release-plz-preview` runs in a temporary worktree and does not mutate your active working tree.
   - Existing tag-based release workflow remains the production path until migration cutover is explicitly done.
 
 Prerequisite:
