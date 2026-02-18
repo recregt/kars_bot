@@ -51,23 +51,76 @@ jobs:
             echo "No explicit changelog section body was found for $tag." >> release-notes.md
           fi
 
+      - name: Detect whether release build is required
+        id: release_mode
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_tag="${{ inputs.tag }}"
+          git fetch --tags --force
+
+          previous_tag="$(git tag --list 'v*' --sort=-v:refname | grep -Fvx "$current_tag" | head -n 1 || true)"
+
+          if [[ -z "$previous_tag" ]]; then
+            echo "mode=build" >> "$GITHUB_OUTPUT"
+            echo "previous_tag=" >> "$GITHUB_OUTPUT"
+            echo "No previous tag found; build required."
+            exit 0
+          fi
+
+          src_changes=$(git diff --name-only "$previous_tag..$current_tag" -- 'src/**' 'build.rs' 'rust-toolchain.toml' '.cargo/**' 'scripts/check_tls_stack.sh' 'Cargo.lock')
+          cargo_non_version_changes=$(git diff -U0 "$previous_tag..$current_tag" -- Cargo.toml | grep -Ev '^(---|\+\+\+|@@|[-+]version = )' || true)
+
+          if [[ -z "$src_changes" && -z "$cargo_non_version_changes" ]]; then
+            echo "mode=reuse" >> "$GITHUB_OUTPUT"
+            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+            echo "No source/runtime input changes since $previous_tag; reusing previous release assets."
+          else
+            echo "mode=build" >> "$GITHUB_OUTPUT"
+            echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+            echo "Source/runtime inputs changed since $previous_tag; build required."
+          fi
+
       - name: Install Rust target
+        if: steps.release_mode.outputs.mode == 'build'
         run: rustup target add x86_64-unknown-linux-musl
 
       - name: Install musl toolchain
+        if: steps.release_mode.outputs.mode == 'build'
         run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Enforce Rustls-only TLS graph
+        if: steps.release_mode.outputs.mode == 'build'
         run: scripts/check_tls_stack.sh
 
       - name: Build release binary (musl)
+        if: steps.release_mode.outputs.mode == 'build'
         run: cargo build --release --locked --target x86_64-unknown-linux-musl
 
       - name: Package binary
+        if: steps.release_mode.outputs.mode == 'build'
         run: |
           asset_name="kars_bot-${{ inputs.tag }}-x86_64-unknown-linux-musl.tar.gz"
           tar -C target/x86_64-unknown-linux-musl/release -czf "$asset_name" kars_bot
           sha256sum "$asset_name" > "$asset_name.sha256"
+
+      - name: Reuse previous release assets
+        if: steps.release_mode.outputs.mode == 'reuse'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          previous_tag="${{ steps.release_mode.outputs.previous_tag }}"
+          current_tag="${{ inputs.tag }}"
+
+          prev_asset="kars_bot-${previous_tag}-x86_64-unknown-linux-musl.tar.gz"
+          new_asset="kars_bot-${current_tag}-x86_64-unknown-linux-musl.tar.gz"
+
+          gh release download "$previous_tag" --pattern "$prev_asset" --repo "$GITHUB_REPOSITORY"
+          mv "$prev_asset" "$new_asset"
+          sha256sum "$new_asset" > "$new_asset.sha256"
 
       - name: Upload GitHub Release assets
         uses: softprops/action-gh-release@v2

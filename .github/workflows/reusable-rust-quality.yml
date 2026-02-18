@@ -18,14 +18,8 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
       - name: Validate workflows with actionlint
         uses: rhysd/actionlint@v1.7.11
-
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@nextest
 
       - name: Collect changed Rust files
         id: changed_rs
@@ -49,6 +43,14 @@ jobs:
 
           echo "files=$changed_files" >> "$GITHUB_OUTPUT"
           echo "rust_related=$rust_related" >> "$GITHUB_OUTPUT"
+
+      - name: Install Rust toolchain
+        if: steps.changed_rs.outputs.rust_related == 'true' || steps.changed_rs.outputs.files != ''
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-nextest
+        if: steps.changed_rs.outputs.rust_related == 'true'
+        uses: taiki-e/install-action@nextest
 
       - name: Cache Rust build artifacts
         if: steps.changed_rs.outputs.rust_related == 'true'
