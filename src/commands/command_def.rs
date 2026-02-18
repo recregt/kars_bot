@@ -39,4 +39,7 @@ pub enum MyCommands {
     Mute(String),
     #[command(description = "Unmute alerts immediately.")]
     Unmute,
+
+    #[command(description = "Release check and controlled restart. Usage: /update [check|apply]")]
+    Update(String),
 }

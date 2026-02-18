@@ -83,6 +83,7 @@ export - Export metric snapshot (/export cpu|ram|disk [30m|1h|6h|24h] [csv|json]
 alerts - Show alert config/state
 mute - Mute alerts (/mute 30m)
 unmute - Unmute alerts
+update - Release check and controlled restart (/update check | /update apply)
 ```
 
 ## Operations
