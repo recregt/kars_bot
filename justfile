@@ -66,10 +66,10 @@ release-preflight candidate:
   scripts/validate_release_flow.sh {{candidate}}
 
 release-plz-preview:
-  release-plz release-pr --config release-plz.toml --dry-run
+  scripts/release_plz_preview.sh
 
 dist-preview:
-  cargo dist plan --target x86_64-unknown-linux-musl --allow-dirty
+  dist plan --target x86_64-unknown-linux-musl --allow-dirty
 
 [confirm("Continue with release tag creation?")]
 release-safe tag:

@@ -3,6 +3,7 @@ name = "kars_bot"
 version = "1.3.3"
 edition = "2024"
 resolver = "3"
+repository = "https://github.com/recregt/kars_bot"
 
 [dependencies]
 teloxide = { version = "0.12", default-features = false, features = ["macros", "rustls", "ctrlc_handler"] }
