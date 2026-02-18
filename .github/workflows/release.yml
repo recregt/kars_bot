@@ -4,9 +4,19 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.3.2)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
 
 jobs:
   release:
     uses: ./.github/workflows/reusable-release.yml
     with:
-      tag: ${{ github.ref_name }}
+      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    secrets: inherit
