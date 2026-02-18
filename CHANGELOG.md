@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.3.3 - 2026-02-19
+
+
+
+### Bug Fixes
+
+- Repair corrupted changelog ordering and duplicate section drift
+
+
+### Maintenance
+
+- Regenerate changelog deterministically in release flow and reject duplicate version headers
+
+- Add fingerprint-aware lockfile security audit to pre-commit hooks
+
+- Add confirmation gates for release recipes and formatter diagnostics helper
+
+- Update roadmap progress and release examples for v1.3.3
+
+
+
 ## Unreleased
 
 
