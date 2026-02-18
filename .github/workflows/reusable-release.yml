@@ -33,6 +33,24 @@ jobs:
             exit 1
           fi
 
+      - name: Build release notes from CHANGELOG
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ inputs.tag }}"
+
+          awk -v tag="$tag" '
+            $0 ~ "^## " tag "([[:space:]]-|$)" { in_section=1; next }
+            in_section && $0 ~ "^## " { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            echo "Release $tag" > release-notes.md
+            echo >> release-notes.md
+            echo "No explicit changelog section body was found for $tag." >> release-notes.md
+          fi
+
       - name: Install Rust target
         run: rustup target add x86_64-unknown-linux-musl
 
@@ -55,6 +73,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.tag }}
+          body_path: release-notes.md
           files: |
             kars_bot-${{ inputs.tag }}-x86_64-unknown-linux-musl.tar.gz
             kars_bot-${{ inputs.tag }}-x86_64-unknown-linux-musl.tar.gz.sha256
