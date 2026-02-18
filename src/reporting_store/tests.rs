@@ -1,7 +1,4 @@
-use std::sync::{
-    atomic::AtomicU32,
-    Arc,
-};
+use std::sync::{Arc, atomic::AtomicU32};
 
 use chrono::{Duration, Utc};
 
@@ -89,17 +86,17 @@ fn rolling_summary_aggregates_persisted_days() {
 fn rolling_summary_survives_store_reopen() {
     let temp = tempfile::tempdir().expect("temp dir");
 
-    {
-        let store = open_test_store(temp.path());
-        store
-            .record_sample(MetricSample {
-                timestamp: Utc::now(),
-                cpu: 55.0,
-                ram: 45.0,
-                disk: 35.0,
-            })
-            .expect("record sample before restart");
-    }
+    let store = open_test_store(temp.path());
+    store
+        .record_sample(MetricSample {
+            timestamp: Utc::now(),
+            cpu: 55.0,
+            ram: 45.0,
+            disk: 35.0,
+        })
+        .expect("record sample before restart");
+    drop(store);
+    std::thread::sleep(std::time::Duration::from_millis(25));
 
     let reopened = open_test_store(temp.path());
     let summary = reopened

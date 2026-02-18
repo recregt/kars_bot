@@ -1,11 +1,14 @@
 use crate::app_context::AppContext;
 
-use super::render::{render_graph_png, GRAPH_WIDTH_PX};
+use super::GeneratedGraphReport;
+use super::executor::{acquire_render_slot, run_render_task};
+use super::render::GRAPH_WIDTH_PX;
 use super::stats::{assess_anomaly_labels, compute_metric_summary, downsample_points};
 use super::types::GraphMetric;
-use super::GeneratedGraphReport;
 
 const WEEKLY_WINDOW_MINUTES: i64 = 7 * 24 * 60;
+const RENDER_SLOT_WAIT_TIMEOUT_SECS: u64 = 3;
+const RENDER_EXECUTION_TIMEOUT_SECS: u64 = 8;
 
 pub(crate) async fn build_weekly_cpu_report(
     app_context: &AppContext,
@@ -50,47 +53,57 @@ pub(crate) async fn build_weekly_cpu_report(
     let points_limit = max_points.min(width_limit);
     let points = downsample_points(&samples, GraphMetric::Cpu, points_limit);
 
-    let render_slot = app_context
-        .graph_render_slots
-        .clone()
-        .acquire_owned()
-        .await
-        .map_err(|error| format!("could not acquire render slot: {}", error))?;
-
-    let png_bytes = tokio::task::spawn_blocking(move || {
-        let _render_slot = render_slot;
-        render_graph_png(points, GraphMetric::Cpu, threshold)
-    })
+    let render_slot = acquire_render_slot(
+        app_context.graph_render_slots.clone(),
+        RENDER_SLOT_WAIT_TIMEOUT_SECS,
+    )
     .await
-    .map_err(|error| format!("weekly render task failed: {}", error))??;
+    .map_err(|error| {
+        format!(
+            "weekly render slot failed code={} error={}",
+            error.code(),
+            error
+        )
+    })?;
 
-    let (min_cpu, max_cpu, avg_cpu, samples_count, rollup_suffix) =
-        if let Some(rollup) = persisted_rollup {
-            let suffix = format!(
-                "\nRAM avg/min/max: {:.1}% / {:.1}% / {:.1}% | Disk avg/min/max: {:.1}% / {:.1}% / {:.1}%",
-                rollup.ram_avg,
-                rollup.ram_min,
-                rollup.ram_max,
-                rollup.disk_avg,
-                rollup.disk_min,
-                rollup.disk_max
-            );
-            (
-                rollup.cpu_min,
-                rollup.cpu_max,
-                rollup.cpu_avg,
-                rollup.sample_count,
-                suffix,
-            )
-        } else {
-            (
-                summary.min,
-                summary.max,
-                summary.avg,
-                samples.len() as u64,
-                String::new(),
-            )
-        };
+    let png_bytes = run_render_task(
+        points,
+        GraphMetric::Cpu,
+        threshold,
+        render_slot,
+        RENDER_EXECUTION_TIMEOUT_SECS,
+    )
+    .await
+    .map_err(|error| format!("weekly render failed code={} error={}", error.code(), error))?;
+
+    let (min_cpu, max_cpu, avg_cpu, samples_count, rollup_suffix) = if let Some(rollup) =
+        persisted_rollup
+    {
+        let suffix = format!(
+            "\nRAM avg/min/max: {:.1}% / {:.1}% / {:.1}% | Disk avg/min/max: {:.1}% / {:.1}% / {:.1}%",
+            rollup.ram_avg,
+            rollup.ram_min,
+            rollup.ram_max,
+            rollup.disk_avg,
+            rollup.disk_min,
+            rollup.disk_max
+        );
+        (
+            rollup.cpu_min,
+            rollup.cpu_max,
+            rollup.cpu_avg,
+            rollup.sample_count,
+            suffix,
+        )
+    } else {
+        (
+            summary.min,
+            summary.max,
+            summary.avg,
+            samples.len() as u64,
+            String::new(),
+        )
+    };
 
     Ok(GeneratedGraphReport {
         png_bytes,
