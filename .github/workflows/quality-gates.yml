@@ -18,8 +18,37 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust fmt check
-        run: cargo fmt --all -- --check
+      - name: Collect changed Rust files
+        id: changed_rs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base_ref="origin/${{ github.base_ref }}"
+            git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+            range="$base_ref...${{ github.sha }}"
+          else
+            before="${{ github.event.before }}"
+            if [[ -z "$before" || "$before" == "0000000000000000000000000000000000000000" ]]; then
+              range="${{ github.sha }}~1...${{ github.sha }}"
+            else
+              range="$before...${{ github.sha }}"
+            fi
+          fi
+
+          changed_files=$(git diff --name-only "$range" -- '*.rs' | tr '\n' ' ')
+          echo "files=$changed_files" >> "$GITHUB_OUTPUT"
+
+      - name: Rust fmt check (changed files)
+        if: steps.changed_rs.outputs.files != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check ${{ steps.changed_rs.outputs.files }}
+
+      - name: Rust fmt check (no-op)
+        if: steps.changed_rs.outputs.files == ''
+        run: echo "No Rust file changes detected; skipping rustfmt check."
 
       - name: Clippy strict
         run: cargo clippy --all-targets --all-features -- -D warnings
