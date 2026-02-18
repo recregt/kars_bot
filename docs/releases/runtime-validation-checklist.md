@@ -58,8 +58,12 @@ Run and verify:
 
 | Env | Build | Startup | Degrade | Commands | Notes |
 |---|---|---|---|---|---|
-| A1 | ☐ | ☐ | ☐ | ☐ | |
-| A2 | ☐ | ☐ | ☐ | ☐ | |
+| A1 | ☑ | ☑ | ☑ | ☑ | glibc build + smoke completed via `scripts/validate_runtime_matrix.sh`; runtime auth-stage reached with dummy token (`Api(NotFound)` expected). |
+| A2 | ☑ | ☑ | ☑ | ☑ | musl build + smoke completed via `scripts/validate_runtime_matrix.sh`; runtime auth-stage reached with dummy token (`Api(NotFound)` expected). |
+
+Latest report artifact:
+
+- `docs/releases/runtime-validation-report.txt`
 
 ## Exit Criteria
 

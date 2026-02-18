@@ -191,6 +191,7 @@ Portability notes:
 - Host tooling still affects command behavior (`systemctl`, `sensors`, `ss`, etc.); unsupported features degrade gracefully.
 - Some environments can still differ in kernel/cgroup visibility, so validate `/status`, `/health`, `/sysstatus`, and `/graph` on target host.
 - Runtime validation checklist: `docs/releases/runtime-validation-checklist.md`
+- Automated matrix validation runner: `scripts/validate_runtime_matrix.sh`
 
 ## Logging
 

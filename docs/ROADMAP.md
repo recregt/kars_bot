@@ -112,11 +112,11 @@ Make deployment simpler across Linux environments.
 - [x] Document binary portability trade-offs and feature constraints.
 - [x] Add CI artifact build for portable release binaries.
 - [x] Add glibc/musl runtime validation checklist template.
-- [ ] Validate runtime behavior on glibc and musl environments.
+- [x] Validate runtime behavior on glibc and musl environments.
 
 ### Acceptance Criteria
 - [x] Portable binary build is reproducible and documented.
-- [ ] Runtime checks and degraded features still behave predictably.
+- [x] Runtime checks and degraded features still behave predictably.
 
 ---
 
