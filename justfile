@@ -28,6 +28,9 @@ clippy:
 test:
   cargo test --locked
 
+nextest:
+  cargo nextest run --locked --all-targets
+
 quality:
   just fmt-check
   just clippy

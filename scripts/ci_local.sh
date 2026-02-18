@@ -28,8 +28,13 @@ fi
 echo "[ci-local] clippy"
 cargo clippy --locked --all-targets --all-features -- -D warnings
 
-echo "[ci-local] tests"
-cargo test --locked
+if cargo nextest --version >/dev/null 2>&1; then
+  echo "[ci-local] tests (nextest)"
+  cargo nextest run --locked --all-targets
+else
+  echo "[ci-local] tests (cargo test fallback)"
+  cargo test --locked
+fi
 
 echo "[ci-local] tls graph policy"
 scripts/check_tls_stack.sh

@@ -21,6 +21,12 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Validate workflows with actionlint
+        uses: rhysd/actionlint@v1
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
       - name: Collect changed Rust files
         id: changed_rs
         shell: bash
@@ -50,8 +56,8 @@ jobs:
       - name: Clippy strict
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
-      - name: Run tests
-        run: cargo test --locked
+      - name: Run tests (nextest)
+        run: cargo nextest run --locked --all-targets
 
       - name: Enforce Rustls-only TLS graph
         run: scripts/check_tls_stack.sh
