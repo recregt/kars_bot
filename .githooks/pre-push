@@ -26,6 +26,11 @@ has_release_tag_for_version() {
       return 0
     fi
   done
+
+  if git ls-remote --tags origin "refs/tags/v$version" | grep -q "refs/tags/v$version"; then
+    return 0
+  fi
+
   return 1
 }
 
