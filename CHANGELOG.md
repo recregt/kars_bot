@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.1.1 - 2026-02-18
+
+
+
+### Documentation
+
+- Modularize docs and add fail-safe validation pipeline
+
+
+### Features
+
+- Auto-clean merged feature branches via post-merge hook
+
+- Add tag-driven musl release automation and server updater
+
+
+
 ## v1.1.0 - 2026-02-18
 
 
