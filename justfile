@@ -24,6 +24,9 @@ quality:
   just test
   scripts/check_tls_stack.sh
 
+ci:
+  scripts/ci_local.sh
+
 docs:
   scripts/generate_docs_reference.sh
   scripts/validate_docs.sh
@@ -41,7 +44,13 @@ baseline:
   scripts/capture_phase0_baseline.sh
 
 release tag:
+  just ci
   scripts/release_tag.sh {{tag}}
 
 release-dry tag:
+  just ci
   scripts/release_tag.sh --dry-run {{tag}}
+
+release-preflight candidate:
+  just ci
+  scripts/validate_release_flow.sh {{candidate}}

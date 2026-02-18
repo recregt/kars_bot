@@ -17,7 +17,8 @@ scripts/install_hooks.sh
 
 ```bash
 just --list
-just quality
+just ci
+just release-preflight v1.3.2-pre
 ```
 
 ## Minimal Configuration

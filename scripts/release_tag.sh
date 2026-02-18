@@ -50,12 +50,20 @@ if git rev-parse "$tag" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Running test gate before release..."
-cargo test -q
+if [[ "${RELEASE_SKIP_CI:-0}" != "1" ]]; then
+  if [[ -x scripts/ci_local.sh ]]; then
+    echo "Running local CI parity gate before release..."
+    scripts/ci_local.sh
+  else
+    echo "scripts/ci_local.sh is missing or not executable."
+    exit 1
+  fi
 
-if [[ -x scripts/validate_docs.sh ]]; then
-  echo "Running docs validation gate..."
-  scripts/validate_docs.sh
+  if [[ -n "$(git status --porcelain)" ]]; then
+    echo "Release preflight modified working tree."
+    echo "Run docs/reference generation and commit changes before tagging."
+    exit 1
+  fi
 fi
 
 echo "Building release binary for size snapshot..."

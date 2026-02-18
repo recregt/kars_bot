@@ -22,7 +22,8 @@ A Telegram server monitoring bot built with Rust + Teloxide.
 
 - Install hook manager: `scripts/install_hooks.sh`
 - List task commands: `just --list`
-- Full local quality gate: `just quality`
+- Full local CI parity gate: `just ci`
+- Release dry-run preflight: `just release-preflight vX.Y.Z-pre`
 - Release prep (official flow): `just release vX.Y.Z`
 
 ## Documentation
