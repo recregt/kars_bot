@@ -1,7 +1,18 @@
 pre-commit:
+  parallel: true
   commands:
     guard:
       run: scripts/hook_pre_commit.sh
+    audit-lock:
+      glob: "Cargo.lock"
+      files: git diff --cached --name-only
+      fingerprint: true
+      run: |
+        if command -v cargo-audit >/dev/null 2>&1; then
+          cargo audit
+        else
+          echo "[lefthook] cargo-audit not installed; skipping lockfile audit."
+        fi
 
 pre-push:
   commands:

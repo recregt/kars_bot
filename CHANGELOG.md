@@ -2,6 +2,92 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+
+
+### Bug Fixes
+
+- Prevent pre-push hook stdin deadlock
+
+- Harden release workflow invocation
+
+- Pass explicit tag_name to release action
+
+- Checkout requested tag in reusable release
+
+- Harden lockfile and push/release guard flows
+
+- Allow dry-run preflight for existing tags
+
+- Pin actionlint to valid version
+
+- Use rustfmt for changed-file check
+
+- Run rustfmt check with edition 2024
+
+
+### Maintenance
+
+- Add dependabot and merge-queue-ready quality tooling
+
+- Reduce dependabot and guard noise
+
+- Bump rhysd/actionlint in the actions-all group
+
+- Block protected branch deletion pushes
+
+- Trigger required checks
+
+- Merge develop into main sync branch
+
+- Optimize quality checks and stabilize branch sync
+
+- Format repository and auto-format staged Rust on commit
+
+
+### merge
+
+- Main back into develop after v1.3.2
+
+- Pre-push stdin deadlock fix
+
+- Develop into main after pre-push fix
+
+- Main back into develop after pre-push fix
+
+- Release workflow recovery
+
+- Promote release workflow recovery
+
+- Sync main back after release workflow recovery
+
+- Release dispatch tag_name fix
+
+- Promote release dispatch tag_name fix
+
+- Sync main back after release dispatch fix
+
+- Release checkout tag fix
+
+- Promote release checkout tag fix
+
+- Sync main back after release checkout tag fix
+
+- Lockfile and guard hardening
+
+- Promote lockfile and guard hardening
+
+- Release preflight existing-tag fix
+
+- Promote release preflight existing-tag fix
+
+- Tooling automation bundle
+
+- Promote tooling automation bundle
+
+
+
 ## v1.3.2 - 2026-02-18
 
 
@@ -13,10 +99,20 @@ All notable changes to this project are documented in this file.
 
 ### Maintenance
 
+- Add just ci and release preflight gate
+
 - Add doctor diagnostics and release-safe automation
+
+- Prepare v1.3.2
 
 
 ### merge
+
+- Platform automation consolidation and release v1.3.1
+
+- Promote v1.3.1 platform standardization
+
+- Local ci preflight automation
 
 - Local ci preflight tooling
 
@@ -43,6 +139,8 @@ All notable changes to this project are documented in this file.
 
 - Consolidate automation with just, lefthook, and reusable workflows
 
+- Prepare v1.3.1
+
 
 ### merge
 
@@ -61,6 +159,11 @@ All notable changes to this project are documented in this file.
 ### Features
 
 - Harden update orchestration and signal handling
+
+
+### Maintenance
+
+- Prepare v1.3.0
 
 
 ### ci
@@ -84,16 +187,6 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.1.1 - 2026-02-18
-
-
-
-
-## v1.0.1 - 2026-02-18
-
-
-
-
 ## v1.2.0 - 2026-02-18
 
 
@@ -107,6 +200,11 @@ All notable changes to this project are documented in this file.
 - Phase2 deterministic render and error integrity
 
 
+### Maintenance
+
+- Prepare v1.2.0
+
+
 ### merge
 
 - Phase0 reliability baselines and gates
@@ -118,6 +216,16 @@ All notable changes to this project are documented in this file.
 
 
 ## v1.1.1 - 2026-02-18
+
+
+
+### Maintenance
+
+- Prepare v1.1.1
+
+
+
+## v1.0.1 - 2026-02-18
 
 
 
@@ -194,33 +302,15 @@ All notable changes to this project are documented in this file.
 
 - Start v1.1.0 from develop
 
+
+
 ## v1.0.0 - 2026-02-17
 
 
 
-### Refactors
-
-- Split background jobs into focused modules (`jobs::config_reload`, `jobs::monitor`, `jobs::release_notify`, `jobs::schedules`)
-- Extract recent query parser/filtering into dedicated modules for cleaner command flow
-
-### Features
-
-- Added release pipeline automation (git-cliff integration, test-gated tagging flow, owner release-note notification)
-- Added CI release checks and musl artifact workflow for tagged builds
-- Improved `/recent` query experience with combined filters and clearer query errors
-- Added smart recent-query filters and mode-aware parsing
-- Added command UX and anomaly DB modularization updates
-- Added `/graph cpu` MVP with ring-buffer based short-window graphing
-- Added hot-reloadable runtime graph settings via notify
-- Added sled-backed reporting store and persisted weekly-report sample reads
-
-### Fixes
-
-- Fixed changelog prepend flow by using git-cliff unreleased mode
-
 ### Maintenance
 
-- Added release/version guard automation in hooks and tagging scripts
+- Squash commits from #7 onward
 
 
 
