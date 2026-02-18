@@ -113,3 +113,41 @@ fn append_event_with_rotation(
     writer.write_all(b"\n")?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs,
+        path::PathBuf,
+    };
+
+    use serde::Serialize;
+
+    use super::append_json_line;
+
+    #[derive(Serialize)]
+    struct TestLine {
+        value: u32,
+    }
+
+    fn temp_file(name: &str) -> PathBuf {
+        let dir = tempfile::tempdir().expect("temp dir");
+        dir.keep().join(name)
+    }
+
+    #[test]
+    fn append_json_line_keeps_existing_content() {
+        let path = temp_file("append-only.jsonl");
+
+        append_json_line(&path, &TestLine { value: 1 }).expect("first append should succeed");
+        append_json_line(&path, &TestLine { value: 2 }).expect("second append should succeed");
+
+        let content = fs::read_to_string(&path).expect("file should be readable");
+        let lines = content.lines().collect::<Vec<_>>();
+        assert_eq!(lines.len(), 2);
+        assert!(lines[0].contains("\"value\":1"));
+        assert!(lines[1].contains("\"value\":2"));
+
+        let _ = fs::remove_file(path);
+    }
+}
