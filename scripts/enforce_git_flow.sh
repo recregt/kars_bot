@@ -97,10 +97,10 @@ assert_push_policy() {
           if (( parent_count < 2 )); then
             target_branch="${local_ref#refs/heads/}"
             echo "[git-flow] Blocked: non-merge commit $commit_sha detected in push to '$target_branch'."
-            echo "Only merge commits are allowed on protected branches."
+            echo "Only first-parent merge commits are allowed on protected branches."
             exit 1
           fi
-        done < <(git rev-list "$range")
+        done < <(git rev-list --first-parent "$range")
         ;;
     esac
   done

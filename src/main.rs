@@ -11,6 +11,7 @@ mod system;
 
 use teloxide::prelude::*;
 use tokio::net::lookup_host;
+use tokio::signal;
 use tracing_subscriber::EnvFilter;
 
 use crate::app_context::AppContext;
@@ -92,6 +93,37 @@ async fn log_dns_probe() {
     }
 }
 
+async fn wait_for_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal as unix_signal};
+
+        let mut terminate = match unix_signal(SignalKind::terminate()) {
+            Ok(stream) => stream,
+            Err(error) => {
+                log::warn!("failed_to_bind_sigterm_handler error={}", error);
+                let _ = signal::ctrl_c().await;
+                return;
+            }
+        };
+
+        tokio::select! {
+            _ = signal::ctrl_c() => {
+                log::warn!("shutdown_signal_received signal=SIGINT");
+            }
+            _ = terminate.recv() => {
+                log::warn!("shutdown_signal_received signal=SIGTERM");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        let _ = signal::ctrl_c().await;
+        log::warn!("shutdown_signal_received signal=CTRL_C");
+    }
+}
+
 // Main
 #[tokio::main]
 async fn main() {
@@ -140,9 +172,18 @@ async fn main() {
 
     start_background_jobs(bot.clone(), app_context.clone());
 
-    MyCommands::repl(bot, move |bot, msg, cmd| {
+    let repl = MyCommands::repl(bot, move |bot, msg, cmd| {
         let app_context = app_context.clone();
         async move { answer(bot, msg, cmd, &app_context).await }
-    })
-    .await;
+    });
+
+    tokio::pin!(repl);
+    tokio::select! {
+        _ = &mut repl => {
+            log::info!("bot_repl_stopped reason=polling_ended");
+        }
+        _ = wait_for_shutdown_signal() => {
+            log::warn!("bot_shutdown_sequence_started reason=signal");
+        }
+    }
 }
