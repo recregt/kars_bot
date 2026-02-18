@@ -5,8 +5,16 @@ if [[ ! -f Cargo.toml ]]; then
   exit 0
 fi
 
+current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
+is_release_main_bypass=0
+if [[ "$current_branch" == "main" && "${ALLOW_MAIN_RELEASE_COMMIT:-}" == "1" && "${ALLOW_VERSION_BUMP:-}" == "1" ]]; then
+  is_release_main_bypass=1
+fi
+
 if [[ -x scripts/enforce_git_flow.sh ]]; then
-  scripts/enforce_git_flow.sh commit
+  if [[ "$is_release_main_bypass" -ne 1 ]]; then
+    scripts/enforce_git_flow.sh commit
+  fi
 else
   echo "[pre-commit] Blocked: scripts/enforce_git_flow.sh is missing or not executable."
   exit 1
