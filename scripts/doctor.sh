@@ -14,7 +14,7 @@ log_info "starting environment diagnostics"
 log_info "mode: $MODE"
 
 required_cmds=(git cargo rustc)
-optional_cmds=(just jq curl tar install systemctl actionlint cargo-nextest)
+optional_cmds=(just jq curl tar install systemctl actionlint cargo-nextest release-plz cargo-dist)
 
 missing_required=0
 remediation=()

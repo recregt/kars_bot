@@ -23,6 +23,8 @@ just doctor-release
 just docs
 just release-preflight v1.3.3-pre
 just release-safe v1.3.3
+just release-plz-preview
+just dist-preview
 ```
 
 Create a release tag with version sync:
@@ -56,9 +58,12 @@ AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
 - Quality CI is scope-aware:
   - policy-quality workflow runs actionlint/docs/guard checks.
   - rust-quality workflow runs rustfmt/clippy/nextest/TLS checks only for Rust-relevant changes.
-- Tagged release workflow is hash-aware:
-  - if release input fingerprint is unchanged (src + Cargo.lock + release script inputs) and Cargo.toml changed only at version line, previous binary asset is reused.
-  - if release inputs change, Cargo.toml has non-version changes, compile-time version embedding is detected, or no previous tag exists, a fresh MUSL build is produced.
+- Tagged release workflow always performs a fresh MUSL build for the pushed tag.
+- This guarantees the uploaded release artifact is compiled directly from that exact tag commit.
+- Staged migration (non-breaking):
+  - Stage 1: `release-plz` preview is available via `Release Plz Preview` workflow and `just release-plz-preview`.
+  - Stage 2: `cargo-dist` preview is available via `Cargo Dist Preview` workflow and `just dist-preview`.
+  - Existing tag-based release workflow remains the production path until migration cutover is explicitly done.
 
 Prerequisite:
 

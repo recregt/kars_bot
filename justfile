@@ -65,6 +65,12 @@ release-preflight candidate:
   just ci
   scripts/validate_release_flow.sh {{candidate}}
 
+release-plz-preview:
+  release-plz release-pr --config release-plz.toml --dry-run
+
+dist-preview:
+  cargo dist plan --target x86_64-unknown-linux-musl --allow-dirty
+
 [confirm("Continue with release tag creation?")]
 release-safe tag:
   just doctor-release
