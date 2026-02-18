@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: sync-main-to-develop
+  cancel-in-progress: true
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -28,6 +32,14 @@ jobs:
         run: |
           set -euo pipefail
           git fetch origin main develop
+          main_sha="$(git rev-parse origin/main)"
+          develop_sha="$(git rev-parse origin/develop)"
+
+          if [[ "$main_sha" == "$develop_sha" ]]; then
+            echo "develop is already aligned with main; nothing to push."
+            exit 0
+          fi
+
           git checkout develop
           git merge --ff-only origin/main
           git push origin develop

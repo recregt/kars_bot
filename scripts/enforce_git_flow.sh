@@ -23,12 +23,16 @@ assert_commit_policy() {
     return 0
   fi
 
+  if [[ "$branch" == "develop" ]]; then
+    echo "[git-flow] Blocked: commits on 'develop' are forbidden."
+    echo "Develop is a mirror branch; open PRs into 'main' and let sync update 'develop'."
+    exit 1
+  fi
+
   if ! is_merge_commit_context; then
     echo "[git-flow] Blocked: direct commits to '$branch' are forbidden."
     if [[ "$branch" == "main" ]]; then
-      echo "Allowed flow: feature/* -> develop -> (merge) main"
-    else
-      echo "Allowed flow: commit on feature/*, then merge into develop"
+      echo "Allowed flow: commit on feature/*, then PR merge into main"
     fi
     exit 1
   fi
@@ -37,34 +41,7 @@ assert_commit_policy() {
   merge_head="$(merge_head_sha)"
 
   if [[ "$branch" == "main" ]]; then
-    if ! git show-ref --verify --quiet refs/heads/develop; then
-      echo "[git-flow] Blocked: develop branch not found for main merge validation."
-      exit 1
-    fi
-
-    local develop_sha
-    develop_sha="$(git rev-parse refs/heads/develop)"
-    if [[ "$merge_head" != "$develop_sha" ]]; then
-      echo "[git-flow] Blocked: main can only merge from current develop HEAD."
-      echo "MERGE_HEAD=$merge_head develop=$develop_sha"
-      exit 1
-    fi
     return 0
-  fi
-
-  local found_feature_ref=0
-  while IFS= read -r ref_name; do
-    [[ -z "$ref_name" ]] && continue
-    if [[ "$(git rev-parse "$ref_name")" == "$merge_head" ]]; then
-      found_feature_ref=1
-      break
-    fi
-  done < <(git for-each-ref --format='%(refname:short)' refs/heads/feature)
-
-  if [[ "$found_feature_ref" -ne 1 ]]; then
-    echo "[git-flow] Blocked: develop merges must come from feature/* branch heads."
-    echo "MERGE_HEAD=$merge_head does not match any refs/heads/feature/*"
-    exit 1
   fi
 }
 
@@ -91,7 +68,19 @@ assert_push_policy() {
     fi
 
     case "$local_ref" in
-      refs/heads/main|refs/heads/develop)
+      refs/heads/develop)
+        if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1; then
+          echo "[git-flow] Blocked: cannot validate develop mirror target because origin/main is unavailable."
+          exit 1
+        fi
+        expected_main_sha="$(git rev-parse refs/remotes/origin/main)"
+        if [[ "$local_sha" != "$expected_main_sha" ]]; then
+          echo "[git-flow] Blocked: develop must mirror origin/main exactly."
+          echo "develop push sha=$local_sha origin/main=$expected_main_sha"
+          exit 1
+        fi
+        ;;
+      refs/heads/main)
         if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
           empty_tree=$(git hash-object -t tree /dev/null)
           range="$empty_tree..$local_sha"
