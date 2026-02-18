@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+source scripts/lib/log.sh
+
+SCRIPT_NAME="release-tag"
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -28,54 +32,54 @@ fi
 
 tag="$1"
 if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Invalid tag format: $tag (expected vX.Y.Z)"
+  log_error "Invalid tag format: $tag (expected vX.Y.Z)"
   exit 1
 fi
 
 version="${tag#v}"
 
 if ! command -v git-cliff >/dev/null 2>&1; then
-  echo "git-cliff is required for changelog generation."
-  echo "Install: cargo install git-cliff"
+  log_error "git-cliff is required for changelog generation."
+  log_info "Install: cargo install git-cliff"
   exit 1
 fi
 
 if [[ -n "$(git status --porcelain)" ]]; then
-  echo "Working tree is not clean. Commit/stash changes before release."
+  log_error "Working tree is not clean. Commit/stash changes before release."
   exit 1
 fi
 
 if git rev-parse "$tag" >/dev/null 2>&1; then
   if [[ "$dry_run" -eq 1 ]]; then
-    echo "[dry-run] Tag already exists: $tag (continuing preflight validation)"
+    log_info "[dry-run] Tag already exists: $tag (continuing preflight validation)"
   else
-    echo "Tag already exists: $tag"
+    log_error "Tag already exists: $tag"
     exit 1
   fi
 fi
 
 if [[ "${RELEASE_SKIP_CI:-0}" != "1" ]]; then
   if [[ -x scripts/ci_local.sh ]]; then
-    echo "Running local CI parity gate before release..."
+    log_info "Running local CI parity gate before release..."
     scripts/ci_local.sh
   else
-    echo "scripts/ci_local.sh is missing or not executable."
+    log_error "scripts/ci_local.sh is missing or not executable."
     exit 1
   fi
 
   if [[ -n "$(git status --porcelain)" ]]; then
-    echo "Release preflight modified working tree."
-    echo "Run docs/reference generation and commit changes before tagging."
+    log_error "Release preflight modified working tree."
+    log_info "Run docs/reference generation and commit changes before tagging."
     exit 1
   fi
 fi
 
-echo "Building release binary for size snapshot..."
+log_info "Building release binary for size snapshot..."
 cargo build --release --locked -q
 
 binary_path="target/release/kars_bot"
 if [[ ! -f "$binary_path" ]]; then
-  echo "Release binary not found at $binary_path"
+  log_error "Release binary not found at $binary_path"
   exit 1
 fi
 
@@ -90,10 +94,10 @@ fi
 timestamp_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 if [[ "$dry_run" -eq 1 ]]; then
-  echo "[dry-run] Tests/build passed. Previewing changelog section for $tag"
+  log_info "[dry-run] Tests/build passed. Previewing changelog section for $tag"
   git-cliff --unreleased --tag "$tag" | head -n 60
-  echo "[dry-run] Binary size: $size_human ($size_bytes bytes)"
-  echo "[dry-run] No files changed, no commit created, no tag created."
+  log_info "[dry-run] Binary size: $size_human ($size_bytes bytes)"
+  log_info "[dry-run] No files changed, no commit created, no tag created."
   exit 0
 fi
 
@@ -105,31 +109,31 @@ if [[ "$current_version" != "$version" ]]; then
   fi
 fi
 
-echo "Generating changelog with git-cliff..."
+log_info "Generating changelog with git-cliff..."
 git-cliff --tag "$tag" > CHANGELOG.md
 
 if git diff --quiet -- CHANGELOG.md; then
-  echo "CHANGELOG.md was not updated by git-cliff."
-  echo "Release aborted: changelog update is mandatory in release flow."
+  log_error "CHANGELOG.md was not updated by git-cliff."
+  log_error "Release aborted: changelog update is mandatory in release flow."
   exit 1
 fi
 
 if [[ ! -s CHANGELOG.md ]]; then
-  echo "CHANGELOG.md generation failed or resulted in empty output."
+  log_error "CHANGELOG.md generation failed or resulted in empty output."
   exit 1
 fi
 
 if ! grep -q "^## $tag" CHANGELOG.md; then
-  echo "CHANGELOG validation failed: missing section header '## $tag'."
-  echo "Release aborted to keep changelog and tag history synchronized."
+  log_error "CHANGELOG validation failed: missing section header '## $tag'."
+  log_error "Release aborted to keep changelog and tag history synchronized."
   exit 1
 fi
 
 duplicate_headers=$(grep -E '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sort | uniq -d || true)
 if [[ -n "$duplicate_headers" ]]; then
-  echo "CHANGELOG validation failed: duplicate release headers detected."
-  echo "$duplicate_headers"
-  echo "Release aborted: run git-cliff regeneration to repair changelog ordering."
+  log_error "CHANGELOG validation failed: duplicate release headers detected."
+  printf '%s\n' "$duplicate_headers" >&2
+  log_error "Release aborted: run git-cliff regeneration to repair changelog ordering."
   exit 1
 fi
 
@@ -145,4 +149,4 @@ if [[ -n "$(git diff --cached --name-only)" ]]; then
 fi
 
 git tag -a "$tag" -m "Release $tag"
-echo "Created tag $tag"
+log_info "Created tag $tag"
