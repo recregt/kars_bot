@@ -1,7 +1,7 @@
 use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
-use crate::monitor::{alert_snapshot, mute_alerts_for, unmute_alerts, MuteActionError};
+use crate::monitor::{MuteActionError, alert_snapshot, mute_alerts_for, unmute_alerts};
 
 use super::super::helpers::{as_html_block, parse_mute_duration};
 
@@ -16,7 +16,11 @@ pub(crate) async fn handle_alerts(
     let mute_line = match snapshot.muted_until {
         Some(until) if now <= until => {
             let remaining = until.signed_duration_since(now).num_seconds().max(0);
-            format!("muted ({}s remaining until {})", remaining, until.to_rfc3339())
+            format!(
+                "muted ({}s remaining until {})",
+                remaining,
+                until.to_rfc3339()
+            )
         }
         _ => "not muted".to_string(),
     };

@@ -6,7 +6,7 @@ use chrono::{Duration as ChronoDuration, NaiveDate, Utc};
 
 use crate::config::Config;
 
-use super::paths::{ensure_db_dirs, paths_from_config, DbPaths};
+use super::paths::{DbPaths, ensure_db_dirs, paths_from_config};
 
 pub fn run_maintenance(config: &Config) {
     if !config.anomaly_db.enabled {
@@ -39,7 +39,11 @@ fn prune_old_daily_files(paths: &DbPaths, retention_days: u16) {
     }
 }
 
-fn prune_directory_by_date_prefix(dir: &Path, prefix: &str, retention_days: u16) -> HashSet<String> {
+fn prune_directory_by_date_prefix(
+    dir: &Path,
+    prefix: &str,
+    retention_days: u16,
+) -> HashSet<String> {
     let Ok(entries) = fs::read_dir(dir) else {
         return HashSet::new();
     };
@@ -58,7 +62,9 @@ fn prune_directory_by_date_prefix(dir: &Path, prefix: &str, retention_days: u16)
             continue;
         }
 
-        let date_part = file_name.strip_prefix(prefix).and_then(|tail| tail.get(0..10));
+        let date_part = file_name
+            .strip_prefix(prefix)
+            .and_then(|tail| tail.get(0..10));
         let Some(date_part) = date_part else {
             continue;
         };

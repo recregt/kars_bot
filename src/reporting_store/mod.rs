@@ -1,14 +1,11 @@
 use std::sync::{
-    atomic::{AtomicU32, Ordering},
     Arc,
+    atomic::{AtomicU32, Ordering},
 };
 
 use chrono::{Duration as ChronoDuration, Utc};
 
-use crate::{
-    config::Config,
-    monitor::MetricSample,
-};
+use crate::{config::Config, monitor::MetricSample};
 
 mod model;
 pub use model::RollingMetricSummary;
@@ -145,7 +142,9 @@ impl ReportingStore {
             .iter()
             .keys()
             .filter_map(|key| key.ok())
-            .take_while(|key| key.as_ref().len() >= 8 && &key.as_ref()[0..8] < cutoff_key.as_slice())
+            .take_while(|key| {
+                key.as_ref().len() >= 8 && &key.as_ref()[0..8] < cutoff_key.as_slice()
+            })
             .collect::<Vec<_>>();
 
         for key in keys_to_remove {

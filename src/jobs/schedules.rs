@@ -1,11 +1,11 @@
 use chrono::{Datelike, Days, TimeZone, Utc};
 use teloxide::{prelude::*, types::InputFile};
-use tokio::time::{interval, sleep, Duration};
+use tokio::time::{Duration, interval, sleep};
 
 use crate::anomaly_db::run_maintenance;
 use crate::app_context::AppContext;
 use crate::commands::build_weekly_cpu_report;
-use crate::monitor::{take_daily_summary_report, DailySummaryReport};
+use crate::monitor::{DailySummaryReport, take_daily_summary_report};
 
 pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
     tokio::spawn(async move {
@@ -107,7 +107,8 @@ fn duration_until_next_daily_summary(hour_utc: u8, minute_utc: u8) -> Duration {
     let mut scheduled = Utc.from_utc_datetime(&scheduled_today_naive);
     if scheduled <= now {
         let tomorrow = today.checked_add_days(Days::new(1)).unwrap_or(today);
-        let Some(scheduled_tomorrow_naive) = tomorrow.and_hms_opt(hour_utc as u32, minute_utc as u32, 0)
+        let Some(scheduled_tomorrow_naive) =
+            tomorrow.and_hms_opt(hour_utc as u32, minute_utc as u32, 0)
         else {
             return Duration::from_secs(60);
         };

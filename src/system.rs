@@ -1,6 +1,6 @@
-use tokio::process::Command;
-use tokio::time::{timeout, Duration};
 use thiserror::Error;
+use tokio::process::Command;
+use tokio::time::{Duration, timeout};
 
 #[derive(Debug, Clone)]
 pub struct CommandOutput {
@@ -17,7 +17,11 @@ pub enum CommandError {
     Io { cmd: String, source: std::io::Error },
 }
 
-pub async fn run_cmd(cmd: &str, args: &[&str], timeout_secs: u64) -> Result<CommandOutput, CommandError> {
+pub async fn run_cmd(
+    cmd: &str,
+    args: &[&str],
+    timeout_secs: u64,
+) -> Result<CommandOutput, CommandError> {
     let mut child = Command::new(cmd);
     child.args(args);
 

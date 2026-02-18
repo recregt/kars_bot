@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::Path;
 
 use chrono::{Datelike, Utc};
-use file_rotate::{compression::Compression, suffix::AppendCount, ContentLimit, FileRotate};
+use file_rotate::{ContentLimit, FileRotate, compression::Compression, suffix::AppendCount};
 use serde::Serialize;
 
 use crate::config::Config;
@@ -116,10 +116,7 @@ fn append_event_with_rotation(
 
 #[cfg(test)]
 mod tests {
-    use std::{
-        fs,
-        path::PathBuf,
-    };
+    use std::{fs, path::PathBuf};
 
     use serde::Serialize;
 

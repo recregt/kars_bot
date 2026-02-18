@@ -30,20 +30,29 @@ pub(crate) async fn handle_cpu(
     let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
         return Ok(());
     };
-    let message =
-        match run_cmd("top", &["-bn1"], timeout_for(cmd, runtime_config.command_timeout_secs)).await {
-            Ok(output) => {
-                let short = output
-                    .stdout
-                    .lines()
-                    .filter(|line| line.contains("Cpu(s)"))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                let body = if short.is_empty() { "No CPU output." } else { &short };
-                as_html_block("CPU Usage", body)
-            }
-            Err(error) => command_error_html(&error),
-        };
+    let message = match run_cmd(
+        "top",
+        &["-bn1"],
+        timeout_for(cmd, runtime_config.command_timeout_secs),
+    )
+    .await
+    {
+        Ok(output) => {
+            let short = output
+                .stdout
+                .lines()
+                .filter(|line| line.contains("Cpu(s)"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            let body = if short.is_empty() {
+                "No CPU output."
+            } else {
+                &short
+            };
+            as_html_block("CPU Usage", body)
+        }
+        Err(error) => command_error_html(&error),
+    };
 
     bot.send_message(msg.chat.id, message)
         .parse_mode(ParseMode::Html)

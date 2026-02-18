@@ -36,7 +36,10 @@ fn build_csv(samples: &[crate::monitor::MetricSample], metric: ExportMetric) -> 
     out
 }
 
-fn build_json(samples: &[crate::monitor::MetricSample], metric: ExportMetric) -> Result<Vec<u8>, String> {
+fn build_json(
+    samples: &[crate::monitor::MetricSample],
+    metric: ExportMetric,
+) -> Result<Vec<u8>, String> {
     let rows: Vec<JsonExportRow> = samples
         .iter()
         .map(|sample| JsonExportRow {

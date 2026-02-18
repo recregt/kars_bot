@@ -3,7 +3,7 @@ mod downsample;
 mod summary;
 
 pub(super) use anomaly::assess_anomaly_labels;
-pub(super) use downsample::{downsample_points, GraphPoint};
+pub(super) use downsample::{GraphPoint, downsample_points};
 pub(super) use summary::compute_metric_summary;
 
 #[cfg(test)]
@@ -107,8 +107,8 @@ mod tests {
             disk: 20.0,
         });
 
-        let assessment =
-            assess_anomaly_labels(GraphMetric::Cpu, &samples, 85.0).expect("assessment should exist");
+        let assessment = assess_anomaly_labels(GraphMetric::Cpu, &samples, 85.0)
+            .expect("assessment should exist");
         assert!(assessment.spike_detected);
     }
 
@@ -136,8 +136,8 @@ mod tests {
             },
         ];
 
-        let assessment =
-            assess_anomaly_labels(GraphMetric::Cpu, &samples, 85.0).expect("assessment should exist");
+        let assessment = assess_anomaly_labels(GraphMetric::Cpu, &samples, 85.0)
+            .expect("assessment should exist");
         assert!(assessment.sustained_high_load);
     }
 }

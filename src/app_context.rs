@@ -40,7 +40,10 @@ impl AppContext {
         let reporting_store = match ReportingStore::open_from_config(&config) {
             Ok(store) => store,
             Err(error) => {
-                log::warn!("reporting_store_disabled reason=open_failed error={}", error);
+                log::warn!(
+                    "reporting_store_disabled reason=open_failed error={}",
+                    error
+                );
                 None
             }
         };
@@ -82,13 +85,13 @@ impl AppContext {
 
 #[cfg(test)]
 mod tests {
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
 
     use crate::{
         capabilities::Capabilities,
         config::{
-            Alerts, AnomalyDb, Config, DailySummary, Graph, ReportingStoreConfig, RuntimeConfig,
-            ReleaseNotifierConfig, Security, Simulation, WeeklyReport,
+            Alerts, AnomalyDb, Config, DailySummary, Graph, ReleaseNotifierConfig,
+            ReportingStoreConfig, RuntimeConfig, Security, Simulation, WeeklyReport,
         },
     };
 

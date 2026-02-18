@@ -8,7 +8,7 @@ pub(super) use parser::parse_recent_query;
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_recent_query, RecentQuery};
+    use super::{RecentQuery, parse_recent_query};
 
     #[test]
     fn parses_combined_metric_and_window_filters() {

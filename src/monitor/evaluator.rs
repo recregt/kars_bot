@@ -43,7 +43,10 @@ pub(super) async fn evaluate_alerts_at(
             config.alerts.hysteresis,
             now,
         ) {
-            notifications.push(format!("⚠️ ALERT: Disk usage is high ({:.1}%)", metrics.disk));
+            notifications.push(format!(
+                "⚠️ ALERT: Disk usage is high ({:.1}%)",
+                metrics.disk
+            ));
         }
     }
 
@@ -64,8 +67,10 @@ mod tests {
         WeeklyReport,
     };
 
-    use super::{evaluate_alerts_at, AlertState, Metrics};
-    use crate::monitor::provider::{MetricsProvider, MockMetricsProvider, SimulatedMetricsProvider};
+    use super::{AlertState, Metrics, evaluate_alerts_at};
+    use crate::monitor::provider::{
+        MetricsProvider, MockMetricsProvider, SimulatedMetricsProvider,
+    };
 
     fn test_config() -> Config {
         Config {
@@ -107,7 +112,8 @@ mod tests {
         let state = Arc::new(Mutex::new(AlertState::default()));
         let start = Instant::now();
 
-        let first = evaluate_alerts_at(&config, &state, Metrics::new(90.0, 10.0, 10.0), start).await;
+        let first =
+            evaluate_alerts_at(&config, &state, Metrics::new(90.0, 10.0, 10.0), start).await;
         assert_eq!(first.len(), 1);
 
         let cooldown_block = evaluate_alerts_at(
@@ -166,20 +172,22 @@ mod tests {
                 .await
                 .expect("simulated metrics should be generated");
 
-            let notifications = evaluate_alerts_at(
-                &config,
-                &state,
-                metrics,
-                start + Duration::from_secs(tick),
-            )
-            .await;
+            let notifications =
+                evaluate_alerts_at(&config, &state, metrics, start + Duration::from_secs(tick))
+                    .await;
 
-            if notifications.iter().any(|n| n.contains("CPU usage is high")) {
+            if notifications
+                .iter()
+                .any(|n| n.contains("CPU usage is high"))
+            {
                 cpu_alert_observed = true;
                 break;
             }
         }
 
-        assert!(cpu_alert_observed, "expected simulated CPU spike to trigger alert");
+        assert!(
+            cpu_alert_observed,
+            "expected simulated CPU spike to trigger alert"
+        );
     }
 }

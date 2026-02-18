@@ -48,16 +48,19 @@ pub(super) async fn extract_readiness(
 
 pub(super) async fn run_update_apply(command_timeout_secs: u64) -> Result<String, CommandError> {
     let lock = update_apply_lock();
-    let permit = timeout(Duration::from_secs(UPDATE_LOCK_TIMEOUT_SECS), lock.acquire())
-        .await
-        .map_err(|_| CommandError::Timeout {
-            cmd: "update apply lock".to_string(),
-            timeout_secs: UPDATE_LOCK_TIMEOUT_SECS,
-        })?
-        .map_err(|source| CommandError::Io {
-            cmd: "update apply lock".to_string(),
-            source: std::io::Error::other(source.to_string()),
-        })?;
+    let permit = timeout(
+        Duration::from_secs(UPDATE_LOCK_TIMEOUT_SECS),
+        lock.acquire(),
+    )
+    .await
+    .map_err(|_| CommandError::Timeout {
+        cmd: "update apply lock".to_string(),
+        timeout_secs: UPDATE_LOCK_TIMEOUT_SECS,
+    })?
+    .map_err(|source| CommandError::Io {
+        cmd: "update apply lock".to_string(),
+        source: std::io::Error::other(source.to_string()),
+    })?;
 
     let output = run_cmd(
         "bash",

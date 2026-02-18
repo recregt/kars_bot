@@ -5,7 +5,7 @@ use tempfile::tempdir;
 use crate::{
     app_context::AppContext,
     capabilities::Capabilities,
-    config::{load_config, RuntimeConfig},
+    config::{RuntimeConfig, load_config},
 };
 
 use super::apply_runtime_reload_from_path;
@@ -117,6 +117,9 @@ async fn hot_reload_rejects_invalid_config_and_preserves_last_runtime() {
 
     let current = app.runtime_config.read().await.clone();
     assert_eq!(current.monitor_interval, expected_runtime.monitor_interval);
-    assert_eq!(current.command_timeout_secs, expected_runtime.command_timeout_secs);
+    assert_eq!(
+        current.command_timeout_secs,
+        expected_runtime.command_timeout_secs
+    );
     assert!((current.alerts.cpu - expected_runtime.alerts.cpu).abs() < f32::EPSILON);
 }
