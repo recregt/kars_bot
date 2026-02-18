@@ -1,0 +1,30 @@
+name: Release Plz Preview
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install release-plz
+        run: cargo install --locked release-plz
+
+      - name: Run release-plz dry-run
+        run: release-plz release-pr --config release-plz.toml --dry-run

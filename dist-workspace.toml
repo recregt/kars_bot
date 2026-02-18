@@ -1,0 +1,7 @@
+[dist]
+cargo-dist-version = "0.27.0"
+ci = "github"
+installers = []
+targets = ["x86_64-unknown-linux-musl"]
+pr-run-mode = "skip"
+install-updater = false
