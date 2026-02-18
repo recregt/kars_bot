@@ -64,6 +64,25 @@ has_release_tag_for_version() {
   return 1
 }
 
+maybe_create_missing_release_tag() {
+  local version="$1"
+  local target_sha="$2"
+
+  if [[ "${AUTO_CREATE_MISSING_TAG:-0}" != "1" ]]; then
+    return 1
+  fi
+
+  if git rev-parse --verify "refs/tags/v$version" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  git tag -a "v$version" "$target_sha" -m "Release v$version"
+  echo "[pre-push] Auto-created local tag v$version at $target_sha"
+  echo "[pre-push] Push stopped intentionally so git can recompute refs including the new tag."
+  echo "[pre-push] Re-run push with: git push --follow-tags"
+  return 0
+}
+
 for line in "${push_lines[@]}"; do
   local_ref=$(awk '{print $1}' <<<"$line")
   local_sha=$(awk '{print $2}' <<<"$line")
@@ -95,8 +114,12 @@ for line in "${push_lines[@]}"; do
     if git diff "$range" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
       target_version=$(git show "$local_sha":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
       if ! has_release_tag_for_version "$target_version"; then
+        if maybe_create_missing_release_tag "$target_version" "$local_sha"; then
+          exit 1
+        fi
         echo "[pre-push] Blocked: Cargo.toml version changed to $target_version but no matching tag v$target_version is in this push."
-        echo "Use scripts/release_tag.sh v$target_version and push commit + tag together."
+        echo "Suggestion: run scripts/release_tag.sh v$target_version and push commit + tag together."
+        echo "Optional automation: AUTO_CREATE_MISSING_TAG=1 git push --follow-tags"
         exit 1
       fi
     fi

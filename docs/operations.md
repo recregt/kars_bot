@@ -45,6 +45,14 @@ Notes:
 - The script bumps `Cargo.toml` only when needed.
 - Version bump commit uses `ALLOW_VERSION_BUMP=1` to pass the guard.
 - If no tag/release is planned, `Cargo.toml` version must stay unchanged.
+- Pre-push guard can auto-create missing local release tag (opt-in):
+
+```bash
+AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
+```
+
+  The hook creates `vX.Y.Z` locally (at pushed commit) and intentionally stops once,
+  so a second push includes the newly created tag.
 
 Prerequisite:
 
