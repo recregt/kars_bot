@@ -1,156 +1,390 @@
-# Kars Bot — Development Roadmap (2026-02-17)
+# Kars Bot Reliability Mega-Roadmap (2026-02-18)
 
-This roadmap is rewritten in English and structured with checkboxes so implementation progress can be tracked step by step.
-
-## Current Baseline
-
-- [x] Core monitoring/alert loop is implemented and tested.
-- [x] `/graph`, `/export`, and `/recent` are available.
-- [x] JSONL-based anomaly storage + retention maintenance exists.
-- [x] Test baseline is green (`cargo test`: 19/19).
-- [x] Hot-reload applies runtime values beyond graph settings (`alerts`, timing, graph limits).
-- [x] Preflight uses degrade-mode startup behavior on non-systemd/non-sensors hosts.
-- [x] `/status` is runtime-aware and reflects live monitor/security/capability state.
+Target profile: 99.9% production reliability on GCP/VPS with a MUSL-target static binary.
+Stack context: Teloxide, Tokio, Sled, Plotters, Sysinfo, Linux systemd service runtime.
 
 ---
 
-## Confirmed Decisions (Accepted)
+## Stage 1 — Precise Technical Translation (Scope-Preserved)
 
-- [x] **Environment-aware feature degrade**: introduce a `CapabilityManager` and runtime capability flags (e.g., `has_sensors`, `is_systemd`) so missing host tools do not crash the bot.
-- [x] **Hybrid persistence strategy**: keep raw anomaly events in JSONL, add a lightweight reporting store (SQLite or sled) for efficient historical summaries and weekly reporting.
-- [x] **Thread-safe runtime config updates**: move effective runtime config behind `Arc<RwLock<...>>` so hot-reload can safely update alert thresholds and timing-related values.
+### 0) Baseline and Scope Freeze (P0)
+
+#### Goal
+Establish measurable baselines and freeze non-goals before refactoring.
+
+#### Tasks
+- [ ] Capture runtime and binary baselines:
+  - [ ] Dependency inversion check for crypto/TLS stack (transitive dependency walk).
+  - [ ] Dynamic-link inspection on glibc target.
+  - [ ] Static-link artifact inspection on MUSL target.
+- [ ] Capture representative error logs for graph rendering and update flow.
+- [ ] Freeze explicit out-of-scope items (new commands, non-essential UI work, feature creep).
+
+#### Acceptance Criteria
+- [ ] Baseline evidence is persisted in release validation documents.
+- [ ] Each future change is traceable to one root reliability issue.
 
 ---
 
-## Sprint 1 — Stabilization (P0)
+### 1) Remove Ghost C Dependency (OpenSSL) (P0)
 
-### Goal
-Improve production reliability before adding larger features.
+#### Problem
+The project includes vendored OpenSSL while the effective Telegram/TLS transport uses Rustls. This creates unnecessary C toolchain coupling, increases build time, and weakens MUSL portability.
+
+#### Goal
+Enforce a Rust-native TLS path and eliminate unnecessary OpenSSL transitive paths.
+
+#### Tasks
+- [ ] Remove direct OpenSSL dependency from the manifest.
+- [ ] Keep only required Rustls feature set in Telegram client dependencies.
+- [ ] Audit transitive dependency graph for native-tls/OpenSSL re-introduction.
+- [ ] Validate MUSL release build path and CI assumptions.
+- [ ] Update runtime/release documentation to state Rustls-only TLS policy.
+
+#### Acceptance Criteria
+- [ ] OpenSSL is absent from the active dependency graph unless explicitly justified.
+- [ ] Release and MUSL builds pass without C crypto toolchain dependency.
+
+---
+
+### 2) Font Gate and Silent Graph Failures (P0)
+
+#### Problem
+A statically linked artifact may not access host font libraries. Plotters can panic or fail silently when no valid font path exists.
+
+#### Goal
+Introduce deterministic font lifecycle and remove silent render failure modes.
+
+#### Tasks
+- [ ] Define deterministic font strategy (embedded asset and/or shipped font bundle).
+- [ ] Add explicit font resolution error classification.
+- [ ] Add startup font readiness preflight.
+- [ ] Add degraded behavior when font readiness fails.
+- [ ] Improve graph command UX with actionable operator/user messages.
+
+#### Acceptance Criteria
+- [ ] Missing-font scenarios do not panic and do not fail silently.
+- [ ] Error cause and remediation are visible to both operator and user.
+
+---
+
+### 3) Spawn-Blocking Error Propagation and Diagnostics (P0)
+
+#### Problem
+Graph rendering errors inside Tokio spawn_blocking are not consistently propagated with context. With panic=abort on release profile, stack traces are limited and failures can appear swallowed.
+
+#### Goal
+Map blocking-render failures into typed domain errors with structured telemetry.
+
+#### Tasks
+- [ ] Introduce typed GraphRenderError taxonomy.
+- [ ] Normalize JoinError and inner render failures into one domain error model.
+- [ ] Add panic boundary handling at render boundary where possible.
+- [ ] Add deterministic timeout and queue/slot visibility for render jobs.
+- [ ] Add test coverage for panic, timeout, join, backend, and font-failure branches.
+
+#### Acceptance Criteria
+- [ ] Every rendering failure leaves a user-visible outcome and operator-visible structured event.
+- [ ] No silent error drop paths remain in graph execution.
+
+---
+
+### 4) End-to-End Update Flow Automation (P0/P1)
+
+#### Problem
+The Rust command path and Bash update script are not fully orchestrated; privilege checks and service-state checks remain partly manual.
+
+#### Goal
+Provide a one-command, policy-safe update flow with health validation and rollback.
+
+#### Tasks
+- [ ] Extend update check to include operational feasibility checks.
+- [ ] Route update apply through controlled script execution.
+- [ ] Harden updater with preconditions, verification, and Atomic Swap deployment.
+- [ ] Add service restart health gate and automatic rollback on failure.
+- [ ] Document minimum-privilege sudoers and non-systemd degraded behavior.
+
+#### Acceptance Criteria
+- [ ] Update apply provides deterministic success/rollback/manual-intervention states.
+- [ ] Service liveness is automatically validated after update.
+
+---
+
+## Stage 2 — Deep-Dive Gap Analysis (Architect Audit)
+
+### A) DNS and NSS on MUSL-Static
+
+#### Finding
+- [ ] A fully static MUSL binary does not rely on glibc NSS modules, and resolver behavior can differ from glibc-based expectations.
+- [ ] Telegram API reachability depends on robust DNS under container/VPS/network policy constraints.
+
+#### Risk
+- [ ] Resolver edge cases (split DNS, search domains, transient resolver outages, IPv6 preference mismatch) can cause intermittent API failures.
+
+#### Required Additions
+- [ ] Decide resolver strategy explicitly:
+  - [ ] Option 1: Keep system resolver path and harden retry/backoff metrics.
+  - [ ] Option 2: Integrate pure-Rust resolver path (for example Hickory/Trust-DNS resolver) with explicit upstreams and timeout policy.
+- [ ] Add DNS readiness probe at startup and periodic runtime probe.
+- [ ] Add resolver metrics: lookup latency, NXDOMAIN/SERVFAIL counters, fallback usage.
+- [ ] Add runbook section for resolver incident triage.
+
+### B) Concurrency and Deadlock/Starvation Paths
+
+#### Finding
+- [ ] Current graph path acquires metric history lock and render slot in sequence; lock hold windows are short but contention can still cause starvation under high command fan-in.
+- [ ] Blocking render workload can increase queue wait and trigger cascading command timeout behavior.
+
+#### Risk
+- [ ] Throughput collapse (not a strict deadlock) under burst traffic, perceived as random graph failures.
+
+#### Required Additions
+- [ ] Introduce explicit lock-order policy and document it.
+- [ ] Keep metric history lock strictly scoped to snapshot copy only.
+- [ ] Add bounded wait telemetry for render slot acquisition.
+- [ ] Add command-level circuit breaker/degrade path when queue depth exceeds threshold.
+
+### C) Asset Lifecycle and include_bytes Footprint
+
+#### Finding
+- [ ] Embedding fonts via include_bytes moves assets into binary sections, increasing artifact size and first-touch page faults.
+
+#### Risk
+- [ ] Cold-start latency increase and potential I-cache/D-cache pressure on low-memory VPS.
+
+#### Required Additions
+- [ ] Benchmark two packaging modes: embedded font vs sidecar font package.
+- [ ] Add startup timing probe (process start to first successful graph render).
+- [ ] Use lazy initialization for font engine and cache resolved font handles.
+
+### D) Signal Handling During Mid-Flight Update
+
+#### Finding
+- [ ] systemd restart sends SIGTERM then termination escalation; in-flight update tasks and Telegram polling loop can be interrupted.
+
+#### Risk
+- [ ] Partially completed update workflow, double restart attempts, or inconsistent status messaging.
+
+#### Required Additions
+- [ ] Define signal choreography:
+  - [ ] Pre-stop gate: pause new update jobs.
+  - [ ] Drain in-flight graph/update tasks with bounded timeout.
+  - [ ] Persist update-state checkpoint before restart.
+- [ ] Ensure server_update script and Rust flow are idempotent under repeated signals.
+
+### E) Sled Database Integrity Across Atomic Binary Swap
+
+#### Finding
+- [ ] Binary Atomic Swap is safe for executable replacement, but Sled durability depends on flush semantics and clean shutdown timing.
+
+#### Risk
+- [ ] Unflushed writes or abrupt termination can cause data loss window or longer recovery path on restart.
+
+#### Required Additions
+- [ ] Add pre-restart storage barrier (flush and verify result).
+- [ ] Add startup integrity check and explicit recovery log path.
+- [ ] Add backup/restore hooks for reporting store before risky update operations.
+
+---
+
+## Stage 3 — Predictive Troubleshooting Layer (Failure Mode + Mitigation)
+
+### Workstream: TLS and Dependency Hygiene
+- [ ] Potential Failure Mode
+  - [ ] Transitive crate reintroduces native-tls via default features after dependency update.
+- [ ] Mitigation Strategy
+  - [ ] Add CI gate that fails on OpenSSL/native-tls presence in dependency tree.
+  - [ ] Pin feature sets and review dependency updates via lockfile diff policy.
+
+### Workstream: Font and Render Stability
+- [ ] Potential Failure Mode
+  - [ ] Embedded font parse failure or corrupted sidecar font causes graph render outage.
+- [ ] Mitigation Strategy
+  - [ ] Add dual-font fallback chain and startup self-test with fail-fast diagnostics.
+  - [ ] Auto-disable graph feature with explicit operator alert when readiness fails.
+
+### Workstream: Blocking Render Error Propagation
+- [ ] Potential Failure Mode
+  - [ ] JoinError/timeout branches map to generic message, losing root-cause attribution.
+- [ ] Mitigation Strategy
+  - [ ] Enforce typed error envelope with stable error codes and event correlation ID.
+  - [ ] Add synthetic fault injection tests for each branch.
+
+### Workstream: Update and Restart Orchestration
+- [ ] Potential Failure Mode
+  - [ ] Service restarts with invalid binary or wrong permissions, causing boot-loop.
+- [ ] Mitigation Strategy
+  - [ ] Validate executable before swap, keep previous binary, and auto-rollback on health-check failure.
+  - [ ] Use flock/lockfile to block concurrent update applies.
+
+### Workstream: DNS Reliability
+- [ ] Potential Failure Mode
+  - [ ] Resolver outage causes Telegram API unreachability and command backlog.
+- [ ] Mitigation Strategy
+  - [ ] Resolver retries with jittered exponential backoff and multi-upstream fallback.
+  - [ ] Degraded mode with clear status reporting and reduced command load.
+
+### Workstream: Sled Durability
+- [ ] Potential Failure Mode
+  - [ ] Abrupt restart during write-heavy period leaves stale/incomplete state.
+- [ ] Mitigation Strategy
+  - [ ] Pre-restart flush barrier and post-restart consistency check with recovery path.
+  - [ ] Scheduled snapshots for fast rollback and incident forensics.
+
+---
+
+## Stage 4 — Final Expanded Mega-Roadmap (Execution Plan)
+
+## Phase 0 — Baseline, Invariants, and Reliability Gates (P0)
+
+### Deliverables
+- [ ] Runtime baseline report for build, startup, graph render, update flow.
+- [ ] Reliability SLO map (99.9 target translated into measurable SLIs).
+- [ ] Reliability gates integrated into CI and pre-release checklist.
 
 ### Tasks
-- [x] Implement `CapabilityManager` at startup.
-- [x] Detect host capabilities via `std::process::Command` checks.
-- [x] Persist capabilities in app context (`Capabilities` struct).
-- [x] Update command handlers to return “feature not supported on this system” when capability is missing.
-- [x] Refactor preflight from fail-fast to degrade mode.
-- [x] Make `/status` show live runtime state (graph runtime, anomaly config, last tick, mute state, capabilities).
-- [x] Clean Clippy `collapsible_if` warnings by flattening nested conditionals.
+- [ ] Define SLIs: bot availability, command success rate, graph success rate, update success rate.
+- [ ] Define error budget policy and release freeze criteria.
+- [ ] Add deterministic build metadata and artifact manifest.
 
-### Acceptance Criteria
-- [x] Bot starts on hosts without `systemctl` and/or `sensors`.
-- [x] Unsupported features fail gracefully with clear user-facing messages.
-- [x] `/status` reflects real runtime state.
-- [x] `cargo clippy --all-targets --all-features -D warnings` passes.
+### Potential Failure Mode
+- [ ] Baseline metrics are incomplete and cannot prove reliability gains.
+
+### Mitigation Strategy
+- [ ] Reject release candidates that lack full SLI bundle and reproducibility metadata.
 
 ---
 
-## Sprint 2 — Runtime Config + Safety (P0/P1)
+## Phase 1 — TLS, MUSL, and Dependency Hardening (P0)
 
-### Goal
-Enable safe dynamic behavior changes without restarts.
+### Deliverables
+- [ ] Rustls-only transport path.
+- [ ] No unintended OpenSSL/native-tls in transitive graph.
+- [ ] Stable MUSL static artifact validation path.
 
 ### Tasks
-- [x] Introduce shared runtime config container (`Arc<RwLock<RuntimeConfig>>`).
-- [x] Define which values are hot-reloadable (`alerts`, `monitor_interval`, `command_timeout_secs`, graph settings).
-- [x] Update monitor loop to read latest runtime config each tick.
-- [x] Update command timeout logic to read live timeout values.
-- [x] Add clear logs for hot-reload apply/reject decisions.
-- [x] Add tests for hot-reload race safety and value visibility.
+- [ ] Remove direct OpenSSL dependency and verify lockfile impact.
+- [ ] Add dependency policy checks in CI.
+- [ ] Validate artifact properties:
+  - [ ] Static-PIE expectation and symbol stripping validation.
+  - [ ] Reproducible release profile settings review.
+- [ ] Validate DNS behavior under MUSL with production-like resolver settings.
 
-### Acceptance Criteria
-- [x] Runtime config changes are reflected without restart.
-- [x] No data races or lock-related regressions in async tasks.
-- [x] Invalid config updates are rejected safely with clear logs.
+### Potential Failure Mode
+- [ ] TLS handshake regressions appear after dependency cleanup.
+
+### Mitigation Strategy
+- [ ] Add canary rollout with handshake/error-rate telemetry and immediate rollback trigger.
 
 ---
 
-## Sprint 3 — Data & Reporting Depth (P1)
+## Phase 2 — Graph Runtime Determinism and Error Integrity (P0)
 
-### Goal
-Make weekly and historical reporting accurate and efficient.
+### Deliverables
+- [ ] Deterministic font lifecycle.
+- [ ] Typed render error taxonomy with end-to-end propagation.
+- [ ] Queue/slot pressure visibility and overload protection.
 
 ### Tasks
-- [x] Add lightweight reporting store (SQLite or sled) for aggregated windows.
-- [x] Keep JSONL as source of raw event truth (append-only).
-- [x] Write/update summary records for rolling 7-day analytics.
-- [x] Make weekly report resilient to process restarts.
-- [x] Extend `/recent` query grammar for combined filters (example: `cpu>85 ram>80 6h`).
-- [x] Improve parse error guidance with actionable examples.
+- [ ] Implement font readiness preflight and fallback policy.
+- [ ] Introduce GraphRenderError and stable error codes.
+- [ ] Bound render execution with timeout and queue depth metrics.
+- [ ] Ensure lock scope minimization for metric history snapshot operations.
+- [ ] Add test matrix for font missing, backend failure, timeout, join failure, panic boundary behavior.
 
-### Acceptance Criteria
-- [x] Weekly report works after restart with consistent historical context.
-- [x] Complex report queries are served without scanning full raw history each time.
-- [x] Parser test coverage for combined filters is added.
+### Potential Failure Mode
+- [ ] High-load periods exhaust render slots and trigger command timeout cascades.
+
+### Mitigation Strategy
+- [ ] Apply adaptive backpressure (temporary graph cooldown, queue cap, degrade messaging).
 
 ---
 
-## Sprint 4 — Simulation & UX Improvements (P1/P2)
+## Phase 3 — Update Orchestration, Signal Safety, and Storage Integrity (P0/P1)
 
-### Goal
-Improve validation workflows and mobile usability.
+### Deliverables
+- [ ] Idempotent update workflow with prechecks, Atomic Swap, health validation, and rollback.
+- [ ] Signal-safe shutdown choreography compatible with systemd.
+- [ ] Sled durability guards for restart windows.
 
 ### Tasks
-- [x] Add simulation mode for synthetic metrics (sin wave + random spikes).
-- [x] Support a config toggle and/or command-level simulation switch.
-- [x] Verify `/graph` and anomaly detection behavior using simulated data.
-- [x] Add Telegram inline keyboard shortcuts for common actions.
-- [x] Define safe, non-destructive button actions first (status, graph, mute/unmute).
+- [ ] Extend update check to include permissions, service manager, path writability, and lock state.
+- [ ] Harden server_update workflow:
+  - [ ] Verify downloaded artifact integrity and executability.
+  - [ ] Use Atomic Swap deployment with backup retention.
+  - [ ] Perform post-restart health probe and auto-rollback on failure.
+- [ ] Add signal-aware stop/drain logic for in-flight operations.
+- [ ] Add Sled flush barrier before controlled restart and startup consistency probe.
+- [ ] Add update lock (single-writer policy).
 
-### Acceptance Criteria
-- [x] Simulation mode can be enabled without changing production logic paths.
-- [x] Inline actions reduce manual command typing for routine operations.
+### Potential Failure Mode
+- [ ] Mid-flight restart interrupts update and leaves ambiguous service state.
+
+### Mitigation Strategy
+- [ ] Persist update state machine checkpoints and resume/repair on startup.
 
 ---
 
-## Sprint 5 — Portability & Release Operations (P2)
+## Phase 4 — Operationalization, Runbooks, and Release Control (P1)
 
-### Goal
-Make deployment simpler across Linux environments.
+### Deliverables
+- [ ] End-to-end runbooks aligned with real failure paths.
+- [ ] Operator-safe commands and incident playbooks.
+- [ ] Release validation matrix for glibc/MUSL and DNS variants.
 
 ### Tasks
-- [x] Add optional static build target (`x86_64-unknown-linux-musl`).
-- [x] Document binary portability trade-offs and feature constraints.
-- [x] Add CI artifact build for portable release binaries.
-- [x] Add glibc/musl runtime validation checklist template.
-- [x] Validate runtime behavior on glibc and musl environments.
+- [ ] Update release, rollback, and incident runbooks with concrete command sequences.
+- [ ] Add operator checklists for DNS incidents, graph subsystem degradation, and update rollback.
+- [ ] Add pre-release chaos checks (DNS fault injection, render failure injection, update rollback drills).
 
-### Acceptance Criteria
-- [x] Portable binary build is reproducible and documented.
-- [x] Runtime checks and degraded features still behave predictably.
+### Potential Failure Mode
+- [ ] Corrective action is delayed because runbooks are incomplete or stale.
 
----
-
-## Bonus Backlog
-
-- [x] Add self-update flow (`/update`) with release check + controlled restart.
-- [x] Add output-as-file fallback for oversized Telegram command outputs.
-- [x] Add optional redaction for sensitive command outputs (`services`, `ports`, `network`).
+### Mitigation Strategy
+- [ ] Make runbook verification a mandatory release gate with ownership sign-off.
 
 ---
 
-## Risks During Implementation
+## Phase 5 — Performance and Observability (P2)
 
-- [x] **Capability drift risk**: tracked with capability degrade checks and runtime validation matrix.
-- [x] **Scheduler drift risk**: tracked with restart-resilient reporting tests and UTC schedule guards.
-- [x] **Concurrency risk**: tracked with runtime-config concurrent read/write stress tests.
-- [x] **Data model risk**: tracked with append-only raw-event tests and persisted rollup assertions.
-- [x] **Telegram limit risk**: tracked with output truncation + file-attachment fallback behavior.
+### Deliverables
+- [ ] Full telemetry for command lifecycle, graph rendering, updates, DNS, and storage.
+- [ ] Operator and user-facing UX improvements for error clarity.
+- [ ] Performance baselines for cold start, steady state, and high-load behavior.
+
+### Tasks
+- [ ] Add structured telemetry dimensions:
+  - [ ] trace_id, request_id, command_type, queue_wait_ms, render_ms, dns_lookup_ms, update_stage.
+- [ ] Export counters/histograms for SLI dashboards and alerting.
+- [ ] Add user-facing error envelope with short remediation guidance per error code.
+- [ ] Benchmark and tune:
+  - [ ] Cold start latency with embedded vs sidecar font assets.
+  - [ ] Throughput under graph burst traffic and update contention.
+- [ ] Add log sampling/rate limiting to avoid observability-induced load.
+
+### Potential Failure Mode
+- [ ] Observability overhead degrades runtime performance.
+
+### Mitigation Strategy
+- [ ] Use dynamic sampling, bounded label cardinality, and periodic overhead profiling.
 
 ---
 
-## Open Decision Items (Still Pending)
+## Global Definition of Done
 
-- [x] Choose reporting store: SQLite vs sled. (Selected: sled)
-- [x] Decide simulation UX: config-first for v1.x (runtime toggle via config, extend later if needed).
-- [x] Scope inline actions: controlled admin actions under owner-only DM policy.
-- [x] Decide if multi-user authorization (roles) is in-scope for near-term sprints. (Out of scope)
-- [x] Define security posture for potentially sensitive system command outputs.
+- [ ] All P0 acceptance criteria are met with evidence artifacts.
+- [ ] Reliability target trajectory is measurable (error budget burn visible per release).
+- [ ] No silent failure path remains for graph and update critical flows.
+- [ ] MUSL static artifact passes runtime validation in production-like conditions.
+- [ ] DNS, update, and storage recovery runbooks are tested and operator-approved.
 
 ---
 
-## Next Implementation Batch
+## Suggested Execution Order
 
-- [x] Build `Capabilities` + `CapabilityManager` and wire into app context.
-- [x] Convert preflight to degrade-mode startup behavior.
-- [x] Upgrade `/status` into runtime-aware diagnostics.
-- [x] Apply first Clippy cleanup pass (nested-if flattening).
+- [ ] Step 1: Phase 0 baseline and reliability gates
+- [ ] Step 2: Phase 1 dependency/TLS/MUSL hardening
+- [ ] Step 3: Phase 2 graph determinism and error integrity
+- [ ] Step 4: Phase 3 update, signal, and storage safety
+- [ ] Step 5: Phase 4 runbook and release control
+- [ ] Step 6: Phase 5 performance and observability
