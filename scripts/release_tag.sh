@@ -127,7 +127,7 @@ echo "$timestamp_utc,$tag,$size_bytes,$size_human" >> docs/releases/binary-size.
 git add Cargo.toml CHANGELOG.md docs/releases/binary-size.csv
 
 if [[ -n "$(git diff --cached --name-only)" ]]; then
-  ALLOW_VERSION_BUMP=1 git commit -m "chore(release): prepare $tag"
+  ALLOW_VERSION_BUMP=1 ALLOW_MAIN_RELEASE_COMMIT=1 git commit -m "chore(release): prepare $tag"
 fi
 
 git tag -a "$tag" -m "Release $tag"
