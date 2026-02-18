@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## v1.3.2 - 2026-02-18
+
+
+
+### Bug Fixes
+
+- Allow controlled main release commit flow
+
+
+### Maintenance
+
+- Add doctor diagnostics and release-safe automation
+
+
+### merge
+
+- Local ci preflight tooling
+
+- Release automation doctor improvements
+
+- Develop into main for v1.3.2
+
+- Controlled main release guard fix
+
+- Develop into main for v1.3.2 release guard
+
+
+
 ## v1.3.1 - 2026-02-18
 
 
