@@ -22,7 +22,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Validate workflows with actionlint
-        uses: rhysd/actionlint@v1
+        uses: rhysd/actionlint@v1.7.8
 
       - name: Install cargo-nextest
         uses: taiki-e/install-action@nextest
