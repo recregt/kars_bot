@@ -71,9 +71,9 @@ checksum = "843867be96c8daad0d758b57df9392b6d8d271134fce549de6ce169ff98a92af"
 
 [[package]]
 name = "bumpalo"
-version = "3.20.0"
+version = "3.20.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c81d250916401487680ed13b8b675660281dcfc3ab0121fe44c94bcab9eae2fb"
+checksum = "5c6f81257d10a0f602a294ae4182251151ff97dbb504ef9afcdda4a64b24d9b4"
 
 [[package]]
 name = "bytemuck"
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "kars_bot"
-version = "1.3.1"
+version = "1.3.2"
 dependencies = [
  "chrono",
  "file-rotate",
