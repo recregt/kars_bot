@@ -35,12 +35,24 @@ jobs:
           git fetch --no-tags --depth=1 origin main || true
           base_ref="$(git merge-base HEAD origin/main || git rev-parse HEAD~1)"
           changed_files=$(git diff --name-only "$base_ref...HEAD" -- '*.rs' | tr '\n' ' ')
+          changed_all=$(git diff --name-only "$base_ref...HEAD" | tr '\n' ' ')
 
           if [[ -z "$changed_files" ]]; then
             changed_files=$(git diff --name-only HEAD~1...HEAD -- '*.rs' | tr '\n' ' ' || true)
+            changed_all=$(git diff --name-only HEAD~1...HEAD | tr '\n' ' ' || true)
+          fi
+
+          rust_related="false"
+          if grep -Eq '(^| )(Cargo.toml|Cargo.lock|rust-toolchain(\.toml)?|\.cargo/|scripts/check_tls_stack\.sh|.*\.rs)( |$)' <<<"$changed_all"; then
+            rust_related="true"
           fi
 
           echo "files=$changed_files" >> "$GITHUB_OUTPUT"
+          echo "rust_related=$rust_related" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Rust build artifacts
+        if: steps.changed_rs.outputs.rust_related == 'true'
+        uses: Swatinem/rust-cache@v2
 
       - name: Rust fmt check (changed files)
         if: steps.changed_rs.outputs.files != ''
@@ -54,13 +66,20 @@ jobs:
         run: echo "No Rust file changes detected; skipping rustfmt check."
 
       - name: Clippy strict
+        if: steps.changed_rs.outputs.rust_related == 'true'
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Run tests (nextest)
+        if: steps.changed_rs.outputs.rust_related == 'true'
         run: cargo nextest run --locked --all-targets
 
       - name: Enforce Rustls-only TLS graph
+        if: steps.changed_rs.outputs.rust_related == 'true'
         run: scripts/check_tls_stack.sh
+
+      - name: Skip heavy Rust checks (non-Rust PR)
+        if: steps.changed_rs.outputs.rust_related != 'true'
+        run: echo "No Rust/Cargo/TLS-relevant changes detected; skipping clippy/nextest/tls checks."
 
       - name: Validate reliability docs baseline
         run: |
