@@ -105,8 +105,13 @@ for line in "${push_lines[@]}"; do
 
   if [[ "$local_ref" =~ ^refs/heads/ ]]; then
     if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
-      empty_tree=$(git hash-object -t tree /dev/null)
-      range="$empty_tree..$local_sha"
+      if git rev-parse --verify refs/remotes/origin/main >/dev/null 2>&1; then
+        base_sha=$(git merge-base "$local_sha" refs/remotes/origin/main)
+        range="$base_sha..$local_sha"
+      else
+        empty_tree=$(git hash-object -t tree /dev/null)
+        range="$empty_tree..$local_sha"
+      fi
     else
       range="$remote_sha..$local_sha"
     fi
