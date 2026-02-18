@@ -1,9 +1,14 @@
-# Kars Bot Reliability Mega-Roadmap (2026-02-18)
+# Kars Bot Reliability Mega-Roadmap (2026-02-19)
 
 Target profile: 99.9% production reliability on GCP/VPS with a MUSL-target static binary.
 Stack context: Teloxide, Tokio, Sled, Plotters, Sysinfo, Linux systemd service runtime.
 
-v1.2.0 implementation status: Phase 0, Phase 1, and Phase 2 are completed.
+v1.3.3 implementation status: Phase 0, Phase 1, and Phase 2 are completed. Phase 4 operator-safety controls are partially completed.
+
+Latest update highlights (v1.3.3):
+- [x] Release changelog generation is now deterministic and corruption-guarded.
+- [x] Hook/CI release safety controls were tightened (fingerprint-aware lockfile audit, confirm-gated release commands).
+- [x] Branch-sync and release runbook flow are aligned with current protected-branch policy.
 
 ---
 
@@ -331,11 +336,11 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 
 ### Deliverables
 - [ ] End-to-end runbooks aligned with real failure paths.
-- [ ] Operator-safe commands and incident playbooks.
+- [x] Operator-safe commands and incident playbooks.
 - [ ] Release validation matrix for glibc/MUSL and DNS variants.
 
 ### Tasks
-- [ ] Update release, rollback, and incident runbooks with concrete command sequences.
+- [x] Update release, rollback, and incident runbooks with concrete command sequences.
 - [ ] Add operator checklists for DNS incidents, graph subsystem degradation, and update rollback.
 - [ ] Add pre-release chaos checks (DNS fault injection, render failure injection, update rollback drills).
 

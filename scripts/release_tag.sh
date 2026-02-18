@@ -106,11 +106,7 @@ if [[ "$current_version" != "$version" ]]; then
 fi
 
 echo "Generating changelog with git-cliff..."
-if [[ -f CHANGELOG.md ]]; then
-  git-cliff --unreleased --tag "$tag" --prepend CHANGELOG.md
-else
-  git-cliff --unreleased --tag "$tag" > CHANGELOG.md
-fi
+git-cliff --tag "$tag" > CHANGELOG.md
 
 if git diff --quiet -- CHANGELOG.md; then
   echo "CHANGELOG.md was not updated by git-cliff."
@@ -126,6 +122,14 @@ fi
 if ! grep -q "^## $tag" CHANGELOG.md; then
   echo "CHANGELOG validation failed: missing section header '## $tag'."
   echo "Release aborted to keep changelog and tag history synchronized."
+  exit 1
+fi
+
+duplicate_headers=$(grep -E '^## v[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sort | uniq -d || true)
+if [[ -n "$duplicate_headers" ]]; then
+  echo "CHANGELOG validation failed: duplicate release headers detected."
+  echo "$duplicate_headers"
+  echo "Release aborted: run git-cliff regeneration to repair changelog ordering."
   exit 1
 fi
 

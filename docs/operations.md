@@ -21,8 +21,8 @@ just ci
 just doctor
 just doctor-release
 just docs
-just release-preflight v1.3.2-pre
-just release-safe v1.3.2
+just release-preflight v1.3.3-pre
+just release-safe v1.3.3
 ```
 
 Create a release tag with version sync:

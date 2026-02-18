@@ -57,10 +57,6 @@ runtime-validate:
 baseline:
   scripts/capture_phase0_baseline.sh
 
-release tag:
-  just ci
-  scripts/release_tag.sh {{tag}}
-
 release-dry tag:
   just ci
   scripts/release_tag.sh --dry-run {{tag}}
@@ -69,7 +65,16 @@ release-preflight candidate:
   just ci
   scripts/validate_release_flow.sh {{candidate}}
 
+[confirm("Continue with release tag creation?")]
 release-safe tag:
   just doctor-release
   just release-preflight {{tag}}-pre
   just release {{tag}}
+
+[confirm("Continue with direct release tagging?")]
+release tag:
+  just ci
+  scripts/release_tag.sh {{tag}}
+
+list-broken-fmt:
+  @cargo fmt --all -- --check --color never | grep "Diff in" | cut -d' ' -f3 || true
