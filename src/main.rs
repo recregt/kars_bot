@@ -124,7 +124,7 @@ async fn wait_for_shutdown_signal() {
     }
 }
 
-// Main
+// Main (cache benchmark touch #1)
 #[tokio::main]
 async fn main() {
     init_json_logging();
