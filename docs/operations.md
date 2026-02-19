@@ -44,7 +44,9 @@ Notes:
 - In CI, full history repair runs automatically; local opt-in is available via `KARS_GIT_FLOW_AUTO_UNSHALLOW=1`.
 - If local repo is shallow and opt-in is disabled, hook fails fast with manual fix guidance (`git fetch --unshallow origin`).
 - `Sync Main to Develop` workflow auto-opens a PR from `main` to `develop` when `main` gets ahead, removing manual back-merge steps.
+- Sync workflow runs for all `main` push actors (including bot-triggered merges) to avoid silent drift.
 - Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
+- Sync workflow requires `contents: write`, `pull-requests: write`, and `issues: write` permissions for PR/comment operations.
 - Preferred release discipline remains dual-merge (release/hotfix changes should land in both `main` and `develop`); sync workflow is a safety valve.
 - Quality CI is scope-aware:
   - single quality workflow runs policy + rust + version guard stages.
