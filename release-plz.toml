@@ -1,5 +1,5 @@
 [workspace]
-changelog_update = false
+changelog_update = true
 git_release_enable = false
 git_tag_enable = false
 pr_name = "chore(release): prepare release"

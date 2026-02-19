@@ -1,0 +1,68 @@
+name: Release Plz
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-plz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download release-plz binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/release-plz.tar.gz \
+            https://github.com/release-plz/release-plz/releases/download/release-plz-v0.3.156/release-plz-x86_64-unknown-linux-musl.tar.gz
+          tar -xzf /tmp/release-plz.tar.gz -C /tmp
+          install -m 0755 /tmp/release-plz /usr/local/bin/release-plz
+
+      - name: Prepare previous tag baseline
+        id: prev_tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --tags --force
+          prev_tag="$(git tag --list 'v*' --sort=-v:refname | head -n 1 || true)"
+          if [[ -z "$prev_tag" ]]; then
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git worktree add /tmp/release-plz-prev-tag "$prev_tag"
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$prev_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Run release-plz release-pr
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${{ steps.prev_tag.outputs.found }}" == "true" ]]; then
+            release-plz release-pr \
+              --config release-plz.toml \
+              --git-token "$GITHUB_TOKEN" \
+              --registry-manifest-path /tmp/release-plz-prev-tag/Cargo.toml
+          else
+            release-plz release-pr --config release-plz.toml --git-token "$GITHUB_TOKEN"
+          fi
+
+      - name: Cleanup worktree
+        if: always()
+        run: git worktree remove /tmp/release-plz-prev-tag --force || true

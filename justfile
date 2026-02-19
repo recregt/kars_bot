@@ -58,12 +58,10 @@ baseline:
   scripts/capture_phase0_baseline.sh
 
 release-dry tag:
-  just ci
-  scripts/release_tag.sh --dry-run {{tag}}
+  @echo "Legacy flow removed. Use 'just release-plz-preview' and GitHub workflow 'Release Plz'."
 
 release-preflight candidate:
-  just ci
-  scripts/validate_release_flow.sh {{candidate}}
+  @echo "Legacy flow removed. Use release-plz + cargo-dist workflows."
 
 release-plz-preview:
   scripts/release_plz_preview.sh
@@ -73,14 +71,14 @@ dist-preview:
 
 [confirm("Continue with release tag creation?")]
 release-safe tag:
-  just doctor-release
-  just release-preflight {{tag}}-pre
-  just release {{tag}}
+  @echo "Legacy flow removed. Merge release-plz PR, then release tags are built by cargo-dist release workflow."
 
 [confirm("Continue with direct release tagging?")]
 release tag:
-  just ci
-  scripts/release_tag.sh {{tag}}
+  @echo "Legacy flow removed. Use release-plz automation instead of direct tag script."
+
+release-pr:
+  gh workflow run release-plz.yml
 
 list-broken-fmt:
   @cargo fmt --all -- --check --color never | grep "Diff in" | cut -d' ' -f3 || true

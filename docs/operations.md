@@ -1,6 +1,6 @@
 # Operations
 
-## Versioning Guard and Release Tag Flow
+## Versioning Guard and Release Flow
 
 - This repository blocks accidental `Cargo.toml` version edits in normal commits via Lefthook pre-commit checks.
 - A Lefthook pre-push guard validates tag/version consistency.
@@ -21,33 +21,22 @@ just ci
 just doctor
 just doctor-release
 just docs
-just release-preflight v1.3.3-pre
-just release-safe v1.3.3
 just release-plz-preview
 just dist-preview
-```
-
-Create a release tag with version sync:
-
-```bash
-scripts/release_tag.sh v0.8.0
-```
-
-Run release checks without mutations:
-
-```bash
-scripts/release_tag.sh --dry-run v0.8.0
+just release-pr
 ```
 
 Notes:
-- The script runs `just ci` parity checks before any release mutation.
-- Use `just doctor` first if local environment drift is suspected.
-- The script generates an English `CHANGELOG.md` section via `git-cliff`.
-- The script logs binary size to `docs/releases/binary-size.csv`.
-- The script bumps `Cargo.toml` only when needed.
-- Version bump commit uses `ALLOW_VERSION_BUMP=1` to pass the guard.
-- If no tag/release is planned, `Cargo.toml` version must stay unchanged.
-- Pre-push guard can auto-create missing local release tag (opt-in):
+- Production release is fully automated with `release-plz` + `cargo-dist`.
+- `Release Plz` workflow runs on `main` and creates/updates release PRs.
+- Release PR merge produces version/changelog updates in repo history.
+- `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
+- Release assets include musl archive, checksums, source archive, and shell installer.
+- Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
+- Version changes on feature branches are allowed for release-plz-managed release PR flow.
+- Staged migration workflows remain available for explicit preview and diagnostics.
+
+Optional local pre-push tag helper:
 
 ```bash
 AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
@@ -58,15 +47,8 @@ AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
 - Quality CI is scope-aware:
   - policy-quality workflow runs actionlint/docs/guard checks.
   - rust-quality workflow runs rustfmt/clippy/nextest/TLS checks only for Rust-relevant changes.
-- Tagged release workflow always performs a fresh MUSL build for the pushed tag.
-- This guarantees the uploaded release artifact is compiled directly from that exact tag commit.
-- Staged migration (non-breaking):
-  - Stage 1: `release-plz` preview is available via `Release Plz Preview` workflow and `just release-plz-preview`.
-  - Stage 2: `cargo-dist` preview is available via `Cargo Dist Preview` workflow and `just dist-preview`.
-  - Preview workflows download official Linux binaries directly from upstream releases (no source compile in CI preview jobs).
-  - `release-plz` preview uses latest release tag as local baseline manifest for unpublished-crate compatibility.
-  - Local `just release-plz-preview` runs in a temporary worktree and does not mutate your active working tree.
-  - Existing tag-based release workflow remains the production path until migration cutover is explicitly done.
+- `release-plz` and `cargo-dist` preview workflows download official Linux binaries directly from upstream releases (no source compile in preview jobs).
+- Local `just release-plz-preview` runs in a temporary worktree and does not mutate your active working tree.
 
 Prerequisite:
 
