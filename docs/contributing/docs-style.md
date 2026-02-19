@@ -15,6 +15,5 @@
 
 ## Automation Rules
 
-- Run `scripts/generate_docs_reference.sh` after command/config schema edits.
-- Run `scripts/validate_docs.sh` before push.
-- Do not manually edit generated reference files.
+- Keep reference docs synchronized with source changes in the same PR.
+- Do not manually edit generated reference files unless the generation flow is intentionally changed.

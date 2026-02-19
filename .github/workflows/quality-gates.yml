@@ -2,11 +2,6 @@ name: Quality Gates
 
 on:
   pull_request:
-  push:
-    branches:
-      - develop
-      - main
-  merge_group:
 
 concurrency:
   group: quality-gates-${{ github.event.pull_request.number || github.ref }}
@@ -40,6 +35,3 @@ jobs:
 
       - name: Run tests (nextest)
         run: cargo nextest run --locked --all-targets
-
-      - name: Enforce Rustls-only TLS graph
-        run: scripts/check_tls_stack.sh

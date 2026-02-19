@@ -119,10 +119,17 @@ jobs:
           install -m 0755 /tmp/cargo-dist-x86_64-unknown-linux-musl/dist /usr/local/bin/dist
 
       - name: Enforce Rustls-only TLS graph
-        run: scripts/check_tls_stack.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo tree | grep -Ei "native-tls|openssl" >/tmp/kars_tls_scan.txt; then
+            echo "::error::Forbidden TLS dependency detected"
+            cat /tmp/kars_tls_scan.txt
+            exit 1
+          fi
 
       - name: Build distributables with cargo-dist
-        run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
+        run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --tag="${{ steps.release_tag.outputs.tag }}" --allow-dirty
 
       - name: Generate cargo-dist plan JSON
         shell: bash

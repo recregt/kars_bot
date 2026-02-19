@@ -16,14 +16,10 @@ scripts/install_hooks.sh
 ## Developer Command Hub
 
 ```bash
-just bootstrap
 just --list
-just ci
-just doctor
-just doctor-release
+just quality
+just sync
 just release-pr
-just release-plz-preview
-just dist-preview
 ```
 
 ## Minimal Configuration

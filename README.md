@@ -22,10 +22,18 @@ A Telegram server monitoring bot built with Rust + Teloxide.
 
 - Install hook manager: `scripts/install_hooks.sh`
 - List task commands: `just --list`
-- Full local CI parity gate: `just ci`
+- Minimal local quality checks: `just quality`
 - Release PR automation dispatch: `just release-pr`
-- Release planning previews: `just release-plz-preview` and `just dist-preview`
-- Manual release rerun for an existing tag: `just release-dispatch vX.Y.Z`
+
+## Minimal Git Flow
+
+1. `git switch -c feature/<name>`
+2. Commit (example: `feat: add xxx`)
+3. Open PR to `main`
+4. Merge after required checks
+5. Remote branch is auto-deleted after merge
+6. Local cleanup: `git branch -d feature/<name>`
+7. Sync: `just sync`
 
 ## Documentation
 

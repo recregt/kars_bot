@@ -9,6 +9,6 @@ if ! command -v lefthook >/dev/null 2>&1; then
 	exit 1
 fi
 
-chmod +x scripts/hook_pre_commit.sh scripts/hook_pre_push.sh scripts/hook_post_merge.sh
+chmod +x scripts/hook_pre_commit.sh
 lefthook install --force
 echo "Lefthook installed successfully."

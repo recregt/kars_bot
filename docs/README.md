@@ -17,9 +17,8 @@ This directory is the single source of truth for technical and operational docum
 
 ## Automation
 
-- Generate command/config references: `scripts/generate_docs_reference.sh`
-- Validate links and generated docs: `scripts/validate_docs.sh`
-- Preview release changes: `just release-plz-preview` and `just dist-preview`
+- Run local formatting/tests: `just quality`
+- Trigger release preparation: `just release-pr`
 
 ## Ownership
 

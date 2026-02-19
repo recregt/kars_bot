@@ -6,13 +6,12 @@
 2. Trigger release PR automation (or let push-to-main trigger it):
    - `just release-pr`
 3. Review and merge the generated `chore(release): prepare release` PR.
-4. Push/create `vX.Y.Z` tag matching merged Cargo version.
+4. Confirm auto-tag created (`vX.Y.Z`) unless `RELEASE_PLZ_AUTO_TAG=false`.
 5. Verify the `Release` workflow uploads artifacts and release notes.
 
 ## Dry-Run Verification
 
-- `just release-plz-preview`
-- `just dist-preview`
+- `gh workflow run release-plz.yml`
 
 ## Post-Release Checks
 

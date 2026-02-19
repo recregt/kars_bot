@@ -1,7 +1,7 @@
 # Command Reference
 
 This file is generated from src/commands/command_def.rs.
-Do not edit manually. Run scripts/generate_docs_reference.sh.
+Do not edit manually.
 
 | Command | Has Args | Description |
 |---|---|---|
