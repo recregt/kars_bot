@@ -25,6 +25,25 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## [1.4.0](https://github.com/recregt/kars_bot/compare/v1.3.3...v1.4.0) - 2026-02-19
+
+### Added
+
+- *(ci)* skip heavy checks for docs-only and reuse release assets
+- *(release)* auto-fill GitHub release notes from changelog
+
+### Other
+
+- *(release-plz)* require dedicated token for PR-triggered checks
+- *(dist)* define cargo profile for release artifacts
+- *(release)* harden cargo-dist build invocation for tags
+- migrate production flow to release-plz and cargo-dist
+- fix release-plz and cargo-dist preview flows
+- force fresh tag builds and add staged release tooling migration
+- restore required aggregate check context name
+- fix actionlint shellcheck redirects in reusable release
+- modularize quality flows and add guarded release reuse
+
 
 
 ### Bug Fixes
