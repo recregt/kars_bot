@@ -142,3 +142,42 @@ jobs:
             }
 
             core.info(`Sync PR #${syncPull.number} is mergeable (state=${detail.mergeable_state}).`);
+
+            if (detail.auto_merge !== null) {
+              core.info(`Auto-merge already enabled for sync PR #${syncPull.number}.`);
+              return;
+            }
+
+            try {
+              const mutation = `
+                mutation EnableAutoMerge($pullRequestId: ID!) {
+                  enablePullRequestAutoMerge(input: {
+                    pullRequestId: $pullRequestId,
+                    mergeMethod: MERGE
+                  }) {
+                    pullRequest {
+                      number
+                    }
+                  }
+                }
+              `;
+
+              await github.graphql(mutation, {
+                pullRequestId: detail.node_id,
+              });
+
+              core.info(`Auto-merge enabled for sync PR #${syncPull.number}. It will merge after required checks pass.`);
+            } catch (error) {
+              const message = (error && error.message) ? String(error.message) : String(error);
+              if (error && (error.status === 403 || /Resource not accessible by integration/i.test(message))) {
+                core.setFailed('Insufficient permissions to enable auto-merge for sync PR. Ensure token has pull request write scope and repository allows auto-merge.');
+                return;
+              }
+
+              if (/auto-merge is disabled/i.test(message)) {
+                core.setFailed('Repository auto-merge is disabled. Enable repository setting: Allow auto-merge.');
+                return;
+              }
+
+              throw error;
+            }
