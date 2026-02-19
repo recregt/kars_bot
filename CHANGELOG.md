@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Fixed
+
+- *(graph)* embed render font into binary to avoid host missing-font outages
+
 ## [1.5.2](https://github.com/recregt/kars_bot/compare/v1.5.1...v1.5.2) - 2026-02-19
 
 ### CI

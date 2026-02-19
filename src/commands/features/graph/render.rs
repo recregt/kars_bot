@@ -1,18 +1,24 @@
 use std::io::Cursor;
+use std::sync::OnceLock;
 
 use image::{DynamicImage, ImageFormat, RgbImage};
 use plotters::prelude::*;
+use plotters::style::{FontStyle, register_font};
 
 use super::{error::GraphRenderError, stats::GraphPoint, types::GraphMetric};
 
 pub(super) const GRAPH_WIDTH_PX: u32 = 1200;
 const GRAPH_HEIGHT_PX: u32 = 480;
+const EMBEDDED_FONT_FAMILY: &str = "kars-bot-embedded";
+const EMBEDDED_FONT_BYTES: &[u8] = include_bytes!("../../../../assets/Roboto-Regular.ttf");
+
+static FONT_REGISTRATION_ERROR: OnceLock<Option<String>> = OnceLock::new();
 
 struct GraphStyle;
 
 impl GraphStyle {
     const MARGIN: i32 = 16;
-    const CAPTION_FONT_FAMILY: &'static str = "sans-serif";
+    const CAPTION_FONT_FAMILY: &'static str = EMBEDDED_FONT_FAMILY;
     const CAPTION_FONT_SIZE: i32 = 28;
     const X_LABEL_AREA_SIZE: u32 = 40;
     const Y_LABEL_AREA_SIZE: u32 = 48;
@@ -41,6 +47,8 @@ pub(super) fn render_graph_png(
     if points.len() < 2 {
         return Err(GraphRenderError::NotEnoughPoints);
     }
+
+    ensure_embedded_font_registered()?;
 
     let width = GRAPH_WIDTH_PX;
     let height = GRAPH_HEIGHT_PX;
@@ -144,6 +152,19 @@ pub(super) fn check_graph_render_readiness() -> Result<(), GraphRenderError> {
         .map(|_| ())
 }
 
+fn ensure_embedded_font_registered() -> Result<(), GraphRenderError> {
+    let registration_error = FONT_REGISTRATION_ERROR.get_or_init(|| {
+        register_font(EMBEDDED_FONT_FAMILY, FontStyle::Normal, EMBEDDED_FONT_BYTES)
+            .err()
+            .map(|_| "embedded font registration failed".to_string())
+    });
+
+    match registration_error {
+        Some(detail) => Err(GraphRenderError::FontUnavailable(detail.clone())),
+        None => Ok(()),
+    }
+}
+
 fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
     let lower = detail.to_lowercase();
     if lower.contains("font") || lower.contains("glyph") || lower.contains("freetype") {
@@ -157,7 +178,9 @@ fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
 mod tests {
     use chrono::Utc;
 
-    use super::{GraphPoint, check_graph_render_readiness, render_graph_png};
+    use super::{
+        GraphPoint, check_graph_render_readiness, ensure_embedded_font_registered, render_graph_png,
+    };
     use crate::commands::features::graph::types::GraphMetric;
 
     #[test]
@@ -175,5 +198,11 @@ mod tests {
     fn readiness_check_runs() {
         let result = check_graph_render_readiness();
         assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn embedded_font_registration_is_ok() {
+        let result = ensure_embedded_font_registered();
+        assert!(result.is_ok());
     }
 }

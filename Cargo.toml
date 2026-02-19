@@ -1,6 +1,6 @@
 [package]
 name = "kars_bot"
-version = "1.5.2"
+version = "1.5.3"
 edition = "2024"
 resolver = "3"
 repository = "https://github.com/recregt/kars_bot"
@@ -20,7 +20,7 @@ log = "0.4"
 tracing = "0.1"
 tracing-log = "0.2"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "chrono"] }
+plotters = { version = "0.3", default-features = false, features = ["bitmap_backend", "chrono", "ab_glyph"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 notify = "6"
 sled = "0.34"
