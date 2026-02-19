@@ -16,7 +16,82 @@ permissions:
 
 jobs:
   release:
-    uses: ./.github/workflows/reusable-release.yml
-    with:
-      tag: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve release tag
+        id: release_tag
+        run: echo "tag=${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.release_tag.outputs.tag }}
+
+      - name: Verify Cargo.toml version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ steps.release_tag.outputs.tag }}"
+          expected="${expected#v}"
+          actual=$(awk -F '"' '/^version = /{print $2; exit}' Cargo.toml)
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::Tag ${{ steps.release_tag.outputs.tag }} expects Cargo version $expected but found $actual"
+            exit 1
+          fi
+
+      - name: Build release notes from CHANGELOG
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.release_tag.outputs.tag }}"
+
+          awk -v tag="$tag" '
+            $0 ~ "^## " tag "([[:space:]]-|$)" { in_section=1; next }
+            in_section && $0 ~ "^## " { exit }
+            in_section { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [[ ! -s release-notes.md ]]; then
+            {
+              echo "Release $tag"
+              echo
+              echo "No explicit changelog section body was found for $tag."
+            } > release-notes.md
+          fi
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install musl target
+        run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Download cargo-dist binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL -o /tmp/cargo-dist.tar.xz \
+            https://github.com/axodotdev/cargo-dist/releases/download/v0.30.4/cargo-dist-x86_64-unknown-linux-musl.tar.xz
+          tar -xJf /tmp/cargo-dist.tar.xz -C /tmp
+          install -m 0755 /tmp/cargo-dist-x86_64-unknown-linux-musl/dist /usr/local/bin/dist
+
+      - name: Enforce Rustls-only TLS graph
+        run: scripts/check_tls_stack.sh
+
+      - name: Build distributables with cargo-dist
+        run: dist build --target x86_64-unknown-linux-musl
+
+      - name: Upload GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          body_path: release-notes.md
+          files: |
+            target/distrib/kars_bot-x86_64-unknown-linux-musl.tar.xz
+            target/distrib/kars_bot-x86_64-unknown-linux-musl.tar.xz.sha256
+            target/distrib/kars_bot-installer.sh
+            target/distrib/source.tar.gz
+            target/distrib/source.tar.gz.sha256
+            target/distrib/sha256.sum
+          fail_on_unmatched_files: true

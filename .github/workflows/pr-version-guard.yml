@@ -36,7 +36,22 @@ jobs:
           event_path = os.environ["GITHUB_EVENT_PATH"]
           with open(event_path, "r", encoding="utf-8") as f:
               payload = json.load(f)
-          labels = {item["name"] for item in payload.get("pull_request", {}).get("labels", [])}
+
+          pr = payload.get("pull_request", {})
+          title = pr.get("title", "")
+          head_ref = pr.get("head", {}).get("ref", "")
+          author = pr.get("user", {}).get("login", "")
+
+          release_plz_like = (
+            author == "github-actions[bot]"
+            and title.startswith("chore(release):")
+          ) or head_ref.startswith("release-plz")
+
+          if release_plz_like:
+            print("release-plz managed PR detected; skipping manual release label requirement.")
+            sys.exit(0)
+
+          labels = {item["name"] for item in pr.get("labels", [])}
           allowed = {"release", "release-approved"}
           if labels.isdisjoint(allowed):
               print("::error::Cargo.toml version changed but PR has no release label (release or release-approved).")

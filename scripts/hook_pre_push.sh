@@ -110,8 +110,14 @@ for line in "${push_lines[@]}"; do
 
   if [[ "$local_ref" =~ ^refs/heads/ ]]; then
     range="$(git_scope_push_range "$local_sha" "$remote_sha")"
+    branch_name="${local_ref#refs/heads/}"
 
     if git diff "$range" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
+      if [[ "$branch_name" != "main" && "$branch_name" != "develop" ]]; then
+        log_info "Version change detected on branch $branch_name; tag coupling check is only enforced on main/develop pushes."
+        continue
+      fi
+
       target_version=$(git show "$local_sha":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
       if ! has_release_tag_for_version "$target_version"; then
         if maybe_create_missing_release_tag "$target_version" "$local_sha"; then
