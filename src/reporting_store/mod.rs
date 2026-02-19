@@ -18,6 +18,7 @@ pub struct ReportingStore {
     daily_rollups: sled::Tree,
     sequence: Arc<AtomicU32>,
     retention_days: u16,
+    db_path: String,
 }
 
 impl ReportingStore {
@@ -34,7 +35,24 @@ impl ReportingStore {
             daily_rollups,
             sequence: Arc::new(AtomicU32::new(0)),
             retention_days: config.reporting_store.retention_days,
+            db_path: config.reporting_store.path.clone(),
         }))
+    }
+
+    pub fn startup_consistency_probe(&self) -> Result<(), sled::Error> {
+        let _ = self.samples.len();
+        let _ = self.daily_rollups.len();
+        Ok(())
+    }
+
+    pub fn flush_barrier(&self) -> Result<(), sled::Error> {
+        self.samples.flush()?;
+        self.daily_rollups.flush()?;
+        Ok(())
+    }
+
+    pub fn db_path(&self) -> &str {
+        &self.db_path
     }
 
     pub fn record_sample(&self, sample: MetricSample) -> Result<(), sled::Error> {

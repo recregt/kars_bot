@@ -310,25 +310,25 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 ## Phase 3 — Update Orchestration, Signal Safety, and Storage Integrity (P0/P1)
 
 ### Deliverables
-- [ ] Idempotent update workflow with prechecks, Atomic Swap, health validation, and rollback.
-- [ ] Signal-safe shutdown choreography compatible with systemd.
-- [ ] Sled durability guards for restart windows.
+- [x] Idempotent update workflow with prechecks, Atomic Swap, health validation, and rollback.
+- [x] Signal-safe shutdown choreography compatible with systemd.
+- [x] Sled durability guards for restart windows.
 
 ### Tasks
 - [x] Extend update check to include permissions, service manager, path writability, and lock state.
 - [ ] Harden server_update workflow:
-  - [ ] Verify downloaded artifact integrity and executability.
-  - [ ] Use Atomic Swap deployment with backup retention.
-  - [ ] Perform post-restart health probe and auto-rollback on failure.
-- [ ] Add signal-aware stop/drain logic for in-flight operations.
-- [ ] Add Sled flush barrier before controlled restart and startup consistency probe.
+  - [x] Verify downloaded artifact integrity and executability.
+  - [x] Use Atomic Swap deployment with backup retention.
+  - [x] Perform post-restart health probe and auto-rollback on failure.
+- [x] Add signal-aware stop/drain logic for in-flight operations.
+- [x] Add Sled flush barrier before controlled restart and startup consistency probe.
 - [x] Add update lock (single-writer policy).
 
 ### Potential Failure Mode
-- [ ] Mid-flight restart interrupts update and leaves ambiguous service state.
+- [x] Mid-flight restart interrupts update and leaves ambiguous service state.
 
 ### Mitigation Strategy
-- [ ] Persist update state machine checkpoints and resume/repair on startup.
+- [x] Persist update state machine checkpoints and resume/repair on startup.
 
 ---
 

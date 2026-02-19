@@ -18,6 +18,7 @@ fn open_test_store(path: &std::path::Path) -> ReportingStore {
         daily_rollups,
         sequence: Arc::new(AtomicU32::new(0)),
         retention_days: 7,
+        db_path: path.to_string_lossy().to_string(),
     }
 }
 

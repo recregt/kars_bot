@@ -117,7 +117,8 @@ pub(crate) async fn handle_update(
     .parse_mode(ParseMode::Html)
     .await?;
 
-    let result = orchestrator::run_update_apply(runtime_config.command_timeout_secs).await;
+    let result =
+        orchestrator::run_update_apply(runtime_config.command_timeout_secs, app_context).await;
     match result {
         Ok(message) => {
             bot.send_message(msg.chat.id, as_html_block("Update", &message))

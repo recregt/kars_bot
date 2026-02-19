@@ -6,6 +6,7 @@ use tokio::{
     time::{Duration, timeout},
 };
 
+use crate::app_context::AppContext;
 use crate::system::{CommandError, CommandOutput, run_cmd};
 
 use super::super::super::helpers::{as_html_block, command_body};
@@ -13,6 +14,7 @@ use super::super::super::helpers::{as_html_block, command_body};
 const UPDATE_SCRIPT_PATH: &str = "scripts/server_update.sh";
 const UPDATE_LOCK_TIMEOUT_SECS: u64 = 2;
 const APPLY_TIMEOUT_SECS: u64 = 120;
+const COMMAND_DRAIN_TIMEOUT_SECS: u64 = 8;
 
 static UPDATE_APPLY_LOCK: OnceLock<Semaphore> = OnceLock::new();
 
@@ -46,7 +48,10 @@ pub(super) async fn extract_readiness(
     }
 }
 
-pub(super) async fn run_update_apply(command_timeout_secs: u64) -> Result<String, CommandError> {
+pub(super) async fn run_update_apply(
+    command_timeout_secs: u64,
+    app_context: &AppContext,
+) -> Result<String, CommandError> {
     let lock = update_apply_lock();
     let permit = timeout(
         Duration::from_secs(UPDATE_LOCK_TIMEOUT_SECS),
@@ -62,6 +67,29 @@ pub(super) async fn run_update_apply(command_timeout_secs: u64) -> Result<String
         source: std::io::Error::other(source.to_string()),
     })?;
 
+    let drain_permit = timeout(
+        Duration::from_secs(COMMAND_DRAIN_TIMEOUT_SECS),
+        app_context
+            .command_slots
+            .acquire_many(app_context.command_concurrency),
+    )
+    .await
+    .map_err(|_| CommandError::Timeout {
+        cmd: "command drain before update".to_string(),
+        timeout_secs: COMMAND_DRAIN_TIMEOUT_SECS,
+    })?
+    .map_err(|source| CommandError::Io {
+        cmd: "command drain before update".to_string(),
+        source: std::io::Error::other(source.to_string()),
+    })?;
+
+    let flushed = app_context
+        .flush_reporting_store_barrier()
+        .map_err(|detail| CommandError::Io {
+            cmd: "reporting store flush barrier".to_string(),
+            source: std::io::Error::other(detail),
+        })?;
+
     let output = run_cmd(
         "bash",
         &[UPDATE_SCRIPT_PATH],
@@ -69,15 +97,27 @@ pub(super) async fn run_update_apply(command_timeout_secs: u64) -> Result<String
     )
     .await;
 
+    drop(drain_permit);
     drop(permit);
 
     output.map(|out| {
+        let flush_line = if flushed {
+            "Storage flush barrier: ok"
+        } else {
+            "Storage flush barrier: skipped (reporting store disabled)"
+        };
+
         if out.status == 0 {
-            format!("Update succeeded.\n{}", summarize_output(&out))
+            format!(
+                "Update succeeded.\n{}\n{}",
+                flush_line,
+                summarize_output(&out)
+            )
         } else {
             format!(
-                "Update failed (status {}).\n{}",
+                "Update failed (status {}).\n{}\n{}",
                 out.status,
+                flush_line,
                 summarize_output(&out)
             )
         }

@@ -42,6 +42,7 @@ fn init_json_logging() {
 }
 
 const CONFIG_PATH: &str = "config.toml";
+const UPDATE_STATE_PATH: &str = "/tmp/kars_bot_update.state";
 
 fn log_capability_warnings(capabilities: &Capabilities) {
     if !capabilities.is_systemd {
@@ -91,6 +92,38 @@ async fn log_dns_probe() {
             );
         }
     }
+}
+
+fn log_update_recovery_probe() {
+    let state = std::fs::read_to_string(UPDATE_STATE_PATH);
+    let Ok(state) = state else {
+        return;
+    };
+
+    let status = state
+        .lines()
+        .find_map(|line| line.strip_prefix("status="))
+        .unwrap_or("unknown");
+    let stage = state
+        .lines()
+        .find_map(|line| line.strip_prefix("stage="))
+        .unwrap_or("unknown");
+    let tag = state
+        .lines()
+        .find_map(|line| line.strip_prefix("tag="))
+        .unwrap_or("unknown");
+
+    if status == "ok" || stage == "completed" {
+        return;
+    }
+
+    log::warn!(
+        "update_recovery_required status={} stage={} tag={} state_file={} action=inspect_script_logs_and_run_update_check",
+        status,
+        stage,
+        tag,
+        UPDATE_STATE_PATH
+    );
 }
 
 async fn wait_for_shutdown_signal() {
@@ -143,6 +176,7 @@ async fn main() {
     }
 
     log::info!("Kars Server Bot is starting...");
+    log_update_recovery_probe();
     let capabilities = Capabilities::detect();
     log_capability_warnings(&capabilities);
     log_dns_probe().await;

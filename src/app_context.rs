@@ -13,6 +13,7 @@ use crate::{
 #[derive(Clone)]
 pub struct AppContext {
     pub config: Config,
+    pub command_concurrency: u32,
     pub runtime_config: Arc<RwLock<RuntimeConfig>>,
     pub config_path: Arc<String>,
     pub graph_runtime: Arc<RwLock<Graph>>,
@@ -38,10 +39,23 @@ impl AppContext {
         let graph_runtime = config.graph.clone();
         let runtime_config = RuntimeConfig::from_config(&config);
         let reporting_store = match ReportingStore::open_from_config(&config) {
-            Ok(store) => store,
+            Ok(Some(store)) => {
+                if let Err(error) = store.startup_consistency_probe() {
+                    log::warn!(
+                        "reporting_store_disabled reason=startup_probe_failed path={} recovery=restore_or_recreate_store error={}",
+                        store.db_path(),
+                        error
+                    );
+                    None
+                } else {
+                    Some(store)
+                }
+            }
+            Ok(None) => None,
             Err(error) => {
                 log::warn!(
-                    "reporting_store_disabled reason=open_failed error={}",
+                    "reporting_store_disabled reason=open_failed path={} recovery=restore_or_recreate_store error={}",
+                    config.reporting_store.path,
                     error
                 );
                 None
@@ -50,6 +64,7 @@ impl AppContext {
 
         Self {
             config,
+            command_concurrency: command_concurrency as u32,
             runtime_config: Arc::new(RwLock::new(runtime_config)),
             config_path: Arc::new(config_path.into()),
             graph_runtime: Arc::new(RwLock::new(graph_runtime)),
@@ -80,6 +95,17 @@ impl AppContext {
 
         self.update_graph_runtime(runtime_config.graph).await;
         self.runtime_update_notify.notify_waiters();
+    }
+
+    pub fn flush_reporting_store_barrier(&self) -> Result<bool, String> {
+        let Some(store) = &self.reporting_store else {
+            return Ok(false);
+        };
+
+        store
+            .flush_barrier()
+            .map_err(|error| format!("reporting store flush barrier failed: {}", error))?;
+        Ok(true)
     }
 }
 
