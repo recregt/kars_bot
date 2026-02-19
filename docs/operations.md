@@ -49,7 +49,7 @@ Notes:
 - Sync workflow runs for all `main` push actors (including bot-triggered merges) to avoid silent drift.
 - Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
 - Sync workflow enables auto-merge on the sync PR, so merge happens automatically after required checks pass.
-- Sync workflow waits for PR mergeability to stabilize before enabling auto-merge (prevents immediate unstable-status API failures).
+- Sync workflow only waits when mergeability is `unknown`; for `unstable`, it attempts auto-merge immediately and lets GitHub queue merge until checks complete.
 - Sync PRs are automatically labeled (`sync-main-develop`, `automerge`) for easier filtering and tracking.
 - Sync workflow writes a step summary with actor, PR link, labels, and auto-merge outcome details.
 - Sync workflow keeps in-progress runs (no cancel-in-progress) to avoid dropping long auto-merge stabilization waits.
