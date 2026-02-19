@@ -5,54 +5,17 @@ if [[ ! -f Cargo.toml ]]; then
   exit 0
 fi
 
-current_branch="$(git symbolic-ref --short HEAD 2>/dev/null || true)"
-is_release_main_bypass=0
-if [[ "$current_branch" == "main" && "${ALLOW_MAIN_RELEASE_COMMIT:-}" == "1" && "${ALLOW_VERSION_BUMP:-}" == "1" ]]; then
-  is_release_main_bypass=1
-fi
-
 if [[ -x scripts/enforce_git_flow.sh ]]; then
-  if [[ "$is_release_main_bypass" -ne 1 ]]; then
-    scripts/enforce_git_flow.sh commit
-  fi
+  scripts/enforce_git_flow.sh commit
 else
   echo "[pre-commit] Blocked: scripts/enforce_git_flow.sh is missing or not executable."
   exit 1
 fi
 
 if git diff --cached -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
-  if [[ "${ALLOW_VERSION_BUMP:-}" != "1" ]]; then
-    echo "[pre-commit] Blocked: Cargo.toml version change detected."
-    echo "Version changes are allowed only in release flow."
-    echo "Use release-plz automation for version/changelog commits."
-    exit 1
-  fi
-
-  if ! git diff --cached --name-only | grep -qx "CHANGELOG.md"; then
-    echo "[pre-commit] Blocked: Cargo.toml version changed but CHANGELOG.md is not staged."
-    echo "Release commits must include changelog update in the same commit."
-    exit 1
-  fi
-
-  if git ls-files --error-unmatch Cargo.lock >/dev/null 2>&1; then
-    if ! git diff --cached --name-only | grep -qx "Cargo.lock"; then
-      echo "[pre-commit] Blocked: Cargo.toml version changed but Cargo.lock is not staged."
-      echo "Run cargo generate-lockfile and include Cargo.lock in the release commit."
-      exit 1
-    fi
-  fi
-
-  target_version=$(git show :Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
-  if [[ -z "$target_version" ]]; then
-    echo "[pre-commit] Blocked: could not read staged Cargo.toml version."
-    exit 1
-  fi
-
-  if ! git show :CHANGELOG.md | grep -Eq "^## (v$target_version|\[$target_version\])"; then
-    echo "[pre-commit] Blocked: staged CHANGELOG.md missing section for $target_version."
-    echo "Expected header: '## [$target_version]' (or legacy '## v$target_version')."
-    exit 1
-  fi
+  echo "[pre-commit] Blocked: Cargo.toml version change detected in a local commit."
+  echo "Version/changelog bumps must come from release-plz generated PRs."
+  exit 1
 fi
 
 staged_rust_files=()
