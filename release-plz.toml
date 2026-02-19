@@ -3,3 +3,16 @@ changelog_update = true
 git_release_enable = false
 git_tag_enable = false
 pr_name = "chore(release): prepare release"
+pr_labels = ["release"]
+
+[changelog]
+protect_breaking_commits = true
+sort_commits = "newest"
+commit_parsers = [
+	{ message = "^feat", group = "Added" },
+	{ message = "^fix", group = "Fixed" },
+	{ message = "^docs", group = "Documentation" },
+	{ message = "^refactor", group = "Changed" },
+	{ message = "^chore", group = "Other" },
+	{ message = "^.*", group = "Other" },
+]

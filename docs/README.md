@@ -19,9 +19,9 @@ This directory is the single source of truth for technical and operational docum
 
 - Generate command/config references: `scripts/generate_docs_reference.sh`
 - Validate links and generated docs: `scripts/validate_docs.sh`
-- Validate release flow (dry-run): `scripts/validate_release_flow.sh v1.1.1-pre`
+- Preview release changes: `just release-plz-preview` and `just dist-preview`
 
 ## Ownership
 
 - Code-adjacent docs must be updated in the same PR as code changes.
-- Release docs are updated via `scripts/release_tag.sh` and must not be edited manually during release tagging.
+- Release version/changelog updates are produced by the release-plz PR flow; release docs should follow that automated output.

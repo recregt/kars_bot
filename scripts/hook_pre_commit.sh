@@ -24,7 +24,7 @@ if git diff --cached -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[
   if [[ "${ALLOW_VERSION_BUMP:-}" != "1" ]]; then
     echo "[pre-commit] Blocked: Cargo.toml version change detected."
     echo "Version changes are allowed only in release flow."
-    echo "Use: ALLOW_VERSION_BUMP=1 git commit ... (prefer scripts/release_tag.sh)"
+    echo "Use release-plz automation for version/changelog commits."
     exit 1
   fi
 
@@ -48,9 +48,9 @@ if git diff --cached -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[
     exit 1
   fi
 
-  if ! git show :CHANGELOG.md | grep -q "^## v$target_version"; then
-    echo "[pre-commit] Blocked: staged CHANGELOG.md missing section '## v$target_version'."
-    echo "Run scripts/release_tag.sh v$target_version to keep release metadata synchronized."
+  if ! git show :CHANGELOG.md | grep -Eq "^## (v$target_version|\[$target_version\])"; then
+    echo "[pre-commit] Blocked: staged CHANGELOG.md missing section for $target_version."
+    echo "Expected header: '## [$target_version]' (or legacy '## v$target_version')."
     exit 1
   fi
 fi
