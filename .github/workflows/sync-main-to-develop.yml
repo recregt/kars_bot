@@ -4,21 +4,11 @@ on:
   push:
     branches:
       - main
-  schedule:
-    - cron: '*/10 * * * *'
-  pull_request:
-    branches:
-      - develop
-    types:
-      - opened
-      - reopened
-      - synchronize
-      - ready_for_review
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -27,7 +17,6 @@ permissions:
 
 jobs:
   sync-main-to-develop:
-    if: github.event_name != 'pull_request' || (github.event.pull_request.base.ref == 'develop' && github.event.pull_request.head.ref == 'main')
     runs-on: ubuntu-latest
     steps:
       - name: Ensure develop catches up with main
