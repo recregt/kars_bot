@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.5.4](https://github.com/recregt/kars_bot/compare/v1.5.3...v1.5.4) - 2026-02-19
+
+### Other
+
+- *(release)* prepare release
+
 ## [1.5.3](https://github.com/recregt/kars_bot/compare/v1.5.2...v1.5.3) - 2026-02-19
 
 ### Added
