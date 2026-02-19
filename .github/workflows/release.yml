@@ -46,15 +46,43 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.release_tag.outputs.tag }}"
-          raw="${tag#v}"
+          python - <<'PY'
+          import pathlib
+          import re
 
-          awk -v tag="$tag" -v raw="$raw" '
-            $0 ~ "^## \\[" raw "\\]" { in_section=1; next }
-            $0 ~ "^## " tag "([[:space:]]-|$)" { in_section=1; next }
-            $0 ~ "^## v" raw "([[:space:]]-|$)" { in_section=1; next }
-            in_section && $0 ~ "^## " { exit }
-            in_section { print }
-          ' CHANGELOG.md > release-notes.md
+          tag = "${{ steps.release_tag.outputs.tag }}"
+          raw = tag[1:] if tag.startswith("v") else tag
+          lines = pathlib.Path("CHANGELOG.md").read_text(encoding="utf-8").splitlines()
+
+          patterns = [
+            re.compile(rf"^##\s+\[{re.escape(raw)}\](?:\([^)]*\))?(?:\s*-\s*.*)?$"),
+            re.compile(rf"^##\s+{re.escape(tag)}(?:\s*-\s*.*)?$"),
+            re.compile(rf"^##\s+v{re.escape(raw)}(?:\s*-\s*.*)?$"),
+          ]
+
+          start = None
+          for idx, line in enumerate(lines):
+            if any(p.match(line) for p in patterns):
+              start = idx + 1
+              break
+
+          section = []
+          if start is not None:
+            for line in lines[start:]:
+              if line.startswith("## "):
+                break
+              section.append(line)
+
+          body = "\n".join(section).strip()
+          out = pathlib.Path("release-notes.md")
+          if body:
+            out.write_text(body + "\n", encoding="utf-8")
+          else:
+            out.write_text(
+              f"Release {tag}\n\nNo explicit changelog section body was found for {tag}.\n",
+              encoding="utf-8",
+            )
+          PY
 
           if [[ ! -s release-notes.md ]]; then
             {

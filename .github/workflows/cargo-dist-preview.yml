@@ -22,6 +22,13 @@ jobs:
       - name: Install musl target
         run: rustup target add x86_64-unknown-linux-musl
 
+      - name: Install musl C toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Download cargo-dist binary
         shell: bash
         run: |
@@ -34,6 +41,16 @@ jobs:
       - name: Validate dist plan
         run: dist plan --target x86_64-unknown-linux-musl --allow-dirty
 
+      - name: Build preview distributables
+        run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
+
+      - name: Generate dist manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/distrib
+          dist -o json manifest --target=x86_64-unknown-linux-musl --allow-dirty > target/distrib/dist-manifest.json
+
       - name: Summarize dist plan
         shell: bash
         run: |
@@ -44,4 +61,6 @@ jobs:
             echo "- dist version: $(dist --version)"
             echo "- target: x86_64-unknown-linux-musl"
             echo "- config: dist-workspace.toml"
+            echo "- built artifacts:"
+            ls -1 target/distrib || true
           } >> "$GITHUB_STEP_SUMMARY"
