@@ -17,8 +17,19 @@ concurrency:
 jobs:
   release-pr:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_PLZ_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
 
     steps:
+      - name: Validate release-plz token configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${RELEASE_PLZ_TOKEN}" ]]; then
+            echo "::error::Missing RELEASE_PLZ_TOKEN secret. Configure a PAT or GitHub App token so release-plz PRs trigger required pull_request checks."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -50,17 +61,15 @@ jobs:
 
       - name: Run release-plz release-pr
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [[ "${{ steps.prev_tag.outputs.found }}" == "true" ]]; then
             release-plz release-pr \
               --config release-plz.toml \
-              --git-token "$GITHUB_TOKEN" \
+              --git-token "$RELEASE_PLZ_TOKEN" \
               --registry-manifest-path /tmp/release-plz-prev-tag/Cargo.toml
           else
-            release-plz release-pr --config release-plz.toml --git-token "$GITHUB_TOKEN"
+            release-plz release-pr --config release-plz.toml --git-token "$RELEASE_PLZ_TOKEN"
           fi
 
       - name: Cleanup worktree

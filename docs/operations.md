@@ -29,6 +29,7 @@ just release-pr
 Notes:
 - Production release is fully automated with `release-plz` + `cargo-dist`.
 - `Release Plz` workflow runs on `main` and creates/updates release PRs.
+- `Release Plz` must use `RELEASE_PLZ_TOKEN` repository secret (PAT or GitHub App token); default `GITHUB_TOKEN` does not reliably trigger required `pull_request` checks.
 - Release PR merge produces version/changelog updates in repo history.
 - `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
 - Release assets include musl archive, checksums, source archive, and shell installer.
