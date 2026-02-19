@@ -342,7 +342,7 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 ### Tasks
 - [x] Update release, rollback, and incident runbooks with concrete command sequences.
 - [x] Add operator checklists for DNS incidents, graph subsystem degradation, and update rollback.
-- [ ] Add pre-release chaos checks (DNS fault injection, render failure injection, update rollback drills).
+- [x] Add pre-release chaos checks (DNS fault injection, render failure injection, update rollback drills).
 
 ### Potential Failure Mode
 - [ ] Corrective action is delayed because runbooks are incomplete or stale.

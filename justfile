@@ -59,6 +59,9 @@ docs:
 runbook-gate:
   scripts/verify_runbook_gate.sh
 
+chaos-pre-release:
+  scripts/pre_release_chaos_checks.sh
+
 build-release:
   cargo build --release --locked
 

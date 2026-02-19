@@ -7,11 +7,13 @@
 ## Standard Release
 
 1. Ensure `main` is healthy and required checks are green.
-2. Trigger release PR automation (or let push-to-main trigger it):
+2. Run pre-release chaos drills:
+   - `just chaos-pre-release`
+3. Trigger release PR automation (or let push-to-main trigger it):
    - `just release-pr`
-3. Review and merge the generated `chore(release): prepare release` PR.
-4. Push/create `vX.Y.Z` tag matching merged Cargo version.
-5. Verify the `Release` workflow uploads artifacts and release notes.
+4. Review and merge the generated `chore(release): prepare release` PR.
+5. Push/create `vX.Y.Z` tag matching merged Cargo version.
+6. Verify the `Release` workflow uploads artifacts and release notes.
 
 ## Dry-Run Verification
 
