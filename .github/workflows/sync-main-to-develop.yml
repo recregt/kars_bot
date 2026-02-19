@@ -11,22 +11,23 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   issues: write
 
 jobs:
   sync-main-to-develop:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Ensure develop catches up with main
         uses: actions/github-script@v8
         with:
+          github-token: ${{ secrets.RELEASE_PLZ_TOKEN || github.token }}
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const conflictMarker = '<!-- sync-main-to-develop-conflict -->';
+            core.info(`sync trigger actor: ${context.actor}`);
 
             const compare = await github.rest.repos.compareCommitsWithBasehead({
               owner,
@@ -55,22 +56,30 @@ jobs:
             let syncPull = openPulls.data[0];
 
             if (!syncPull) {
-              const pull = await github.rest.pulls.create({
-                owner,
-                repo,
-                title: 'chore: sync main into develop',
-                head: 'main',
-                base: 'develop',
-                body: [
-                  'Automated sync PR to keep `develop` aligned with commits that land on `main`.',
-                  '',
-                  '- Trigger: push on `main`',
-                  '- Purpose: avoid manual back-merge and branch drift',
-                ].join('\n'),
-              });
+              try {
+                const pull = await github.rest.pulls.create({
+                  owner,
+                  repo,
+                  title: 'chore: sync main into develop',
+                  head: 'main',
+                  base: 'develop',
+                  body: [
+                    'Automated sync PR to keep `develop` aligned with commits that land on `main`.',
+                    '',
+                    '- Trigger: push on `main`',
+                    '- Purpose: avoid manual back-merge and branch drift',
+                  ].join('\n'),
+                });
 
-              syncPull = pull.data;
-              core.info(`Created sync PR #${syncPull.number}: ${syncPull.html_url}`);
+                syncPull = pull.data;
+                core.info(`Created sync PR #${syncPull.number}: ${syncPull.html_url}`);
+              } catch (error) {
+                if (error && error.status === 403) {
+                  core.setFailed('Insufficient token permissions to create sync PR. Ensure contents/pull-requests write permissions and token policy allow workflow PR creation.');
+                  return;
+                }
+                throw error;
+              }
             }
 
             let detail = null;
@@ -105,17 +114,25 @@ jobs:
               );
 
               if (!alreadyCommented) {
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number: syncPull.number,
-                  body: [
-                    conflictMarker,
-                    '⚠️ Automatic sync PR has merge conflicts.',
-                    '',
-                    'Manual conflict resolution is required to keep `develop` aligned with `main`.',
-                  ].join('\n'),
-                });
+                try {
+                  await github.rest.issues.createComment({
+                    owner,
+                    repo,
+                    issue_number: syncPull.number,
+                    body: [
+                      conflictMarker,
+                      '⚠️ Automatic sync PR has merge conflicts.',
+                      '',
+                      'Manual conflict resolution is required to keep `develop` aligned with `main`.',
+                    ].join('\n'),
+                  });
+                } catch (error) {
+                  if (error && error.status === 403) {
+                    core.warning('Cannot post conflict comment due to token permissions.');
+                  } else {
+                    throw error;
+                  }
+                }
               }
 
               core.setFailed(
