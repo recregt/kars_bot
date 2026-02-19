@@ -74,6 +74,7 @@ jobs:
 
       - name: Ensure version tag exists after main push
         if: github.event_name == 'push'
+        id: ensure_tag
         shell: bash
         run: |
           set -euo pipefail
@@ -83,11 +84,13 @@ jobs:
 
           if [[ -z "$before_sha" || "$before_sha" == "0000000000000000000000000000000000000000" ]]; then
             echo "No valid before SHA; skipping automatic tag check."
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if ! git diff --unified=0 "$before_sha" "$after_sha" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
             echo "Cargo.toml version unchanged in this push; no tag action required."
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -102,6 +105,8 @@ jobs:
 
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
             echo "Tag $tag already exists; skipping."
+            echo "tag_created=false" >> "$GITHUB_OUTPUT"
+            echo "tag=$tag" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -110,6 +115,23 @@ jobs:
           git tag -a "$tag" -m "Release $tag" "$after_sha"
           git push origin "refs/tags/$tag"
           echo "Created and pushed missing tag $tag"
+          echo "tag_created=true" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch Release workflow for created tag
+        if: github.event_name == 'push' && steps.ensure_tag.outputs.tag_created == 'true'
+        env:
+          GH_TOKEN: ${{ env.RELEASE_PLZ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ensure_tag.outputs.tag }}"
+          if [[ -z "$tag" ]]; then
+            echo "::error::Expected tag output from ensure_tag step, but it was empty."
+            exit 1
+          fi
+          gh workflow run release.yml --ref main -f tag="$tag"
+          echo "Dispatched release.yml for $tag"
 
       - name: Cleanup worktree
         if: always()
