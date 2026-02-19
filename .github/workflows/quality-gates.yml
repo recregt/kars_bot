@@ -72,6 +72,7 @@ jobs:
           pr = payload.get("pull_request", {})
           title = pr.get("title", "")
           head_ref = pr.get("head", {}).get("ref", "")
+          base_ref = pr.get("base", {}).get("ref", "")
           author = pr.get("user", {}).get("login", "")
 
           release_plz_like = (
@@ -81,6 +82,16 @@ jobs:
 
           if release_plz_like:
             print("release-plz managed PR detected; skipping manual release label requirement.")
+            sys.exit(0)
+
+          sync_main_to_develop_like = (
+            head_ref == "main"
+            and base_ref == "develop"
+            and title.startswith("chore: sync main into develop")
+          )
+
+          if sync_main_to_develop_like:
+            print("main->develop sync PR detected; skipping manual release label requirement.")
             sys.exit(0)
 
           labels = {item["name"] for item in pr.get("labels", [])}
