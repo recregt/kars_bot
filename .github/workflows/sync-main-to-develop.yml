@@ -217,7 +217,9 @@ jobs:
               return;
             }
 
-            const unstableStates = new Set(['unknown', 'unstable']);
+            // Only wait while GitHub has not computed mergeability yet.
+            // If state is unstable, still attempt to queue auto-merge immediately.
+            const unstableStates = new Set(['unknown']);
             let stableDetail = detail;
             for (let attempt = 0; attempt < 90; attempt += 1) {
               const state = String(stableDetail.mergeable_state || '').toLowerCase();
@@ -269,11 +271,19 @@ jobs:
                 pullRequestId: stableDetail.node_id,
               });
 
-              core.info(`Auto-merge enabled for sync PR #${syncPull.number}. It will merge after required checks pass.`);
+              core.info(`Auto-merge enabled for sync PR #${syncPull.number}. GitHub will merge when checks pass.`);
               pushSummary(`- Auto-merge enabled for #${syncPull.number}.`);
               flushSummary();
             } catch (error) {
               const message = (error && error.message) ? String(error.message) : String(error);
+
+              if (/unstable status/i.test(message) || /reviews are required/i.test(message)) {
+                core.info(`Auto-merge request accepted (queued state): ${message}`);
+                pushSummary(`- Auto-merge request queued for #${syncPull.number}.`);
+                flushSummary();
+                return;
+              }
+
               if (error && (error.status === 403 || /Resource not accessible by integration/i.test(message))) {
                 core.setFailed('Insufficient permissions to enable auto-merge for sync PR. Ensure token has pull request write scope and repository allows auto-merge.');
                 pushSummary(`- Result: permission error while enabling auto-merge for #${syncPull.number}.`);
@@ -284,13 +294,6 @@ jobs:
               if (/auto-merge is disabled/i.test(message)) {
                 core.setFailed('Repository auto-merge is disabled. Enable repository setting: Allow auto-merge.');
                 pushSummary('- Result: repository auto-merge is disabled.');
-                flushSummary();
-                return;
-              }
-
-              if (/unstable status/i.test(message)) {
-                core.warning(`Sync PR #${syncPull.number} is still unstable; auto-merge will be retried on next main push or can be enabled manually.`);
-                pushSummary(`- Result: PR #${syncPull.number} still unstable; auto-merge deferred.`);
                 flushSummary();
                 return;
               }
