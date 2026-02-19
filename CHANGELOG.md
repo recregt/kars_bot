@@ -25,6 +25,7 @@ All notable changes to this project are documented in this file.
 
 ### Other
 
+- add just sync command
 - harden flow checks for shallow repos and sync conflicts
 - enforce strict local git flow and remove bypass paths
 - extend release-plz and cargo-dist capabilities
