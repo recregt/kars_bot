@@ -48,6 +48,8 @@ Notes:
 - Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
 - Sync workflow enables auto-merge on the sync PR, so merge happens automatically after required checks pass.
 - Sync workflow waits for PR mergeability to stabilize before enabling auto-merge (prevents immediate unstable-status API failures).
+- Sync PRs are automatically labeled (`sync-main-develop`, `automerge`) for easier filtering and tracking.
+- Sync workflow writes a step summary with actor, PR link, labels, and auto-merge outcome details.
 - Sync workflow requires `contents: write`, `pull-requests: write`, and `issues: write` permissions for PR/comment operations.
 - Preferred release discipline remains dual-merge (release/hotfix changes should land in both `main` and `develop`); sync workflow is a safety valve.
 - Quality CI is scope-aware:
