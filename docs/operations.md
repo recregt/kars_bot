@@ -45,6 +45,7 @@ Notes:
 - If local repo is shallow and opt-in is disabled, hook fails fast with manual fix guidance (`git fetch --unshallow origin`).
 - `Sync Main to Develop` workflow auto-opens a PR from `main` to `develop` when `main` gets ahead, removing manual back-merge steps.
 - Sync workflow also runs on `main -> develop` pull request updates to retry auto-merge enablement when needed.
+- Sync workflow includes scheduled retries (every 10 minutes) to catch PRs that remain `unstable` during initial attempts.
 - Sync workflow runs for all `main` push actors (including bot-triggered merges) to avoid silent drift.
 - Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
 - Sync workflow enables auto-merge on the sync PR, so merge happens automatically after required checks pass.
