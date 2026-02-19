@@ -23,26 +23,37 @@ assert_commit_policy() {
     return 0
   fi
 
-  if [[ "$branch" == "develop" ]]; then
-    echo "[git-flow] Blocked: commits on 'develop' are forbidden."
-    echo "Develop is a mirror branch; open PRs into 'main' and let sync update 'develop'."
-    exit 1
-  fi
-
   if ! is_merge_commit_context; then
     echo "[git-flow] Blocked: direct commits to '$branch' are forbidden."
-    if [[ "$branch" == "main" ]]; then
-      echo "Allowed flow: commit on feature/*, then PR merge into main"
-    fi
+    echo "Allowed flow: commit on feature/*, merge into develop, then merge develop into main."
     exit 1
   fi
+}
 
-  local merge_head
-  merge_head="$(merge_head_sha)"
+assert_protected_branch_push_is_merge_only() {
+  local branch_ref="$1"
+  local local_sha="$2"
+  local remote_sha="$3"
 
-  if [[ "$branch" == "main" ]]; then
-    return 0
+  local range
+  if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+    local empty_tree
+    empty_tree=$(git hash-object -t tree /dev/null)
+    range="$empty_tree..$local_sha"
+  else
+    range="$remote_sha..$local_sha"
   fi
+
+  while IFS= read -r commit_sha; do
+    [[ -z "$commit_sha" ]] && continue
+    parents_line=$(git rev-list --parents -n 1 "$commit_sha")
+    parent_count=$(awk '{print NF-1}' <<<"$parents_line")
+    if (( parent_count < 2 )); then
+      echo "[git-flow] Blocked: non-merge commit $commit_sha detected in push to '${branch_ref#refs/heads/}'."
+      echo "Only merge commits are allowed on protected branches."
+      exit 1
+    fi
+  done < <(git rev-list --first-parent "$range")
 }
 
 assert_push_policy() {
@@ -69,42 +80,19 @@ assert_push_policy() {
 
     case "$local_ref" in
       refs/heads/develop)
-        if ! git rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1; then
-          echo "[git-flow] Blocked: cannot validate develop mirror target because origin/main is unavailable."
-          exit 1
-        fi
-        expected_main_sha="$(git rev-parse refs/remotes/origin/main)"
-        if [[ "$local_sha" != "$expected_main_sha" ]]; then
-          echo "[git-flow] Blocked: develop must mirror origin/main exactly."
-          echo "develop push sha=$local_sha origin/main=$expected_main_sha"
-          exit 1
-        fi
+        assert_protected_branch_push_is_merge_only "$local_ref" "$local_sha" "$remote_sha"
         ;;
       refs/heads/main)
-        if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
-          empty_tree=$(git hash-object -t tree /dev/null)
-          range="$empty_tree..$local_sha"
-        else
-          range="$remote_sha..$local_sha"
+        assert_protected_branch_push_is_merge_only "$local_ref" "$local_sha" "$remote_sha"
+        if ! git rev-parse --verify --quiet refs/remotes/origin/develop >/dev/null 2>&1; then
+          echo "[git-flow] Blocked: cannot validate develop ancestry because origin/develop is unavailable."
+          exit 1
         fi
-
-        while IFS= read -r commit_sha; do
-          [[ -z "$commit_sha" ]] && continue
-          parents_line=$(git rev-list --parents -n 1 "$commit_sha")
-          parent_count=$(awk '{print NF-1}' <<<"$parents_line")
-          if (( parent_count < 2 )); then
-            target_branch="${local_ref#refs/heads/}"
-            if [[ "$target_branch" == "main" ]]; then
-              subject="$(git log -1 --pretty=%s "$commit_sha")"
-              if [[ "$subject" =~ ^chore\(release\):\ prepare\ v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-                continue
-              fi
-            fi
-            echo "[git-flow] Blocked: non-merge commit $commit_sha detected in push to '$target_branch'."
-            echo "Only first-parent merge commits are allowed on protected branches."
-            exit 1
-          fi
-        done < <(git rev-list --first-parent "$range")
+        if ! git merge-base --is-ancestor refs/remotes/origin/develop "$local_sha"; then
+          echo "[git-flow] Blocked: main push must include current origin/develop tip."
+          echo "Merge develop into main first to avoid hash drift."
+          exit 1
+        fi
         ;;
     esac
   done

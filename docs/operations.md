@@ -4,7 +4,7 @@
 
 - This repository blocks accidental `Cargo.toml` version edits in normal commits via Lefthook pre-commit checks.
 - A Lefthook pre-push guard validates tag/version consistency.
-- Strict branch policy (`scripts/enforce_git_flow.sh`) blocks direct commit/push flows to `main` and `develop`.
+- Strict branch policy (`scripts/enforce_git_flow.sh`) enforces local flow: `feature/* -> develop -> main`.
 
 Install hooks once per clone:
 
@@ -38,15 +38,8 @@ Notes:
 - Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
 - Version changes on feature branches are allowed for release-plz-managed release PR flow.
 - Staged migration workflows remain available for explicit preview and diagnostics.
-
-Optional local pre-push tag helper:
-
-```bash
-AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
-```
-
-  The hook creates `vX.Y.Z` locally (at pushed commit) and intentionally stops once,
-  so a second push includes the newly created tag.
+- Local bypass toggles are disabled; manual version bumps and local auto-tag shortcuts are not permitted.
+- `main` push requires current `origin/develop` to be an ancestor (prevents hash drift).
 - Quality CI is scope-aware:
   - single quality workflow runs policy + rust + version guard stages.
   - heavy rust checks run only for Rust-relevant changes.
