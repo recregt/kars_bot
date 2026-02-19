@@ -148,6 +148,30 @@ jobs:
               return;
             }
 
+            const unstableStates = new Set(['unknown', 'unstable']);
+            let stableDetail = detail;
+            for (let attempt = 0; attempt < 20; attempt += 1) {
+              const state = String(stableDetail.mergeable_state || '').toLowerCase();
+              if (!unstableStates.has(state)) {
+                break;
+              }
+
+              core.info(`Sync PR #${syncPull.number} is currently ${state}; waiting before enabling auto-merge (attempt ${attempt + 1}/20).`);
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+
+              const refreshed = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: syncPull.number,
+              });
+              stableDetail = refreshed.data;
+            }
+
+            if (stableDetail.auto_merge !== null) {
+              core.info(`Auto-merge already enabled for sync PR #${syncPull.number}.`);
+              return;
+            }
+
             try {
               const mutation = `
                 mutation EnableAutoMerge($pullRequestId: ID!) {
@@ -163,7 +187,7 @@ jobs:
               `;
 
               await github.graphql(mutation, {
-                pullRequestId: detail.node_id,
+                pullRequestId: stableDetail.node_id,
               });
 
               core.info(`Auto-merge enabled for sync PR #${syncPull.number}. It will merge after required checks pass.`);
@@ -176,6 +200,11 @@ jobs:
 
               if (/auto-merge is disabled/i.test(message)) {
                 core.setFailed('Repository auto-merge is disabled. Enable repository setting: Allow auto-merge.');
+                return;
+              }
+
+              if (/unstable status/i.test(message)) {
+                core.warning(`Sync PR #${syncPull.number} is still unstable; auto-merge will be retried on next main push or can be enabled manually.`);
                 return;
               }
 
