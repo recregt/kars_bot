@@ -1,0 +1,123 @@
+name: Sync Main to Develop
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  sync-main-to-develop:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ensure develop catches up with main
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const conflictMarker = '<!-- sync-main-to-develop-conflict -->';
+
+            const compare = await github.rest.repos.compareCommitsWithBasehead({
+              owner,
+              repo,
+              basehead: 'develop...main',
+            });
+
+            if (compare.data.ahead_by === 0) {
+              core.info('develop already contains main; no sync PR required.');
+              return;
+            }
+
+            const openPulls = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              base: 'develop',
+              head: `${owner}:main`,
+              per_page: 100,
+            });
+
+            if (openPulls.data.length > 0) {
+              core.info(`Sync PR already open: #${openPulls.data[0].number}`);
+            }
+
+            let syncPull = openPulls.data[0];
+
+            if (!syncPull) {
+              const pull = await github.rest.pulls.create({
+                owner,
+                repo,
+                title: 'chore: sync main into develop',
+                head: 'main',
+                base: 'develop',
+                body: [
+                  'Automated sync PR to keep `develop` aligned with commits that land on `main`.',
+                  '',
+                  '- Trigger: push on `main`',
+                  '- Purpose: avoid manual back-merge and branch drift',
+                ].join('\n'),
+              });
+
+              syncPull = pull.data;
+              core.info(`Created sync PR #${syncPull.number}: ${syncPull.html_url}`);
+            }
+
+            let detail = null;
+            for (let attempt = 0; attempt < 6; attempt += 1) {
+              const response = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: syncPull.number,
+              });
+              detail = response.data;
+              if (detail.mergeable !== null) {
+                break;
+              }
+              await new Promise((resolve) => setTimeout(resolve, 3000));
+            }
+
+            if (!detail) {
+              core.setFailed(`Unable to inspect mergeability for sync PR #${syncPull.number}.`);
+              return;
+            }
+
+            if (detail.mergeable === false || detail.mergeable_state === 'dirty') {
+              const comments = await github.rest.issues.listComments({
+                owner,
+                repo,
+                issue_number: syncPull.number,
+                per_page: 100,
+              });
+
+              const alreadyCommented = comments.data.some((comment) =>
+                (comment.body || '').includes(conflictMarker)
+              );
+
+              if (!alreadyCommented) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: syncPull.number,
+                  body: [
+                    conflictMarker,
+                    '⚠️ Automatic sync PR has merge conflicts.',
+                    '',
+                    'Manual conflict resolution is required to keep `develop` aligned with `main`.',
+                  ].join('\n'),
+                });
+              }
+
+              core.setFailed(
+                `Sync PR #${syncPull.number} is not mergeable (state=${detail.mergeable_state}). Resolve conflicts manually.`
+              );
+              return;
+            }
+
+            core.info(`Sync PR #${syncPull.number} is mergeable (state=${detail.mergeable_state}).`);

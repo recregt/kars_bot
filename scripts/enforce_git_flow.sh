@@ -3,6 +3,43 @@ set -euo pipefail
 
 mode="${1:-commit}"
 
+is_shallow_repository() {
+  [[ "$(git rev-parse --is-shallow-repository 2>/dev/null || echo false)" == "true" ]]
+}
+
+ensure_full_history_for_protected_checks() {
+  local remote_name="${1:-origin}"
+
+  if is_shallow_repository; then
+    echo "[git-flow] Repo is shallow, fetching full history (this might take a while)..."
+    local allow_unshallow="0"
+    if [[ "${CI:-false}" == "true" ]]; then
+      allow_unshallow="1"
+    fi
+    if [[ "${KARS_GIT_FLOW_AUTO_UNSHALLOW:-0}" == "1" ]]; then
+      allow_unshallow="1"
+    fi
+
+    if [[ "$allow_unshallow" != "1" ]]; then
+      echo "[git-flow] Blocked: shallow repository detected for protected branch checks."
+      echo "Run once: git fetch --unshallow $remote_name"
+      echo "Or opt-in per push: KARS_GIT_FLOW_AUTO_UNSHALLOW=1 git push ..."
+      exit 1
+    fi
+
+    if ! git fetch --quiet --prune --unshallow "$remote_name"; then
+      echo "[git-flow] Blocked: unable to unshallow repository from '$remote_name'."
+      echo "Run manually: git fetch --unshallow $remote_name"
+      exit 1
+    fi
+  fi
+
+  if ! git fetch --quiet --prune "$remote_name" main develop; then
+    echo "[git-flow] Blocked: failed to refresh '$remote_name/main' and '$remote_name/develop'."
+    exit 1
+  fi
+}
+
 current_branch() {
   git symbolic-ref --short HEAD 2>/dev/null || true
 }
@@ -62,6 +99,21 @@ assert_push_policy() {
   fi
 
   readarray -t push_lines
+
+  local protected_push_detected=0
+  for line in "${push_lines[@]}"; do
+    local_ref=$(awk '{print $1}' <<<"$line")
+    case "$local_ref" in
+      refs/heads/main|refs/heads/develop)
+        protected_push_detected=1
+        ;;
+    esac
+  done
+
+  if [[ "$protected_push_detected" -eq 1 ]]; then
+    ensure_full_history_for_protected_checks origin
+  fi
+
   for line in "${push_lines[@]}"; do
     local_ref=$(awk '{print $1}' <<<"$line")
     local_sha=$(awk '{print $2}' <<<"$line")
