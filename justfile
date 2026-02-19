@@ -10,6 +10,17 @@ bootstrap:
   scripts/install_hooks.sh
   just doctor
 
+sync:
+  @echo "🔄 Fetching latest refs..."
+  git fetch --all --prune
+  @echo "⬇️  Syncing main..."
+  git switch main
+  git pull origin main
+  @echo "⬇️  Syncing develop..."
+  git switch develop
+  git pull origin develop
+  @echo "✨ Local environment is up-to-date!"
+
 doctor:
   scripts/doctor.sh
 
