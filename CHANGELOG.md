@@ -2,28 +2,7 @@
 
 All notable changes to this project are documented in this file.
 
-## v1.3.3 - 2026-02-19
-
-
-
-### Bug Fixes
-
-- Repair corrupted changelog ordering and duplicate section drift
-
-
-### Maintenance
-
-- Regenerate changelog deterministically in release flow and reject duplicate version headers
-
-- Add fingerprint-aware lockfile security audit to pre-commit hooks
-
-- Add confirmation gates for release recipes and formatter diagnostics helper
-
-- Update roadmap progress and release examples for v1.3.3
-
-
-
-## Unreleased
+## [Unreleased]
 
 ## [1.4.0](https://github.com/recregt/kars_bot/compare/v1.3.3...v1.4.0) - 2026-02-19
 
@@ -128,7 +107,28 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.3.2 - 2026-02-18
+## [1.3.3] - 2026-02-19
+
+
+
+### Bug Fixes
+
+- Repair corrupted changelog ordering and duplicate section drift
+
+
+### Maintenance
+
+- Regenerate changelog deterministically in release flow and reject duplicate version headers
+
+- Add fingerprint-aware lockfile security audit to pre-commit hooks
+
+- Add confirmation gates for release recipes and formatter diagnostics helper
+
+- Update roadmap progress and release examples for v1.3.3
+
+
+
+## [1.3.2] - 2026-02-18
 
 
 
@@ -166,7 +166,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.3.1 - 2026-02-18
+## [1.3.1] - 2026-02-18
 
 
 
@@ -192,7 +192,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.3.0 - 2026-02-18
+## [1.3.0] - 2026-02-18
 
 
 
@@ -227,7 +227,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.2.0 - 2026-02-18
+## [1.2.0] - 2026-02-18
 
 
 
@@ -255,7 +255,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.1.1 - 2026-02-18
+## [1.1.1] - 2026-02-18
 
 
 
@@ -265,7 +265,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.0.1 - 2026-02-18
+## [1.0.1] - 2026-02-18
 
 
 
@@ -282,7 +282,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.1.0 - 2026-02-18
+## [1.1.0] - 2026-02-18
 
 
 
@@ -344,7 +344,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v1.0.0 - 2026-02-17
+## [1.0.0] - 2026-02-17
 
 
 
@@ -354,7 +354,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v0.6.0 - 2026-02-17
+## [0.6.0] - 2026-02-17
 
 
 
@@ -364,7 +364,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v0.5.0 - 2026-02-17
+## [0.5.0] - 2026-02-17
 
 
 
@@ -374,7 +374,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v0.4.0 - 2026-02-17
+## [0.4.0] - 2026-02-17
 
 
 
@@ -384,7 +384,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v0.3.0 - 2026-02-17
+## [0.3.0] - 2026-02-17
 
 
 
@@ -394,7 +394,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v0.2.0 - 2026-02-17
+## [0.2.0] - 2026-02-17
 
 
 
@@ -404,7 +404,7 @@ All notable changes to this project are documented in this file.
 
 
 
-## v0.1.0 - 2026-02-16
+## [0.1.0] - 2026-02-16
 
 
 

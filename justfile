@@ -57,28 +57,17 @@ runtime-validate:
 baseline:
   scripts/capture_phase0_baseline.sh
 
-release-dry tag:
-  @echo "Legacy flow removed. Use 'just release-plz-preview' and GitHub workflow 'Release Plz'."
-
-release-preflight candidate:
-  @echo "Legacy flow removed. Use release-plz + cargo-dist workflows."
-
 release-plz-preview:
   scripts/release_plz_preview.sh
 
 dist-preview:
   dist plan --target x86_64-unknown-linux-musl --allow-dirty
 
-[confirm("Continue with release tag creation?")]
-release-safe tag:
-  @echo "Legacy flow removed. Merge release-plz PR, then release tags are built by cargo-dist release workflow."
-
-[confirm("Continue with direct release tagging?")]
-release tag:
-  @echo "Legacy flow removed. Use release-plz automation instead of direct tag script."
-
 release-pr:
   gh workflow run release-plz.yml
+
+release-dispatch tag:
+  gh workflow run release.yml --ref main -f tag={{tag}}
 
 list-broken-fmt:
   @cargo fmt --all -- --check --color never | grep "Diff in" | cut -d' ' -f3 || true

@@ -30,9 +30,10 @@ Notes:
 - Production release is fully automated with `release-plz` + `cargo-dist`.
 - `Release Plz` workflow runs on `main` and creates/updates release PRs.
 - `Release Plz` must use `RELEASE_PLZ_TOKEN` repository secret (PAT or GitHub App token); default `GITHUB_TOKEN` does not reliably trigger required `pull_request` checks.
+- `release-plz.toml` supports changelog grouping/filtering and PR metadata (labels/title/body) customization.
 - Release PR merge produces version/changelog updates in repo history.
 - `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
-- Release assets include musl archive, checksums, source archive, and shell installer.
+- Release assets include musl archive, checksums, source archive, shell installer, and `dist-manifest.json`.
 - Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
 - Version changes on feature branches are allowed for release-plz-managed release PR flow.
 - Staged migration workflows remain available for explicit preview and diagnostics.
@@ -50,12 +51,6 @@ AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
   - rust-quality workflow runs rustfmt/clippy/nextest/TLS checks only for Rust-relevant changes.
 - `release-plz` and `cargo-dist` preview workflows download official Linux binaries directly from upstream releases (no source compile in preview jobs).
 - Local `just release-plz-preview` runs in a temporary worktree and does not mutate your active working tree.
-
-Prerequisite:
-
-```bash
-cargo install git-cliff
-```
 
 ## systemd Service
 

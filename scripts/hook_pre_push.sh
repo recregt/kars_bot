@@ -124,7 +124,7 @@ for line in "${push_lines[@]}"; do
           exit 1
         fi
         log_error "Blocked: Cargo.toml version changed to $target_version but no matching tag v$target_version is in this push."
-        log_info "Suggestion: run scripts/release_tag.sh v$target_version and push commit + tag together."
+        log_info "Suggestion: merge release-plz PR first, then push tag v$target_version for release workflow."
         log_info "Optional automation: AUTO_CREATE_MISSING_TAG=1 git push --follow-tags"
         exit 1
       fi

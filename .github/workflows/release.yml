@@ -46,9 +46,12 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.release_tag.outputs.tag }}"
+          raw="${tag#v}"
 
-          awk -v tag="$tag" '
+          awk -v tag="$tag" -v raw="$raw" '
+            $0 ~ "^## \\[" raw "\\]" { in_section=1; next }
             $0 ~ "^## " tag "([[:space:]]-|$)" { in_section=1; next }
+            $0 ~ "^## v" raw "([[:space:]]-|$)" { in_section=1; next }
             in_section && $0 ~ "^## " { exit }
             in_section { print }
           ' CHANGELOG.md > release-notes.md
@@ -89,6 +92,13 @@ jobs:
       - name: Build distributables with cargo-dist
         run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
 
+      - name: Generate cargo-dist manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p target/distrib
+          dist -o json manifest --target=x86_64-unknown-linux-musl --allow-dirty > target/distrib/dist-manifest.json
+
       - name: Upload GitHub Release assets
         uses: softprops/action-gh-release@v2
         with:
@@ -101,4 +111,5 @@ jobs:
             target/distrib/source.tar.gz
             target/distrib/source.tar.gz.sha256
             target/distrib/sha256.sum
+            target/distrib/dist-manifest.json
           fail_on_unmatched_files: true

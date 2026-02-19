@@ -2,21 +2,21 @@
 
 ## Standard Release
 
-1. Ensure clean tree and up-to-date branch.
-2. Run release flow:
-   - `scripts/release_tag.sh vX.Y.Z`
-3. Verify:
-   - `CHANGELOG.md` contains `## vX.Y.Z`
-   - `Cargo.toml` and `Cargo.lock` package version match `X.Y.Z`
-   - `docs/releases/binary-size.csv` has a new row
+1. Ensure `main` is healthy and required checks are green.
+2. Trigger release PR automation (or let push-to-main trigger it):
+   - `just release-pr`
+3. Review and merge the generated `chore(release): prepare release` PR.
+4. Push/create `vX.Y.Z` tag matching merged Cargo version.
+5. Verify the `Release` workflow uploads artifacts and release notes.
 
 ## Dry-Run Verification
 
-- `scripts/release_tag.sh --dry-run vX.Y.Z`
-- `scripts/validate_release_flow.sh vX.Y.Z-pre`
+- `just release-plz-preview`
+- `just dist-preview`
 
 ## Post-Release Checks
 
 - Tag points to release commit.
-- Release notes are coherent with merged features.
+- GitHub Release contains expected artifacts (`musl` archive, installer, checksums, source archive).
+- Release notes are coherent with merged features and generated changelog entry.
 - Runtime matrix report exists when portability changes are included.

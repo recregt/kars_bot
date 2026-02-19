@@ -21,8 +21,9 @@ just --list
 just ci
 just doctor
 just doctor-release
-just release-preflight v1.3.3-pre
-just release-safe v1.3.3
+just release-pr
+just release-plz-preview
+just dist-preview
 ```
 
 ## Minimal Configuration
