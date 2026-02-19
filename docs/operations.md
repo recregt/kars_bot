@@ -40,6 +40,12 @@ Notes:
 - Staged migration workflows remain available for explicit preview and diagnostics.
 - Local bypass toggles are disabled; manual version bumps and local auto-tag shortcuts are not permitted.
 - `main` push requires current `origin/develop` to be an ancestor (prevents hash drift).
+- Protected-branch push checks detect shallow clones and require full history for ancestry checks.
+- In CI, full history repair runs automatically; local opt-in is available via `KARS_GIT_FLOW_AUTO_UNSHALLOW=1`.
+- If local repo is shallow and opt-in is disabled, hook fails fast with manual fix guidance (`git fetch --unshallow origin`).
+- `Sync Main to Develop` workflow auto-opens a PR from `main` to `develop` when `main` gets ahead, removing manual back-merge steps.
+- Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
+- Preferred release discipline remains dual-merge (release/hotfix changes should land in both `main` and `develop`); sync workflow is a safety valve.
 - Quality CI is scope-aware:
   - single quality workflow runs policy + rust + version guard stages.
   - heavy rust checks run only for Rust-relevant changes.
