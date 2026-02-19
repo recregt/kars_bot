@@ -4,7 +4,7 @@ members = ["cargo:."]
 [dist]
 cargo-dist-version = "0.30.4"
 ci = "github"
-installers = ["shell"]
+installers = ["shell", "powershell"]
 targets = ["x86_64-unknown-linux-musl"]
 pr-run-mode = "skip"
 install-updater = false

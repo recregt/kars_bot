@@ -33,7 +33,7 @@ Notes:
 - `release-plz.toml` supports changelog grouping/filtering and PR metadata (labels/title/body) customization.
 - Release PR merge produces version/changelog updates in repo history.
 - `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
-- Release assets include musl archive, checksums, source archive, shell installer, and `dist-manifest.json`.
+- Release assets include musl archive, checksums, source archive, installer outputs, and `dist-plan.json`.
 - PR quality is consolidated into a single required check (`quality / quality`) with internal scope-aware stages.
 - Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
 - Version changes on feature branches are allowed for release-plz-managed release PR flow.
