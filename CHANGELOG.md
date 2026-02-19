@@ -25,6 +25,12 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## [1.4.1](https://github.com/recregt/kars_bot/compare/v1.4.0...v1.4.1) - 2026-02-19
+
+### Other
+
+- *(release)* install musl toolchain for cargo-dist build
+
 ## [1.4.0](https://github.com/recregt/kars_bot/compare/v1.3.3...v1.4.0) - 2026-02-19
 
 ### Added
