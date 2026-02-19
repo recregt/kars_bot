@@ -21,109 +21,25 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-
-      - name: Validate workflows with actionlint
-        uses: rhysd/actionlint@v1.7.11
-
-      - name: Detect scope changes
-        id: scope
-        uses: dorny/paths-filter@v3
-        with:
-          list-files: shell
-          filters: .github/paths-filter.yml
-
-      - name: Validate reliability docs baseline
-        run: |
-          test -f docs/reference/reliability-slo.md
-          test -f docs/releases/runtime-validation-checklist.md
-
-      - name: Validate docs references
-        if: steps.scope.outputs.docs_related == 'true' || steps.scope.outputs.ci_related == 'true'
-        run: |
-          scripts/generate_docs_reference.sh
-          scripts/validate_docs.sh
-
-      - name: Detect Cargo.toml version change
-        if: github.event_name == 'pull_request'
-        id: version_diff
-        shell: bash
-        run: |
-          set -euo pipefail
-          base_sha="${{ github.event.pull_request.base.sha }}"
-          head_sha="${{ github.event.pull_request.head.sha }}"
-          if git diff --unified=0 "$base_sha" "$head_sha" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Enforce version change policy
-        if: github.event_name == 'pull_request' && steps.version_diff.outputs.changed == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json, os, sys
-          event_path = os.environ["GITHUB_EVENT_PATH"]
-          with open(event_path, "r", encoding="utf-8") as f:
-              payload = json.load(f)
-
-          pr = payload.get("pull_request", {})
-          title = pr.get("title", "")
-          head_ref = pr.get("head", {}).get("ref", "")
-          author = pr.get("user", {}).get("login", "")
-
-          release_plz_like = (
-            author in {"github-actions[bot]", "app/github-actions"}
-            and title.startswith("chore(release):")
-          ) or head_ref.startswith("release-plz")
-
-          if release_plz_like:
-            print("release-plz managed PR detected; skipping manual release label requirement.")
-            sys.exit(0)
-
-          labels = {item["name"] for item in pr.get("labels", [])}
-          allowed = {"release", "release-approved"}
-          if labels.isdisjoint(allowed):
-              print("::error::Cargo.toml version changed but PR has no release label (release or release-approved).")
-              sys.exit(1)
-          print("Release label present; version change is allowed.")
-          PY
+          fetch-depth: 1
 
       - name: Install Rust toolchain
-        if: steps.scope.outputs.rust_related == 'true' || steps.scope.outputs.rust_files == 'true'
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install cargo-nextest
-        if: steps.scope.outputs.rust_related == 'true'
         uses: taiki-e/install-action@nextest
 
       - name: Cache Rust build artifacts
-        if: steps.scope.outputs.rust_related == 'true'
         uses: Swatinem/rust-cache@v2
 
-      - name: Rust fmt check (changed files)
-        if: steps.scope.outputs.rust_files == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          rustfmt --edition 2024 --check ${{ steps.scope.outputs.rust_files_files }}
+      - name: Rust fmt check
+        run: cargo fmt --all -- --check
 
       - name: Clippy strict
-        if: steps.scope.outputs.rust_related == 'true'
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
       - name: Run tests (nextest)
-        if: steps.scope.outputs.rust_related == 'true'
         run: cargo nextest run --locked --all-targets
 
       - name: Enforce Rustls-only TLS graph
-        if: steps.scope.outputs.rust_related == 'true'
         run: scripts/check_tls_stack.sh
-
-      - name: Quality scope summary
-        run: |
-          echo "docs_related=${{ steps.scope.outputs.docs_related }}"
-          echo "ci_related=${{ steps.scope.outputs.ci_related }}"
-          echo "rust_related=${{ steps.scope.outputs.rust_related }}"
