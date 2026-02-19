@@ -128,6 +128,9 @@ jobs:
             exit 1
           fi
 
+      - name: Build all crate features (musl)
+        run: cargo build --release --all-features --target x86_64-unknown-linux-musl
+
       - name: Build distributables with cargo-dist
         run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --tag="${{ steps.release_tag.outputs.tag }}" --allow-dirty
 
