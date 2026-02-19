@@ -40,7 +40,7 @@ impl GraphRenderError {
     pub(super) fn user_message(&self) -> &'static str {
         match self {
             Self::FontUnavailable(_) => {
-                "Graph engine font is unavailable. Install a system font package or disable graph feature in config."
+                "Graph engine embedded font failed to initialize. Please check build assets and restart."
             }
             Self::RenderSlotTimeout(_) => "Graph renderer is busy. Please retry shortly.",
             Self::RenderTimeout(_) => {
