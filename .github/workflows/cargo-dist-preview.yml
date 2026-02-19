@@ -44,12 +44,12 @@ jobs:
       - name: Build preview distributables
         run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
 
-      - name: Generate dist manifest
+      - name: Generate dist plan JSON
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p target/distrib
-          dist -o json manifest --target=x86_64-unknown-linux-musl --allow-dirty > target/distrib/dist-manifest.json
+          dist plan --target=x86_64-unknown-linux-musl --allow-dirty --output-format=json > target/distrib/dist-plan.json
 
       - name: Summarize dist plan
         shell: bash
