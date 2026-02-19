@@ -106,14 +106,14 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 
 #### Tasks
 - [ ] Extend update check to include operational feasibility checks.
-- [ ] Route update apply through controlled script execution.
-- [ ] Harden updater with preconditions, verification, and Atomic Swap deployment.
-- [ ] Add service restart health gate and automatic rollback on failure.
-- [ ] Document minimum-privilege sudoers and non-systemd degraded behavior.
+- [x] Route update apply through controlled script execution.
+- [x] Harden updater with preconditions, verification, and Atomic Swap deployment.
+- [x] Add service restart health gate and automatic rollback on failure.
+- [x] Document minimum-privilege sudoers and non-systemd degraded behavior.
 
 #### Acceptance Criteria
 - [ ] Update apply provides deterministic success/rollback/manual-intervention states.
-- [ ] Service liveness is automatically validated after update.
+- [x] Service liveness is automatically validated after update.
 
 ---
 
@@ -315,14 +315,14 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 - [ ] Sled durability guards for restart windows.
 
 ### Tasks
-- [ ] Extend update check to include permissions, service manager, path writability, and lock state.
+- [x] Extend update check to include permissions, service manager, path writability, and lock state.
 - [ ] Harden server_update workflow:
   - [ ] Verify downloaded artifact integrity and executability.
   - [ ] Use Atomic Swap deployment with backup retention.
   - [ ] Perform post-restart health probe and auto-rollback on failure.
 - [ ] Add signal-aware stop/drain logic for in-flight operations.
 - [ ] Add Sled flush barrier before controlled restart and startup consistency probe.
-- [ ] Add update lock (single-writer policy).
+- [x] Add update lock (single-writer policy).
 
 ### Potential Failure Mode
 - [ ] Mid-flight restart interrupts update and leaves ambiguous service state.
@@ -341,7 +341,7 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 
 ### Tasks
 - [x] Update release, rollback, and incident runbooks with concrete command sequences.
-- [ ] Add operator checklists for DNS incidents, graph subsystem degradation, and update rollback.
+- [x] Add operator checklists for DNS incidents, graph subsystem degradation, and update rollback.
 - [ ] Add pre-release chaos checks (DNS fault injection, render failure injection, update rollback drills).
 
 ### Potential Failure Mode

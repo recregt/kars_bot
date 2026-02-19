@@ -69,6 +69,30 @@ sudo systemctl enable --now kars-bot
 sudo systemctl status kars-bot
 ```
 
+### Minimum-Privilege sudoers for Update Flow
+
+`/update apply` executes `scripts/server_update.sh`, which requires controlled `systemctl` operations and binary replacement under `/opt/kars_bot`.
+
+Example sudoers policy (edit with `visudo`):
+
+```text
+Cmnd_Alias KARS_BOT_UPDATE = /usr/bin/systemctl status kars-bot, /usr/bin/systemctl restart kars-bot, /usr/bin/systemctl is-active kars-bot
+bot ALL=(root) NOPASSWD: KARS_BOT_UPDATE
+```
+
+Notes:
+- Restrict commands to the exact service unit and required verbs only.
+- Keep file ownership on `/opt/kars_bot` minimal and explicit.
+- Validate with `/update check` before allowing `/update apply` in production.
+
+### Non-systemd Degraded Behavior
+
+When systemd is not available, `/update apply` is intentionally blocked by capability checks.
+
+- `/update check` still reports readiness details and failure reasons.
+- `/update apply` returns a degraded-mode message instead of attempting restart logic.
+- In non-systemd environments, perform manual binary rollout and process supervision.
+
 ## Docker Build (Optional)
 
 ```bash

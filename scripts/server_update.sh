@@ -30,39 +30,75 @@ require_cmd flock
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
+  echo "CHECK_LOCK=busy"
+  echo "APPLY_READY=0"
+  echo "DETAIL=another update is already running"
   echo "[update] Another update is already running."
   exit 1
 fi
 
+emit_check() {
+  local key="$1"
+  local value="$2"
+  echo "${key}=${value}"
+}
+
 check_apply_ready() {
-  if [[ ! -d "$(dirname "$BIN_PATH")" ]]; then
-    if ! install -d "$(dirname "$BIN_PATH")" >/dev/null 2>&1; then
-      echo "[update] Cannot create target directory: $(dirname "$BIN_PATH")"
-      return 1
+  local target_dir
+  target_dir="$(dirname "$BIN_PATH")"
+  local ready=1
+
+  emit_check "CHECK_LOCK" "ok"
+  emit_check "CHECK_BIN_PATH" "$BIN_PATH"
+  emit_check "CHECK_SERVICE" "$SERVICE_NAME"
+
+  if [[ ! -d "$target_dir" ]]; then
+    emit_check "CHECK_TARGET_DIR" "missing:$target_dir"
+    ready=0
+  else
+    emit_check "CHECK_TARGET_DIR" "ok:$target_dir"
+    if [[ ! -w "$target_dir" ]]; then
+      emit_check "CHECK_TARGET_DIR_WRITABLE" "fail"
+      ready=0
+    else
+      emit_check "CHECK_TARGET_DIR_WRITABLE" "ok"
     fi
   fi
 
-  if [[ -f "$BIN_PATH" && ! -w "$BIN_PATH" ]]; then
-    echo "[update] Binary path is not writable: $BIN_PATH"
-    return 1
+  if [[ -f "$BIN_PATH" ]]; then
+    if [[ ! -w "$BIN_PATH" ]]; then
+      emit_check "CHECK_BIN_WRITABLE" "fail"
+      ready=0
+    else
+      emit_check "CHECK_BIN_WRITABLE" "ok"
+    fi
+  else
+    emit_check "CHECK_BIN_WRITABLE" "n/a_missing_bin"
   fi
 
   if ! systemctl status "$SERVICE_NAME" >/dev/null 2>&1; then
-    echo "[update] Service not found or inaccessible: $SERVICE_NAME"
-    return 1
+    emit_check "CHECK_SYSTEMD_SERVICE" "fail"
+    ready=0
+  else
+    emit_check "CHECK_SYSTEMD_SERVICE" "ok"
   fi
 
-  return 0
+  if [[ "$ready" -eq 1 ]]; then
+    emit_check "APPLY_READY" "1"
+    return 0
+  fi
+
+  emit_check "APPLY_READY" "0"
+  return 1
 }
 
 if [[ "$CHECK_ONLY" -eq 1 ]]; then
   if check_apply_ready; then
-    echo "APPLY_READY=1"
-    echo "SERVICE_NAME=$SERVICE_NAME"
-    echo "BIN_PATH=$BIN_PATH"
+    emit_check "SERVICE_NAME" "$SERVICE_NAME"
+    emit_check "BIN_PATH" "$BIN_PATH"
     exit 0
   fi
-  echo "APPLY_READY=0"
+  echo "[update] Apply readiness checks failed."
   exit 1
 fi
 
