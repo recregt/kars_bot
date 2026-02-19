@@ -21,8 +21,6 @@ just ci
 just doctor
 just doctor-release
 just docs
-just release-plz-preview
-just dist-preview
 just release-pr
 ```
 
@@ -37,29 +35,16 @@ Notes:
 - PR quality is consolidated into a single required check (`quality / quality`) with internal scope-aware stages.
 - Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
 - Version changes on feature branches are allowed for release-plz-managed release PR flow.
-- Staged migration workflows remain available for explicit preview and diagnostics.
 - Local bypass toggles are disabled; manual version bumps and local auto-tag shortcuts are not permitted.
 - `main` push requires current `origin/develop` to be an ancestor (prevents hash drift).
 - Protected-branch push checks detect shallow clones and require full history for ancestry checks.
 - In CI, full history repair runs automatically; local opt-in is available via `KARS_GIT_FLOW_AUTO_UNSHALLOW=1`.
 - If local repo is shallow and opt-in is disabled, hook fails fast with manual fix guidance (`git fetch --unshallow origin`).
-- `Sync Main to Develop` workflow auto-opens a PR from `main` to `develop` when `main` gets ahead, removing manual back-merge steps.
-- Sync workflow runs on `main` push (and manual dispatch), keeping branch-sync automation simple and predictable.
-- Sync workflow runs for all `main` push actors (including bot-triggered merges) to avoid silent drift.
-- Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
-- Sync workflow enables auto-merge on the sync PR, so merge happens automatically after required checks pass.
-- Sync workflow only waits when mergeability is `unknown`; for `unstable`, it attempts auto-merge immediately and lets GitHub queue merge until checks complete.
-- Sync PRs are automatically labeled (`sync-main-develop`, `automerge`) for easier filtering and tracking.
-- Sync workflow writes a step summary with actor, PR link, labels, and auto-merge outcome details.
-- Sync workflow uses branch-scoped concurrency with cancel-in-progress to avoid queue buildup.
-- Sync workflow requires `contents: write`, `pull-requests: write`, and `issues: write` permissions for PR/comment operations.
-- Preferred release discipline remains dual-merge (release/hotfix changes should land in both `main` and `develop`); sync workflow is a safety valve.
+- Automation is intentionally minimal: only `Quality Gates`, `Release Plz`, and `Release` workflows are retained.
+- Branch sync from `main` to `develop` is manual via local flow (`just sync` + merge discipline).
 - Quality CI is scope-aware:
   - single quality workflow runs policy + rust + version guard stages.
   - heavy rust checks run only for Rust-relevant changes.
-- `release-plz` and `cargo-dist` preview workflows download official Linux binaries directly from upstream releases (no source compile in preview jobs).
-- Local `just release-plz-preview` runs in a temporary worktree and does not mutate your active working tree.
-- `cargo-dist` preview can now produce full artifacts and manifest for release-shape validation.
 
 ## systemd Service
 
