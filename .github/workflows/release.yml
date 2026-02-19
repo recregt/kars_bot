@@ -120,12 +120,12 @@ jobs:
       - name: Build distributables with cargo-dist
         run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
 
-      - name: Generate cargo-dist manifest
+      - name: Generate cargo-dist plan JSON
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p target/distrib
-          dist -o json manifest --target=x86_64-unknown-linux-musl --allow-dirty > target/distrib/dist-manifest.json
+          dist plan --target=x86_64-unknown-linux-musl --allow-dirty --output-format=json > target/distrib/dist-plan.json
 
       - name: Upload GitHub Release assets
         uses: softprops/action-gh-release@v2
@@ -139,5 +139,5 @@ jobs:
             target/distrib/source.tar.gz
             target/distrib/source.tar.gz.sha256
             target/distrib/sha256.sum
-            target/distrib/dist-manifest.json
+            target/distrib/dist-plan.json
           fail_on_unmatched_files: true
