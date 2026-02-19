@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.5.1](https://github.com/recregt/kars_bot/compare/v1.5.0...v1.5.1) - 2026-02-19
+
+### Other
+
+- simplify flow and stabilize release-plz tagging
+- *(ci)* reduce to minimal automation set
+
 ## [1.5.0](https://github.com/recregt/kars_bot/compare/v1.4.1...v1.5.0) - 2026-02-19
 
 ### Added
