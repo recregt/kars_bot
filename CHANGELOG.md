@@ -4,6 +4,31 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.5.0](https://github.com/recregt/kars_bot/compare/v1.4.1...v1.5.0) - 2026-02-19
+
+### Added
+
+- *(sync)* add labels, summary, and stronger auto-merge retry
+- *(sync)* enable auto-merge for main-to-develop PR
+
+### CI
+
+- add concurrency guards to workflows
+
+### Fixed
+
+- *(sync)* queue auto-merge on unstable state
+- *(sync)* add scheduled retries for unstable PR auto-merge
+- *(sync)* improve auto-merge reliability for sync PRs
+- *(sync)* handle unstable state before enabling auto-merge
+- *(sync)* run for bot merges and harden permissions
+
+### Other
+
+- harden flow checks for shallow repos and sync conflicts
+- enforce strict local git flow and remove bypass paths
+- extend release-plz and cargo-dist capabilities
+
 ## [1.4.1](https://github.com/recregt/kars_bot/compare/v1.4.0...v1.4.1) - 2026-02-19
 
 ### CI
