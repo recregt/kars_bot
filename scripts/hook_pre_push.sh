@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-source scripts/lib/log.sh
-source scripts/lib/git_diff_scope.sh
-
-SCRIPT_NAME="pre-push"
-
 if [[ ! -f Cargo.toml ]]; then
   exit 0
 fi
@@ -35,76 +30,26 @@ else
     fi
 
     push_lines+=("$local_ref $local_sha $remote_ref $remote_sha")
-    log_warn "no stdin refs; using synthesized push line for $current_branch."
   else
-    log_error "Blocked: no push refs on stdin and detached HEAD; cannot enforce policy safely."
+    echo "[pre-push] Blocked: no push refs on stdin and detached HEAD; cannot validate pushed tags."
     exit 1
   fi
 fi
 
-if [[ -x scripts/enforce_git_flow.sh ]]; then
-  printf '%s\n' "${push_lines[@]}" | scripts/enforce_git_flow.sh push
-else
-  log_error "Blocked: scripts/enforce_git_flow.sh is missing or not executable."
-  exit 1
-fi
-
-has_release_tag_for_version() {
-  local version="$1"
-  for line in "${push_lines[@]}"; do
-    local_ref=$(awk '{print $1}' <<<"$line")
-    local_sha=$(awk '{print $2}' <<<"$line")
-    if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
-      continue
-    fi
-    if [[ "$local_ref" == "refs/tags/v$version" ]]; then
-      return 0
-    fi
-  done
-
-  if git ls-remote --tags origin "refs/tags/v$version" | grep -q "refs/tags/v$version"; then
-    return 0
-  fi
-
-  return 1
-}
-
 for line in "${push_lines[@]}"; do
   local_ref=$(awk '{print $1}' <<<"$line")
   local_sha=$(awk '{print $2}' <<<"$line")
-  remote_sha=$(awk '{print $4}' <<<"$line")
-
-  if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
-    continue
-  fi
 
   if [[ "$local_ref" =~ ^refs/tags/v([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+    if [[ "$local_sha" == "0000000000000000000000000000000000000000" ]]; then
+      continue
+    fi
     expected="${BASH_REMATCH[1]}"
     actual=$(git show "${local_ref#refs/tags/}":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
     if [[ "$actual" != "$expected" ]]; then
-      log_error "Blocked: tag ${local_ref#refs/tags/} points to Cargo.toml version $actual"
-      log_error "Expected Cargo.toml version: $expected"
+      echo "[pre-push] Blocked: tag ${local_ref#refs/tags/} points to Cargo.toml version $actual"
+      echo "[pre-push] Expected Cargo.toml version: $expected"
       exit 1
-    fi
-    continue
-  fi
-
-  if [[ "$local_ref" =~ ^refs/heads/ ]]; then
-    range="$(git_scope_push_range "$local_sha" "$remote_sha")"
-    branch_name="${local_ref#refs/heads/}"
-
-    if git diff "$range" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
-      if [[ "$branch_name" != "main" && "$branch_name" != "develop" ]]; then
-        log_info "Version change detected on branch $branch_name; tag coupling check is only enforced on main/develop pushes."
-        continue
-      fi
-
-      target_version=$(git show "$local_sha":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')
-      if ! has_release_tag_for_version "$target_version"; then
-        log_error "Blocked: Cargo.toml version changed to $target_version but no matching tag v$target_version is in this push."
-        log_info "Suggestion: merge release-plz PR first, then push tag v$target_version for release workflow."
-        exit 1
-      fi
     fi
   fi
 done

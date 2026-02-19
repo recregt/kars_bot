@@ -2,9 +2,9 @@
 
 ## Versioning Guard and Release Flow
 
-- This repository blocks accidental `Cargo.toml` version edits in normal commits via Lefthook pre-commit checks.
-- A Lefthook pre-push guard validates tag/version consistency.
-- Strict branch policy (`scripts/enforce_git_flow.sh`) enforces local flow: `feature/* -> develop -> main`.
+- Local hooks are intentionally lightweight for fast iteration.
+- Pre-commit hook focuses on Rust auto-formatting for staged `.rs` files.
+- Pre-push hook validates pushed `v*` tags against `Cargo.toml` version.
 
 Install hooks once per clone:
 
@@ -30,21 +30,13 @@ Notes:
 - `Release Plz` must use `RELEASE_PLZ_TOKEN` repository secret (PAT or GitHub App token); default `GITHUB_TOKEN` does not reliably trigger required `pull_request` checks.
 - `release-plz.toml` supports changelog grouping/filtering and PR metadata (labels/title/body) customization.
 - Release PR merge produces version/changelog updates in repo history.
+- If a push to `main` changes `Cargo.toml` version and matching `v<version>` tag is missing, `Release Plz` workflow auto-creates and pushes the tag.
 - `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
 - Release assets include musl archive, checksums, source archive, installer outputs, and `dist-plan.json`.
-- PR quality is consolidated into a single required check (`quality / quality`) with internal scope-aware stages.
-- Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
-- Version changes on feature branches are allowed for release-plz-managed release PR flow.
-- Local bypass toggles are disabled; manual version bumps and local auto-tag shortcuts are not permitted.
-- `main` push requires current `origin/develop` to be an ancestor (prevents hash drift).
-- Protected-branch push checks detect shallow clones and require full history for ancestry checks.
-- In CI, full history repair runs automatically; local opt-in is available via `KARS_GIT_FLOW_AUTO_UNSHALLOW=1`.
-- If local repo is shallow and opt-in is disabled, hook fails fast with manual fix guidance (`git fetch --unshallow origin`).
+- PR quality remains consolidated into a single required check (`quality / quality`) and now runs a minimal fixed Rust pipeline (`fmt`, `clippy`, `nextest`, TLS graph check).
 - Automation is intentionally minimal: only `Quality Gates`, `Release Plz`, and `Release` workflows are retained.
 - Branch sync from `main` to `develop` is manual via local flow (`just sync` + merge discipline).
-- Quality CI is scope-aware:
-  - single quality workflow runs policy + rust + version guard stages.
-  - heavy rust checks run only for Rust-relevant changes.
+- Repository rulesets are minimal (`deletion` + `non_fast_forward`) with admin-role bypass enabled.
 
 ## systemd Service
 
