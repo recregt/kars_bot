@@ -1,5 +1,9 @@
 # Rollback Runbook
 
+- Owner: SRE / Operations
+- Last validated: 2026-02-20
+- Validation cadence: each production release
+
 ## When to Roll Back
 
 - Critical runtime regressions in production.

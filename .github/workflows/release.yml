@@ -121,6 +121,9 @@ jobs:
       - name: Enforce Rustls-only TLS graph
         run: scripts/check_tls_stack.sh
 
+      - name: Enforce runbook verification gate
+        run: scripts/verify_runbook_gate.sh
+
       - name: Build distributables with cargo-dist
         run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
 

@@ -56,6 +56,9 @@ docs:
   scripts/generate_docs_reference.sh
   scripts/validate_docs.sh
 
+runbook-gate:
+  scripts/verify_runbook_gate.sh
+
 build-release:
   cargo build --release --locked
 

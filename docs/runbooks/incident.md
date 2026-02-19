@@ -1,5 +1,9 @@
 # Incident Runbook
 
+- Owner: SRE / Operations
+- Last validated: 2026-02-20
+- Validation cadence: each production release
+
 ## First 5 Minutes
 
 - Capture failing command/context.

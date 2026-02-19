@@ -348,7 +348,7 @@ Provide a one-command, policy-safe update flow with health validation and rollba
 - [ ] Corrective action is delayed because runbooks are incomplete or stale.
 
 ### Mitigation Strategy
-- [ ] Make runbook verification a mandatory release gate with ownership sign-off.
+- [x] Make runbook verification a mandatory release gate with ownership sign-off.
 
 ---
 

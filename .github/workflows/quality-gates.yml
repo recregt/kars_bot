@@ -43,3 +43,6 @@ jobs:
 
       - name: Enforce Rustls-only TLS graph
         run: scripts/check_tls_stack.sh
+
+      - name: Enforce runbook verification gate
+        run: scripts/verify_runbook_gate.sh

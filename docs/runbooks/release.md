@@ -1,5 +1,9 @@
 # Release Runbook
 
+- Owner: Release Engineering
+- Last validated: 2026-02-20
+- Validation cadence: each production release
+
 ## Standard Release
 
 1. Ensure `main` is healthy and required checks are green.
