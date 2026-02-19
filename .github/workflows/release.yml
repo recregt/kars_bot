@@ -127,12 +127,12 @@ jobs:
           mkdir -p target/distrib
           dist plan --target=x86_64-unknown-linux-musl --allow-dirty --output-format=json > target/distrib/dist-plan.json
 
-      - name: Upload GitHub Release assets
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.release_tag.outputs.tag }}
-          body_path: release-notes.md
-          files: |
+      - name: Prepare release asset list
+        id: assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
             target/distrib/kars_bot-x86_64-unknown-linux-musl.tar.xz
             target/distrib/kars_bot-x86_64-unknown-linux-musl.tar.xz.sha256
             target/distrib/kars_bot-installer.sh
@@ -140,4 +140,30 @@ jobs:
             target/distrib/source.tar.gz.sha256
             target/distrib/sha256.sum
             target/distrib/dist-plan.json
+          )
+
+          optional_installer="target/distrib/kars_bot-installer.ps1"
+          if [[ -f "$optional_installer" ]]; then
+            files+=("$optional_installer")
+          fi
+
+          for required in "${files[@]}"; do
+            if [[ ! -f "$required" ]]; then
+              echo "::error::Missing release asset: $required"
+              exit 1
+            fi
+          done
+
+          {
+            echo "files<<EOF"
+            printf '%s\n' "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          body_path: release-notes.md
+          files: ${{ steps.assets.outputs.files }}
           fail_on_unmatched_files: true
