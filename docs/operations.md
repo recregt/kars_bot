@@ -34,6 +34,7 @@ Notes:
 - Release PR merge produces version/changelog updates in repo history.
 - `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
 - Release assets include musl archive, checksums, source archive, shell installer, and `dist-manifest.json`.
+- PR quality is consolidated into a single required check (`quality / quality`) with internal scope-aware stages.
 - Pre-push guard still enforces tag/version consistency for direct `main`/`develop` pushes.
 - Version changes on feature branches are allowed for release-plz-managed release PR flow.
 - Staged migration workflows remain available for explicit preview and diagnostics.
@@ -47,10 +48,11 @@ AUTO_CREATE_MISSING_TAG=1 git push --follow-tags
   The hook creates `vX.Y.Z` locally (at pushed commit) and intentionally stops once,
   so a second push includes the newly created tag.
 - Quality CI is scope-aware:
-  - policy-quality workflow runs actionlint/docs/guard checks.
-  - rust-quality workflow runs rustfmt/clippy/nextest/TLS checks only for Rust-relevant changes.
+  - single quality workflow runs policy + rust + version guard stages.
+  - heavy rust checks run only for Rust-relevant changes.
 - `release-plz` and `cargo-dist` preview workflows download official Linux binaries directly from upstream releases (no source compile in preview jobs).
 - Local `just release-plz-preview` runs in a temporary worktree and does not mutate your active working tree.
+- `cargo-dist` preview can now produce full artifacts and manifest for release-shape validation.
 
 ## systemd Service
 
