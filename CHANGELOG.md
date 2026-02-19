@@ -4,6 +4,116 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.5.3](https://github.com/recregt/kars_bot/compare/v1.5.2...v1.5.3) - 2026-02-19
+
+### Added
+
+- *(sync)* add labels, summary, and stronger auto-merge retry
+- *(sync)* enable auto-merge for main-to-develop PR
+- *(ci)* skip heavy checks for docs-only and reuse release assets
+- *(release)* auto-fill GitHub release notes from changelog
+- *(hooks)* optionally auto-create missing release tags on push
+- *(phase3)* harden update orchestration and signal handling
+- *(graph)* phase2 deterministic render and error integrity
+- *(runtime)* phase1 rustls-only tls and dns probe
+- *(reliability)* add phase0 baselines and quality gates
+- *(release)* add tag-driven musl release automation and server updater
+- *(git-flow)* auto-clean merged feature branches via post-merge hook
+- *(update)* add release check and controlled restart command
+- *(reporting)* add persistent 7-day rollup summaries
+- *(security)* add optional sensitive output redaction
+- *(commands)* fallback oversized outputs as file attachments
+- *(help)* add inline quick-action keyboard
+- *(portability)* add optional musl build workflow and docs
+- hierarchical anomaly journal and maintenance
+- observability and owner-auth hardening
+- modular architecture and daily summary reporting
+- reliability, alert controls, and concurrency hardening
+- production hardening and health monitoring
+
+### CI
+
+- dispatch release workflow after auto-tag creation
+- add concurrency guards to workflows
+- *(dist)* fix manifest command invocation
+- *(release)* streamline checks and extend release-plz/cargo-dist
+- *(release)* install musl toolchain for cargo-dist build
+- *(release-plz)* require dedicated token for PR-triggered checks
+- *(release)* harden cargo-dist build invocation for tags
+- fix release-plz and cargo-dist preview flows
+- restore required aggregate check context name
+- fix actionlint shellcheck redirects in reusable release
+- modularize quality flows and add guarded release reuse
+- fix quality gate fmt scope and auto-sync branches
+
+### Documentation
+
+- *(automation)* modularize docs and add fail-safe validation pipeline
+- *(runtime)* add glibc-musl validation checklist
+
+### Fixed
+
+- *(ci)* exempt sync main->develop PRs from release label policy
+- *(sync)* queue auto-merge on unstable state
+- *(sync)* add scheduled retries for unstable PR auto-merge
+- *(sync)* improve auto-merge reliability for sync PRs
+- *(sync)* handle unstable state before enabling auto-merge
+- *(sync)* run for bot merges and harden permissions
+- *(hooks)* avoid false tag block on new feature branch push
+- *(changelog)* regenerate history and harden release generation
+- *(ci)* run rustfmt check with edition 2024
+- *(ci)* use rustfmt for changed-file check
+- *(ci)* pin actionlint to valid version
+- allow dry-run preflight for existing tags
+- harden lockfile and push/release guard flows
+- *(ci)* checkout requested tag in reusable release
+- *(ci)* pass explicit tag_name to release action
+- *(ci)* harden release workflow invocation
+- prevent pre-push hook stdin deadlock
+- allow controlled main release commit flow
+- *(hooks)* allow existing remote release tag in pre-push guard
+
+### Other
+
+- *(release)* bump version to 1.5.3 for graph font hotfix
+- *(graph)* embed font for deterministic /graph rendering
+- *(release)* prepare release
+- *(release)* prepare release
+- simplify flow and stabilize release-plz tagging
+- *(ci)* reduce to minimal automation set
+- *(sync)* simplify triggers and concurrency
+- add just sync command
+- harden flow checks for shallow repos and sync conflicts
+- enforce strict local git flow and remove bypass paths
+- extend release-plz and cargo-dist capabilities
+- *(release)* prepare release
+- *(release)* remove legacy flow and extend release-plz/cargo-dist
+- *(release)* prepare release
+- *(dist)* define cargo profile for release artifacts
+- migrate production flow to release-plz and cargo-dist
+- force fresh tag builds and add staged release tooling migration
+- *(release)* bump version to v1.3.3 and refresh roadmap
+- *(fmt)* format repository and auto-format staged Rust on commit
+- *(ci)* optimize quality checks and stabilize branch sync
+- *(git-flow)* block protected branch deletion pushes
+- *(ci)* reduce dependabot and guard noise
+- *(ci)* add dependabot and merge-queue-ready quality tooling
+- *(release)* prepare v1.3.2
+- add doctor diagnostics and release-safe automation
+- *(ci)* add just ci and release preflight gate
+- *(release)* prepare v1.3.1
+- *(platform)* consolidate automation with just, lefthook, and reusable workflows
+- *(release)* prepare v1.3.0
+- *(release)* prepare v1.2.0
+- *(release)* prepare v1.1.1
+- harden git flow guards and modularize README docs
+- *(release)* bump version to 1.1.0
+- *(runtime)* add concurrent config stress test and close roadmap
+- *(runtime)* automate glibc-musl matrix validation
+- *(reload)* verify runtime apply and invalid config rejection
+- squash commits from #7 onward
+- initial modular bot setup
+
 ### Fixed
 
 - *(graph)* embed render font into binary to avoid host missing-font outages
