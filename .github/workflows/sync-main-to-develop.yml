@@ -24,10 +24,27 @@ jobs:
         with:
           github-token: ${{ secrets.RELEASE_PLZ_TOKEN || github.token }}
           script: |
+            const fs = require('fs');
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const conflictMarker = '<!-- sync-main-to-develop-conflict -->';
+            const syncLabels = ['sync-main-develop', 'automerge'];
+            const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+            const summaryLines = ['## Sync Main to Develop', ''];
+
+            const pushSummary = (line = '') => {
+              summaryLines.push(line);
+            };
+
+            const flushSummary = () => {
+              if (!summaryPath) {
+                return;
+              }
+              fs.appendFileSync(summaryPath, `${summaryLines.join('\n')}\n`, 'utf8');
+            };
+
             core.info(`sync trigger actor: ${context.actor}`);
+            pushSummary(`- Trigger actor: ${context.actor}`);
 
             const compare = await github.rest.repos.compareCommitsWithBasehead({
               owner,
@@ -37,6 +54,8 @@ jobs:
 
             if (compare.data.ahead_by === 0) {
               core.info('develop already contains main; no sync PR required.');
+              pushSummary('- Result: develop already contains main (no sync PR needed).');
+              flushSummary();
               return;
             }
 
@@ -73,14 +92,47 @@ jobs:
 
                 syncPull = pull.data;
                 core.info(`Created sync PR #${syncPull.number}: ${syncPull.html_url}`);
+                pushSummary(`- Sync PR created: #${syncPull.number}`);
               } catch (error) {
                 if (error && error.status === 403) {
                   core.setFailed('Insufficient token permissions to create sync PR. Ensure contents/pull-requests write permissions and token policy allow workflow PR creation.');
+                  pushSummary('- Result: failed to create sync PR due to insufficient permissions.');
+                  flushSummary();
                   return;
                 }
                 throw error;
               }
             }
+
+            if (syncPull) {
+              pushSummary(`- Sync PR: #${syncPull.number} (${syncPull.html_url})`);
+            }
+
+            for (const label of syncLabels) {
+              try {
+                await github.rest.issues.getLabel({ owner, repo, name: label });
+              } catch (error) {
+                if (error && error.status === 404) {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: label,
+                    color: '0e8a16',
+                    description: 'Automated sync workflow label',
+                  });
+                } else {
+                  throw error;
+                }
+              }
+            }
+
+            await github.rest.issues.addLabels({
+              owner,
+              repo,
+              issue_number: syncPull.number,
+              labels: syncLabels,
+            });
+            pushSummary(`- Labels ensured: ${syncLabels.join(', ')}`);
 
             let detail = null;
             for (let attempt = 0; attempt < 6; attempt += 1) {
@@ -98,6 +150,8 @@ jobs:
 
             if (!detail) {
               core.setFailed(`Unable to inspect mergeability for sync PR #${syncPull.number}.`);
+              pushSummary(`- Result: failed to inspect mergeability for #${syncPull.number}.`);
+              flushSummary();
               return;
             }
 
@@ -138,6 +192,8 @@ jobs:
               core.setFailed(
                 `Sync PR #${syncPull.number} is not mergeable (state=${detail.mergeable_state}). Resolve conflicts manually.`
               );
+              pushSummary(`- Result: PR #${syncPull.number} has conflicts (${detail.mergeable_state}). Manual resolution required.`);
+              flushSummary();
               return;
             }
 
@@ -145,19 +201,21 @@ jobs:
 
             if (detail.auto_merge !== null) {
               core.info(`Auto-merge already enabled for sync PR #${syncPull.number}.`);
+              pushSummary(`- Auto-merge already enabled for #${syncPull.number}.`);
+              flushSummary();
               return;
             }
 
             const unstableStates = new Set(['unknown', 'unstable']);
             let stableDetail = detail;
-            for (let attempt = 0; attempt < 20; attempt += 1) {
+            for (let attempt = 0; attempt < 90; attempt += 1) {
               const state = String(stableDetail.mergeable_state || '').toLowerCase();
               if (!unstableStates.has(state)) {
                 break;
               }
 
-              core.info(`Sync PR #${syncPull.number} is currently ${state}; waiting before enabling auto-merge (attempt ${attempt + 1}/20).`);
-              await new Promise((resolve) => setTimeout(resolve, 3000));
+              core.info(`Sync PR #${syncPull.number} is currently ${state}; waiting before enabling auto-merge (attempt ${attempt + 1}/90).`);
+              await new Promise((resolve) => setTimeout(resolve, 5000));
 
               const refreshed = await github.rest.pulls.get({
                 owner,
@@ -169,6 +227,16 @@ jobs:
 
             if (stableDetail.auto_merge !== null) {
               core.info(`Auto-merge already enabled for sync PR #${syncPull.number}.`);
+              pushSummary(`- Auto-merge already enabled for #${syncPull.number}.`);
+              flushSummary();
+              return;
+            }
+
+            const finalState = String(stableDetail.mergeable_state || '').toLowerCase();
+            if (unstableStates.has(finalState)) {
+              core.warning(`Sync PR #${syncPull.number} remained ${finalState}; skipping auto-merge enable for now.`);
+              pushSummary(`- Result: PR #${syncPull.number} stayed ${finalState}; auto-merge not enabled in this run.`);
+              flushSummary();
               return;
             }
 
@@ -191,20 +259,28 @@ jobs:
               });
 
               core.info(`Auto-merge enabled for sync PR #${syncPull.number}. It will merge after required checks pass.`);
+              pushSummary(`- Auto-merge enabled for #${syncPull.number}.`);
+              flushSummary();
             } catch (error) {
               const message = (error && error.message) ? String(error.message) : String(error);
               if (error && (error.status === 403 || /Resource not accessible by integration/i.test(message))) {
                 core.setFailed('Insufficient permissions to enable auto-merge for sync PR. Ensure token has pull request write scope and repository allows auto-merge.');
+                pushSummary(`- Result: permission error while enabling auto-merge for #${syncPull.number}.`);
+                flushSummary();
                 return;
               }
 
               if (/auto-merge is disabled/i.test(message)) {
                 core.setFailed('Repository auto-merge is disabled. Enable repository setting: Allow auto-merge.');
+                pushSummary('- Result: repository auto-merge is disabled.');
+                flushSummary();
                 return;
               }
 
               if (/unstable status/i.test(message)) {
                 core.warning(`Sync PR #${syncPull.number} is still unstable; auto-merge will be retried on next main push or can be enabled manually.`);
+                pushSummary(`- Result: PR #${syncPull.number} still unstable; auto-merge deferred.`);
+                flushSummary();
                 return;
               }
 
