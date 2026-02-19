@@ -44,15 +44,14 @@ Notes:
 - In CI, full history repair runs automatically; local opt-in is available via `KARS_GIT_FLOW_AUTO_UNSHALLOW=1`.
 - If local repo is shallow and opt-in is disabled, hook fails fast with manual fix guidance (`git fetch --unshallow origin`).
 - `Sync Main to Develop` workflow auto-opens a PR from `main` to `develop` when `main` gets ahead, removing manual back-merge steps.
-- Sync workflow also runs on `main -> develop` pull request updates to retry auto-merge enablement when needed.
-- Sync workflow includes scheduled retries (every 10 minutes) to catch PRs that remain `unstable` during initial attempts.
+- Sync workflow runs on `main` push (and manual dispatch), keeping branch-sync automation simple and predictable.
 - Sync workflow runs for all `main` push actors (including bot-triggered merges) to avoid silent drift.
 - Sync workflow verifies mergeability and marks workflow failed + comments on PR when conflicts exist.
 - Sync workflow enables auto-merge on the sync PR, so merge happens automatically after required checks pass.
 - Sync workflow only waits when mergeability is `unknown`; for `unstable`, it attempts auto-merge immediately and lets GitHub queue merge until checks complete.
 - Sync PRs are automatically labeled (`sync-main-develop`, `automerge`) for easier filtering and tracking.
 - Sync workflow writes a step summary with actor, PR link, labels, and auto-merge outcome details.
-- Sync workflow keeps in-progress runs (no cancel-in-progress) to avoid dropping long auto-merge stabilization waits.
+- Sync workflow uses branch-scoped concurrency with cancel-in-progress to avoid queue buildup.
 - Sync workflow requires `contents: write`, `pull-requests: write`, and `issues: write` permissions for PR/comment operations.
 - Preferred release discipline remains dual-merge (release/hotfix changes should land in both `main` and `develop`); sync workflow is a safety valve.
 - Quality CI is scope-aware:
