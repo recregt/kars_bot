@@ -80,7 +80,7 @@ jobs:
         run: scripts/check_tls_stack.sh
 
       - name: Build distributables with cargo-dist
-        run: dist build --target x86_64-unknown-linux-musl
+        run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
 
       - name: Upload GitHub Release assets
         uses: softprops/action-gh-release@v2
