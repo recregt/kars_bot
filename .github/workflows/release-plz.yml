@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       RELEASE_PLZ_TOKEN: ${{ secrets.RELEASE_PLZ_TOKEN }}
+      RELEASE_PLZ_AUTO_TAG: ${{ vars.RELEASE_PLZ_AUTO_TAG || 'true' }}
 
     steps:
       - name: Validate release-plz token configuration
@@ -73,7 +74,7 @@ jobs:
           fi
 
       - name: Ensure version tag exists after main push
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && env.RELEASE_PLZ_AUTO_TAG != 'false'
         id: ensure_tag
         shell: bash
         run: |
@@ -119,7 +120,7 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch Release workflow for created tag
-        if: github.event_name == 'push' && steps.ensure_tag.outputs.tag_created == 'true'
+        if: github.event_name == 'push' && env.RELEASE_PLZ_AUTO_TAG != 'false' && steps.ensure_tag.outputs.tag_created == 'true'
         env:
           GH_TOKEN: ${{ env.RELEASE_PLZ_TOKEN }}
         shell: bash

@@ -119,10 +119,20 @@ jobs:
           install -m 0755 /tmp/cargo-dist-x86_64-unknown-linux-musl/dist /usr/local/bin/dist
 
       - name: Enforce Rustls-only TLS graph
-        run: scripts/check_tls_stack.sh
+        shell: bash
+        run: |
+          set -euo pipefail
+          if cargo tree | grep -Ei "native-tls|openssl" >/tmp/kars_tls_scan.txt; then
+            echo "::error::Forbidden TLS dependency detected"
+            cat /tmp/kars_tls_scan.txt
+            exit 1
+          fi
+
+      - name: Build all crate features (musl)
+        run: cargo build --release --all-features --target x86_64-unknown-linux-musl
 
       - name: Build distributables with cargo-dist
-        run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --allow-dirty
+        run: dist build --artifacts=all --target=x86_64-unknown-linux-musl --tag="${{ steps.release_tag.outputs.tag }}" --allow-dirty
 
       - name: Generate cargo-dist plan JSON
         shell: bash
@@ -130,6 +140,38 @@ jobs:
           set -euo pipefail
           mkdir -p target/distrib
           dist plan --target=x86_64-unknown-linux-musl --allow-dirty --output-format=json > target/distrib/dist-plan.json
+
+      - name: Generate dist manifest JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          tag = "${{ steps.release_tag.outputs.tag }}"
+          version = tag[1:] if tag.startswith("v") else tag
+          base_url = "https://github.com/${{ github.repository }}/releases/download/" + tag
+
+          manifest = {
+            "latest": {
+              "version": version,
+              "tag": tag,
+            },
+            "targets": [
+              {
+                "target": "x86_64-unknown-linux-musl",
+                "archive_url": f"{base_url}/kars_bot-x86_64-unknown-linux-musl.tar.xz",
+                "installer_url": f"{base_url}/kars_bot-installer.sh",
+              }
+            ],
+          }
+
+          Path("target/distrib/dist-manifest.json").write_text(
+            json.dumps(manifest, indent=2) + "\n",
+            encoding="utf-8",
+          )
+          PY
 
       - name: Prepare release asset list
         id: assets
@@ -144,6 +186,7 @@ jobs:
             target/distrib/source.tar.gz.sha256
             target/distrib/sha256.sum
             target/distrib/dist-plan.json
+            target/distrib/dist-manifest.json
           )
 
           optional_installer="target/distrib/kars_bot-installer.ps1"

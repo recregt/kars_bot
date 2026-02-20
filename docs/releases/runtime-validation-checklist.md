@@ -1,6 +1,6 @@
 # Runtime Validation Checklist (glibc + musl)
 
-This checklist is used before promoting `develop` to `main` for `v1.2.x` and later.
+This checklist is used before release-related PR merges into `main` for `v1.2.x` and later.
 
 ## Scope
 
@@ -20,7 +20,7 @@ This checklist is used before promoting `develop` to `main` for `v1.2.x` and lat
 ### TLS dependency policy
 
 ```bash
-scripts/check_tls_stack.sh
+cargo tree | grep -Ei "native-tls|openssl" && echo "forbidden" || echo "rustls-only"
 ```
 
 ### glibc build
@@ -32,7 +32,8 @@ cargo build --release
 ### musl build
 
 ```bash
-scripts/build_musl.sh
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target x86_64-unknown-linux-musl
 ```
 
 ## Startup & Capability Checks
@@ -57,8 +58,7 @@ Run and verify:
 
 ## Safety/Guard Checks
 
-- Verify pre-commit blocks disallowed `Cargo.toml` version bumps outside release flow.
-- Verify pre-push blocks branch pushes that include version bump without matching release tag.
+- Verify `main` branch protection blocks direct pushes and enforces PR checks.
 - Verify quality gates pass: fmt, clippy, tests.
 - Verify reliability SLO document exists and is updated (`docs/reference/reliability-slo.md`).
 
@@ -66,8 +66,8 @@ Run and verify:
 
 | Env | Build | Startup | Degrade | Commands | Notes |
 |---|---|---|---|---|---|
-| A1 | ☑ | ☑ | ☑ | ☑ | glibc build + smoke completed via `scripts/validate_runtime_matrix.sh`; runtime auth-stage reached with dummy token (`Api(NotFound)` expected). |
-| A2 | ☑ | ☑ | ☑ | ☑ | musl build + smoke completed via `scripts/validate_runtime_matrix.sh`; runtime auth-stage reached with dummy token (`Api(NotFound)` expected). |
+| A1 | ☑ | ☑ | ☑ | ☑ | glibc build + smoke completed; runtime auth-stage reached with dummy token (`Api(NotFound)` expected). |
+| A2 | ☑ | ☑ | ☑ | ☑ | musl build + smoke completed; runtime auth-stage reached with dummy token (`Api(NotFound)` expected). |
 
 Latest report artifact:
 

@@ -2,9 +2,8 @@
 
 ## Versioning Guard and Release Flow
 
-- Local hooks are intentionally lightweight for fast iteration.
-- Pre-commit hook focuses on Rust auto-formatting for staged `.rs` files.
-- Pre-push hook validates pushed `v*` tags against `Cargo.toml` version.
+- Local hooks are intentionally minimal: only pre-commit Rust formatting.
+- No local pre-push/post-merge gate. Branch safety is enforced in GitHub.
 
 Install hooks once per clone:
 
@@ -15,28 +14,28 @@ scripts/install_hooks.sh
 Common local operations via `just`:
 
 ```bash
-just bootstrap
 just --list
-just ci
-just doctor
-just doctor-release
-just docs
+just quality
+just sync
 just release-pr
 ```
 
 Notes:
-- Production release is fully automated with `release-plz` + `cargo-dist`.
-- `Release Plz` workflow runs on `main` and creates/updates release PRs.
-- `Release Plz` must use `RELEASE_PLZ_TOKEN` repository secret (PAT or GitHub App token); default `GITHUB_TOKEN` does not reliably trigger required `pull_request` checks.
-- `release-plz.toml` supports changelog grouping/filtering and PR metadata (labels/title/body) customization.
-- Release PR merge produces version/changelog updates in repo history.
-- If a push to `main` changes `Cargo.toml` version and matching `v<version>` tag is missing, `Release Plz` workflow auto-creates and pushes the tag.
-- `Release` workflow runs on pushed `v*` tags and builds distributables via `cargo-dist`.
-- Release assets include musl archive, checksums, source archive, installer outputs, and `dist-plan.json`.
-- PR quality remains consolidated into a single required check (`quality / quality`) and now runs a minimal fixed Rust pipeline (`fmt`, `clippy`, `nextest`, TLS graph check).
-- Automation is intentionally minimal: only `Quality Gates`, `Release Plz`, and `Release` workflows are retained.
-- Branch sync from `main` to `develop` is manual via local flow (`just sync` + merge discipline).
-- Repository rulesets are minimal (`deletion` + `non_fast_forward`) with admin-role bypass enabled.
+- Branch model is strict main-only: feature branch -> PR to `main` -> merge.
+- `main` requires PR + required check (`quality / quality`) + review.
+- Direct push to `main` is blocked by branch protection.
+- Remote feature branch is auto-deleted after merge.
+
+### release-plz + cargo-dist lifecycle
+
+1. You merge a feature PR into `main`.
+2. `Release Plz` workflow runs and opens/updates `chore(release): prepare release` PR.
+3. You merge the release PR.
+4. Workflow auto-creates missing `vX.Y.Z` tag (unless `RELEASE_PLZ_AUTO_TAG=false`).
+5. `Release` workflow runs on tag and builds distributables with `cargo-dist` (`--artifacts=all`).
+6. GitHub Release is published with generated notes and assets.
+
+This keeps changelog/version generation in `release-plz` and binary packaging in `cargo-dist`.
 
 ## systemd Service
 
@@ -84,7 +83,8 @@ docker run --rm \
 Build with static musl target:
 
 ```bash
-scripts/build_musl.sh
+rustup target add x86_64-unknown-linux-musl
+cargo build --release --target x86_64-unknown-linux-musl
 ```
 
 Artifact path:
@@ -106,7 +106,6 @@ Portability notes:
 - Host tooling still affects command behavior (`systemctl`, `sensors`, `ss`, etc.); unsupported features degrade gracefully.
 - Some environments can still differ in kernel/cgroup visibility, so validate `/status`, `/health`, `/sysstatus`, and `/graph` on target host.
 - Runtime validation checklist: `docs/releases/runtime-validation-checklist.md`
-- Automated matrix validation runner: `scripts/validate_runtime_matrix.sh`
 
 ## Logging
 

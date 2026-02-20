@@ -1,7 +1,7 @@
 # Config Reference
 
 This file is generated from src/config/schema.rs.
-Do not edit manually. Run scripts/generate_docs_reference.sh.
+Do not edit manually.
 
 ## Config
 

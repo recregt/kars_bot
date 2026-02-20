@@ -40,8 +40,8 @@ A release candidate is blocked unless all are true:
 - `cargo fmt --check`
 - `cargo clippy --all-targets --all-features -D warnings`
 - `cargo test`
-- `scripts/check_tls_stack.sh`
-- `scripts/validate_runtime_matrix.sh` (or latest valid report artifact with matching commit hash)
+- `quality / quality` check is green on PR
+- release tag and Cargo version are aligned (`vX.Y.Z` == `Cargo.toml` version)
 
 ## Evidence Artifacts
 

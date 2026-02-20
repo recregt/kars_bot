@@ -6,26 +6,10 @@ default:
 install-hooks:
   scripts/install_hooks.sh
 
-bootstrap:
-  scripts/install_hooks.sh
-  just doctor
-
 sync:
-  @echo "🔄 Fetching latest refs..."
   git fetch --all --prune
-  @echo "⬇️  Syncing main..."
   git switch main
-  git pull origin main
-  @echo "⬇️  Syncing develop..."
-  git switch develop
-  git pull origin develop
-  @echo "✨ Local environment is up-to-date!"
-
-doctor:
-  scripts/doctor.sh
-
-doctor-release:
-  scripts/doctor.sh --release
+  git pull --ff-only origin main
 
 fmt:
   cargo fmt --all
@@ -39,46 +23,10 @@ clippy:
 test:
   cargo test --locked
 
-nextest:
-  cargo nextest run --locked --all-targets
-
 quality:
   just fmt-check
   just clippy
   just test
-  scripts/check_tls_stack.sh
-
-ci:
-  just doctor
-  scripts/ci_local.sh
-
-docs:
-  scripts/generate_docs_reference.sh
-  scripts/validate_docs.sh
-
-build-release:
-  cargo build --release --locked
-
-build-musl:
-  scripts/build_musl.sh
-
-runtime-validate:
-  scripts/validate_runtime_matrix.sh
-
-baseline:
-  scripts/capture_phase0_baseline.sh
-
-release-plz-preview:
-  scripts/release_plz_preview.sh
-
-dist-preview:
-  dist plan --target x86_64-unknown-linux-musl --allow-dirty
 
 release-pr:
   gh workflow run release-plz.yml
-
-release-dispatch tag:
-  gh workflow run release.yml --ref main -f tag={{tag}}
-
-list-broken-fmt:
-  @cargo fmt --all -- --check --color never | grep "Diff in" | cut -d' ' -f3 || true

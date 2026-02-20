@@ -24,6 +24,8 @@ plotters = { version = "0.3", default-features = false, features = ["bitmap_back
 image = { version = "0.25", default-features = false, features = ["png"] }
 notify = "6"
 sled = "0.34"
+axoupdater = "0.9.1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 [dev-dependencies]
 tempfile = "3"
