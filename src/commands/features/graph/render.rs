@@ -20,6 +20,8 @@ impl GraphStyle {
     const MARGIN: i32 = 16;
     const CAPTION_FONT_FAMILY: &'static str = EMBEDDED_FONT_FAMILY;
     const CAPTION_FONT_SIZE: i32 = 28;
+    const AXIS_FONT_SIZE: i32 = 16;
+    const LABEL_FONT_SIZE: i32 = 14;
     const X_LABEL_AREA_SIZE: u32 = 40;
     const Y_LABEL_AREA_SIZE: u32 = 48;
     const X_LABEL_COUNT: usize = 6;
@@ -93,6 +95,8 @@ pub(super) fn render_graph_png(
             .configure_mesh()
             .x_labels(GraphStyle::X_LABEL_COUNT)
             .y_labels(GraphStyle::Y_LABEL_COUNT)
+            .label_style((GraphStyle::CAPTION_FONT_FAMILY, GraphStyle::LABEL_FONT_SIZE))
+            .axis_desc_style((GraphStyle::CAPTION_FONT_FAMILY, GraphStyle::AXIS_FONT_SIZE))
             .y_desc("Usage %")
             .x_desc("Time (UTC)")
             .draw()
