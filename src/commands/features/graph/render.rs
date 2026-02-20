@@ -1,11 +1,17 @@
 use image::{DynamicImage, ImageFormat, RgbImage};
 use plotters::prelude::*;
+use plotters::style::{FontStyle, register_font};
 use std::io::Cursor;
+use std::sync::OnceLock;
 
 use super::{error::GraphRenderError, stats::GraphPoint, types::GraphMetric};
 
 pub(super) const GRAPH_WIDTH_PX: u32 = 1200;
 const GRAPH_HEIGHT_PX: u32 = 480;
+const EMBEDDED_FONT_FAMILY: &str = "kars-embedded";
+const EMBEDDED_FONT_BYTES: &[u8] = include_bytes!("../../../../assets/Roboto-Regular.ttf");
+
+static FONT_REGISTRATION_RESULT: OnceLock<Result<(), String>> = OnceLock::new();
 
 struct GraphStyle;
 
@@ -36,6 +42,8 @@ pub(super) fn render_graph_png(
     if points.len() < 2 {
         return Err(GraphRenderError::NotEnoughPoints);
     }
+
+    ensure_embedded_font_registered()?;
 
     let width = GRAPH_WIDTH_PX;
     let height = GRAPH_HEIGHT_PX;
@@ -101,6 +109,29 @@ pub(super) fn render_graph_png(
     Ok(output.into_inner())
 }
 
+fn ensure_embedded_font_registered() -> Result<(), GraphRenderError> {
+    let result = FONT_REGISTRATION_RESULT.get_or_init(|| {
+        register_font(EMBEDDED_FONT_FAMILY, FontStyle::Normal, EMBEDDED_FONT_BYTES)
+            .map_err(|_| "failed to register embedded regular font".to_string())?;
+        register_font(EMBEDDED_FONT_FAMILY, FontStyle::Bold, EMBEDDED_FONT_BYTES)
+            .map_err(|_| "failed to register embedded bold font".to_string())?;
+        register_font(EMBEDDED_FONT_FAMILY, FontStyle::Italic, EMBEDDED_FONT_BYTES)
+            .map_err(|_| "failed to register embedded italic font".to_string())?;
+        register_font(
+            EMBEDDED_FONT_FAMILY,
+            FontStyle::Oblique,
+            EMBEDDED_FONT_BYTES,
+        )
+        .map_err(|_| "failed to register embedded oblique font".to_string())?;
+        Ok(())
+    });
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(error) => Err(GraphRenderError::FontUnavailable(error.clone())),
+    }
+}
+
 fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
     let lower = detail.to_lowercase();
     if lower.contains("font") || lower.contains("glyph") || lower.contains("freetype") {
@@ -114,7 +145,7 @@ fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
 mod tests {
     use chrono::Utc;
 
-    use super::{GraphPoint, render_graph_png};
+    use super::{GraphPoint, ensure_embedded_font_registered, render_graph_png};
     use crate::commands::features::graph::types::GraphMetric;
 
     #[test]
@@ -126,5 +157,11 @@ mod tests {
 
         let result = render_graph_png(points, GraphMetric::Cpu, 80.0);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn registers_embedded_font() {
+        let result = ensure_embedded_font_registered();
+        assert!(result.is_ok());
     }
 }
