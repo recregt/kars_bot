@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.6.1](https://github.com/recregt/kars_bot/compare/v1.6.0...v1.6.1) - 2026-02-20
+
+### Fixed
+
+- *(graph)* force embedded font on mesh labels [#78] ([#78](https://github.com/recregt/kars_bot/pull/78) [#78](https://github.com/recregt/kars_bot/pull/78) )
+
 ## [1.6.0](https://github.com/recregt/kars_bot/compare/v1.5.4...v1.6.0) - 2026-02-20
 
 ### Added
