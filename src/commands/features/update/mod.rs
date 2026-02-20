@@ -6,10 +6,11 @@ use crate::app_context::AppContext;
 
 use super::super::{
     command_def::MyCommands,
-    helpers::{as_html_block, command_error_html, timeout_for},
+    helpers::{as_html_block, timeout_for},
 };
 
 mod orchestrator;
+mod self_update;
 mod version;
 
 const CHANGELOG_PATH: &str = "CHANGELOG.md";
@@ -22,17 +23,10 @@ pub(crate) async fn handle_update(
     args: &str,
 ) -> ResponseResult<()> {
     let mode = args.trim().to_lowercase();
-    let Some(latest_version) = version::latest_changelog_version(CHANGELOG_PATH) else {
-        bot.send_message(
-            msg.chat.id,
-            as_html_block(
-                "Update",
-                "Could not read latest version from CHANGELOG.md.\nTry /update check after release metadata is available.",
-            ),
-        )
-        .parse_mode(ParseMode::Html)
-        .await?;
-        return Ok(());
+    let latest_version = match self_update::fetch_latest_dist_manifest().await {
+        Ok(manifest) => manifest.latest.version,
+        Err(_) => version::latest_changelog_version(CHANGELOG_PATH)
+            .unwrap_or_else(|| CURRENT_VERSION.to_string()),
     };
 
     let compare = version::compare_versions(CURRENT_VERSION, &latest_version);
@@ -41,7 +35,7 @@ pub(crate) async fn handle_update(
         &MyCommands::Update("check".to_string()),
         runtime_config.command_timeout_secs,
     );
-    let readiness = orchestrator::run_update_check(check_timeout).await;
+    let readiness = orchestrator::run_update_check(check_timeout, CURRENT_VERSION).await;
 
     if mode.is_empty() || mode == "check" {
         send_update_check(bot, msg, compare, &latest_version, readiness).await?;
@@ -117,7 +111,8 @@ pub(crate) async fn handle_update(
     .parse_mode(ParseMode::Html)
     .await?;
 
-    let result = orchestrator::run_update_apply(runtime_config.command_timeout_secs).await;
+    let result =
+        orchestrator::run_update_apply(runtime_config.command_timeout_secs, CURRENT_VERSION).await;
     match result {
         Ok(message) => {
             bot.send_message(msg.chat.id, as_html_block("Update", &message))
@@ -125,9 +120,12 @@ pub(crate) async fn handle_update(
                 .await?;
         }
         Err(error) => {
-            bot.send_message(msg.chat.id, command_error_html(&error))
-                .parse_mode(ParseMode::Html)
-                .await?;
+            bot.send_message(
+                msg.chat.id,
+                as_html_block("Update", &format!("Update apply failed: {}", error)),
+            )
+            .parse_mode(ParseMode::Html)
+            .await?;
         }
     }
 

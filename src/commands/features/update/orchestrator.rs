@@ -6,22 +6,23 @@ use tokio::{
     time::{Duration, timeout},
 };
 
-use crate::system::{CommandError, CommandOutput, run_cmd};
+use super::super::super::helpers::as_html_block;
+use super::self_update;
 
-use super::super::super::helpers::{as_html_block, command_body};
-
-const UPDATE_SCRIPT_PATH: &str = "scripts/server_update.sh";
 const UPDATE_LOCK_TIMEOUT_SECS: u64 = 2;
-const APPLY_TIMEOUT_SECS: u64 = 120;
 
 static UPDATE_APPLY_LOCK: OnceLock<Semaphore> = OnceLock::new();
 
-pub(super) async fn run_update_check(timeout_secs: u64) -> Result<(bool, String), String> {
-    let output = run_cmd("bash", &[UPDATE_SCRIPT_PATH, "--check-only"], timeout_secs)
-        .await
-        .map_err(|error| error.to_string())?;
+pub(super) async fn run_update_check(
+    _timeout_secs: u64,
+    current_version: &str,
+) -> Result<(bool, String), String> {
+    let manifest = self_update::fetch_latest_dist_manifest().await?;
+    if !self_update::update_available(current_version, &manifest.latest.version) {
+        return Ok((true, "No update available for current version.".to_string()));
+    }
 
-    Ok((output.status == 0, summarize_output(&output)))
+    Ok(self_update::summarize_manifest_readiness(&manifest))
 }
 
 pub(super) async fn extract_readiness(
@@ -46,52 +47,33 @@ pub(super) async fn extract_readiness(
     }
 }
 
-pub(super) async fn run_update_apply(command_timeout_secs: u64) -> Result<String, CommandError> {
+pub(super) async fn run_update_apply(
+    _command_timeout_secs: u64,
+    current_version: &str,
+) -> Result<String, String> {
     let lock = update_apply_lock();
     let permit = timeout(
         Duration::from_secs(UPDATE_LOCK_TIMEOUT_SECS),
         lock.acquire(),
     )
     .await
-    .map_err(|_| CommandError::Timeout {
-        cmd: "update apply lock".to_string(),
-        timeout_secs: UPDATE_LOCK_TIMEOUT_SECS,
+    .map_err(|_| {
+        format!(
+            "update apply lock timeout after {}s",
+            UPDATE_LOCK_TIMEOUT_SECS
+        )
     })?
-    .map_err(|source| CommandError::Io {
-        cmd: "update apply lock".to_string(),
-        source: std::io::Error::other(source.to_string()),
-    })?;
+    .map_err(|source| format!("update apply lock error: {source}"))?;
 
-    let output = run_cmd(
-        "bash",
-        &[UPDATE_SCRIPT_PATH],
-        command_timeout_secs.max(APPLY_TIMEOUT_SECS),
-    )
-    .await;
+    let output = self_update::run_self_update(current_version).await;
 
     drop(permit);
 
-    output.map(|out| {
-        if out.status == 0 {
-            format!("Update succeeded.\n{}", summarize_output(&out))
-        } else {
-            format!(
-                "Update failed (status {}).\n{}",
-                out.status,
-                summarize_output(&out)
-            )
-        }
+    output.map(|maybe_message| {
+        maybe_message.unwrap_or_else(|| "No update was applied (already up to date).".to_string())
     })
 }
 
 fn update_apply_lock() -> &'static Semaphore {
     UPDATE_APPLY_LOCK.get_or_init(|| Semaphore::new(1))
-}
-
-fn summarize_output(output: &CommandOutput) -> String {
-    command_body(output)
-        .lines()
-        .take(12)
-        .collect::<Vec<_>>()
-        .join("\n")
 }
