@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.6.3](https://github.com/recregt/kars_bot/compare/v1.6.2...v1.6.3) - 2026-02-20
+
+### Fixed
+
+- *(graph)* harden pure-rust embedded font registration [#83] ([#83](https://github.com/recregt/kars_bot/pull/83) [#83](https://github.com/recregt/kars_bot/pull/83) )
+
 ## [1.6.2](https://github.com/recregt/kars_bot/compare/v1.6.1...v1.6.2) - 2026-02-20
 
 ### Fixed
