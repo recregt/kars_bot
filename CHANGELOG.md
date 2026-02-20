@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.6.0](https://github.com/recregt/kars_bot/compare/v1.5.4...v1.6.0) - 2026-02-20
+
+### Added
+
+- reliability and infrastructure upgrade [#77]
+
+### Other
+
+- *(flow)* strict main-only PR workflow and release alignment [#75] ([#75](https://github.com/recregt/kars_bot/pull/75) [#75](https://github.com/recregt/kars_bot/pull/75) )
+
 ## [1.5.4](https://github.com/recregt/kars_bot/compare/v1.5.3...v1.5.4) - 2026-02-19
 
 ### Other

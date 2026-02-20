@@ -84,7 +84,7 @@ dependencies = [
  "lazy_static",
  "miette",
  "mime",
- "reqwest 0.11.27",
+ "reqwest 0.12.28",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -1140,7 +1140,7 @@ dependencies = [
 
 [[package]]
 name = "kars_bot"
-version = "1.5.4"
+version = "1.6.0"
 dependencies = [
  "axoupdater",
  "chrono",
