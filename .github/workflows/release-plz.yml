@@ -136,4 +136,9 @@ jobs:
 
       - name: Cleanup worktree
         if: always()
-        run: git worktree remove /tmp/release-plz-prev-tag --force || true
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d "/tmp/release-plz-prev-tag" ]]; then
+            git worktree remove /tmp/release-plz-prev-tag --force
+          fi
