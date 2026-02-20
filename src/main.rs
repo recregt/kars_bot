@@ -16,7 +16,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::app_context::AppContext;
 use crate::capabilities::Capabilities;
-use crate::commands::{MyCommands, answer, check_graph_render_readiness};
+use crate::commands::{MyCommands, answer};
 use crate::config::{Config, load_config};
 use crate::jobs::start_background_jobs;
 
@@ -150,25 +150,6 @@ async fn main() {
     let bot = Bot::new(&config.bot_token);
 
     let app_context = AppContext::new(config.clone(), 2, CONFIG_PATH, capabilities);
-
-    if app_context.graph_runtime.read().await.enabled
-        && let Err(error) = check_graph_render_readiness()
-    {
-        log::warn!(
-            "graph_startup_degraded action=disable_graph_feature reason={}",
-            error
-        );
-
-        {
-            let mut graph_runtime = app_context.graph_runtime.write().await;
-            graph_runtime.enabled = false;
-        }
-
-        {
-            let mut runtime_config = app_context.runtime_config.write().await;
-            runtime_config.graph.enabled = false;
-        }
-    }
 
     start_background_jobs(bot.clone(), app_context.clone());
 

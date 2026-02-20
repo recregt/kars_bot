@@ -1,31 +1,18 @@
-use std::io::Cursor;
-use std::sync::OnceLock;
-
 use image::{DynamicImage, ImageFormat, RgbImage};
 use plotters::prelude::*;
-use plotters::style::{FontStyle, register_font};
+use std::io::Cursor;
 
 use super::{error::GraphRenderError, stats::GraphPoint, types::GraphMetric};
 
 pub(super) const GRAPH_WIDTH_PX: u32 = 1200;
 const GRAPH_HEIGHT_PX: u32 = 480;
-const EMBEDDED_FONT_FAMILY: &str = "kars-bot-embedded";
-const EMBEDDED_FONT_BYTES: &[u8] = include_bytes!("../../../../assets/Roboto-Regular.ttf");
-
-static FONT_REGISTRATION_ERROR: OnceLock<Option<String>> = OnceLock::new();
 
 struct GraphStyle;
 
 impl GraphStyle {
     const MARGIN: i32 = 16;
-    const CAPTION_FONT_FAMILY: &'static str = EMBEDDED_FONT_FAMILY;
-    const CAPTION_FONT_SIZE: i32 = 28;
-    const AXIS_FONT_SIZE: i32 = 16;
-    const LABEL_FONT_SIZE: i32 = 14;
     const X_LABEL_AREA_SIZE: u32 = 40;
     const Y_LABEL_AREA_SIZE: u32 = 48;
-    const X_LABEL_COUNT: usize = 6;
-    const Y_LABEL_COUNT: usize = 6;
     const Y_MIN: f32 = 0.0;
     const Y_MAX: f32 = 100.0;
     const BACKGROUND: RGBColor = WHITE;
@@ -49,8 +36,6 @@ pub(super) fn render_graph_png(
     if points.len() < 2 {
         return Err(GraphRenderError::NotEnoughPoints);
     }
-
-    ensure_embedded_font_registered()?;
 
     let width = GRAPH_WIDTH_PX;
     let height = GRAPH_HEIGHT_PX;
@@ -79,28 +64,10 @@ pub(super) fn render_graph_png(
 
         let mut chart = ChartBuilder::on(&drawing_area)
             .margin(GraphStyle::MARGIN)
-            .caption(
-                format!("{} Usage", metric.title()),
-                (
-                    GraphStyle::CAPTION_FONT_FAMILY,
-                    GraphStyle::CAPTION_FONT_SIZE,
-                ),
-            )
             .x_label_area_size(GraphStyle::X_LABEL_AREA_SIZE)
             .y_label_area_size(GraphStyle::Y_LABEL_AREA_SIZE)
             .build_cartesian_2d(x_start..x_end, GraphStyle::Y_MIN..GraphStyle::Y_MAX)
             .map_err(|error| classify_plotters_error("chart_build", format!("{:?}", error)))?;
-
-        chart
-            .configure_mesh()
-            .x_labels(GraphStyle::X_LABEL_COUNT)
-            .y_labels(GraphStyle::Y_LABEL_COUNT)
-            .label_style((GraphStyle::CAPTION_FONT_FAMILY, GraphStyle::LABEL_FONT_SIZE))
-            .axis_desc_style((GraphStyle::CAPTION_FONT_FAMILY, GraphStyle::AXIS_FONT_SIZE))
-            .y_desc("Usage %")
-            .x_desc("Time (UTC)")
-            .draw()
-            .map_err(|error| classify_plotters_error("mesh_draw", format!("{:?}", error)))?;
 
         chart
             .draw_series(std::iter::once(PathElement::new(
@@ -134,41 +101,6 @@ pub(super) fn render_graph_png(
     Ok(output.into_inner())
 }
 
-pub(super) fn check_graph_render_readiness() -> Result<(), GraphRenderError> {
-    let now = chrono::Utc::now();
-    let points = vec![
-        GraphPoint {
-            timestamp: now - chrono::Duration::minutes(1),
-            value: 42.0,
-        },
-        GraphPoint {
-            timestamp: now,
-            value: 43.0,
-        },
-    ];
-
-    std::panic::catch_unwind(|| render_graph_png(points, GraphMetric::Cpu, 85.0))
-        .map_err(|_| {
-            GraphRenderError::FontUnavailable(
-                "readiness probe panic while drawing text".to_string(),
-            )
-        })?
-        .map(|_| ())
-}
-
-fn ensure_embedded_font_registered() -> Result<(), GraphRenderError> {
-    let registration_error = FONT_REGISTRATION_ERROR.get_or_init(|| {
-        register_font(EMBEDDED_FONT_FAMILY, FontStyle::Normal, EMBEDDED_FONT_BYTES)
-            .err()
-            .map(|_| "embedded font registration failed".to_string())
-    });
-
-    match registration_error {
-        Some(detail) => Err(GraphRenderError::FontUnavailable(detail.clone())),
-        None => Ok(()),
-    }
-}
-
 fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
     let lower = detail.to_lowercase();
     if lower.contains("font") || lower.contains("glyph") || lower.contains("freetype") {
@@ -182,9 +114,7 @@ fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
 mod tests {
     use chrono::Utc;
 
-    use super::{
-        GraphPoint, check_graph_render_readiness, ensure_embedded_font_registered, render_graph_png,
-    };
+    use super::{GraphPoint, render_graph_png};
     use crate::commands::features::graph::types::GraphMetric;
 
     #[test]
@@ -196,17 +126,5 @@ mod tests {
 
         let result = render_graph_png(points, GraphMetric::Cpu, 80.0);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn readiness_check_runs() {
-        let result = check_graph_render_readiness();
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn embedded_font_registration_is_ok() {
-        let result = ensure_embedded_font_registered();
-        assert!(result.is_ok());
     }
 }
