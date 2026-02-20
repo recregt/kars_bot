@@ -7,10 +7,13 @@ install-hooks:
   scripts/install_hooks.sh
 
 sync:
+  @echo ">>> Syncing with main branch (remote)..."
   git fetch --all --prune
-  git switch main
-  git pull --ff-only origin main
-
+  git checkout main
+  git reset --hard origin/main
+  git clean -fd
+  @echo ">>> Sync complete!"
+  
 fmt:
   cargo fmt --all
 
