@@ -153,29 +153,31 @@ if [[ -n "$checksum_url" && -n "$checksum_name" ]]; then
   echo "[update] Downloading checksums: $checksum_name"
   curl -fL "$checksum_url" -o "$checksum_path"
 
-  expected_line="$(grep -E "[[:space:]]$asset_name$" "$checksum_path" || true)"
-  if [[ -z "$expected_line" ]]; then
+  expected_hash="$(awk -v name="$asset_name" 'index($0, name) { print $1; exit }' "$checksum_path")"
+  if [[ -z "$expected_hash" ]]; then
     echo "[update] Checksum entry not found for $asset_name in $checksum_name"
     exit 1
   fi
 
-  checksum_check_file="$tmpdir/checksum.verify"
-  printf '%s\n' "$expected_line" > "$checksum_check_file"
-
   echo "[update] Verifying SHA256 checksum..."
-  (
-    cd "$tmpdir"
-    sha256sum -c "$(basename "$checksum_check_file")"
-  )
+  echo "$expected_hash  $asset_path" | sha256sum -c -
 else
   echo "[update] WARNING: No checksum asset found; skipping SHA256 verification."
 fi
 
 echo "[update] Extracting binary..."
-tar -xJf "$asset_path" -C "$tmpdir"
+if ! tar -xJf "$asset_path" -C "$tmpdir" --strip-components=1; then
+  tar -xJf "$asset_path" -C "$tmpdir"
+fi
+
 if [[ ! -f "$tmpdir/kars_bot" ]]; then
-  echo "[update] Extracted archive does not contain kars_bot binary."
-  exit 1
+  extracted_binary="$(find "$tmpdir" -type f -name kars_bot -print -quit)"
+  if [[ -z "$extracted_binary" ]]; then
+    echo "[update] Extracted archive does not contain kars_bot binary."
+    exit 1
+  fi
+
+  install -m 0755 "$extracted_binary" "$tmpdir/kars_bot"
 fi
 
 if [[ ! -x "$tmpdir/kars_bot" ]]; then
