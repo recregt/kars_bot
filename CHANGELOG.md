@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.6.2](https://github.com/recregt/kars_bot/compare/v1.6.1...v1.6.2) - 2026-02-20
+
+### Fixed
+
+- *(graph)* remove font-dependent startup render path [#82] ([#82](https://github.com/recregt/kars_bot/pull/82) [#82](https://github.com/recregt/kars_bot/pull/82) )
+
+### Other
+
+- implement robust hard-sync logic for release-plz compatibility [#80]
+
 ## [1.6.1](https://github.com/recregt/kars_bot/compare/v1.6.0...v1.6.1) - 2026-02-20
 
 ### Fixed
