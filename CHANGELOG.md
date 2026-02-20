@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.6.4](https://github.com/recregt/kars_bot/compare/v1.6.3...v1.6.4) - 2026-02-20
+
+### Fixed
+
+- *(update)* harden checksum and archive extraction [#85] ([#85](https://github.com/recregt/kars_bot/pull/85) [#85](https://github.com/recregt/kars_bot/pull/85) )
+
 ## [1.6.3](https://github.com/recregt/kars_bot/compare/v1.6.2...v1.6.3) - 2026-02-20
 
 ### Fixed
