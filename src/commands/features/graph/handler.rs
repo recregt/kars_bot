@@ -34,7 +34,7 @@ pub(crate) async fn handle_graph(
             msg.chat.id,
             as_html_block(
                 "Graph Disabled",
-                "Graph feature is disabled (config/startup readiness). Install font packages or keep graph disabled in config.",
+                "Graph feature is disabled (runtime config). Enable graph in config if needed.",
             ),
         )
         .parse_mode(ParseMode::Html)
