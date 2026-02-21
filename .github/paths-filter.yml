@@ -1,6 +1,3 @@
-rust_files:
-  - '**/*.rs'
-
 rust_related:
   - '**/*.rs'
   - Cargo.toml
