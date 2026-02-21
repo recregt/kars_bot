@@ -22,7 +22,7 @@ just release-pr
 
 Notes:
 - Branch model is strict main-only: feature branch -> PR to `main` -> merge.
-- `main` requires PR + required check (`quality / quality`) + review.
+- `main` requires PR + required check (`CI / check`).
 - Direct push to `main` is blocked by branch protection.
 - Remote feature branch is auto-deleted after merge.
 
