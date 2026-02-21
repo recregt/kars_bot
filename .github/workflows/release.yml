@@ -109,7 +109,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y musl-tools
 
+      - name: Cache cargo-dist binary
+        id: cache-cargo-dist
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/dist
+          key: cargo-dist-v0.30.4
+
       - name: Download cargo-dist binary
+        if: steps.cache-cargo-dist.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
