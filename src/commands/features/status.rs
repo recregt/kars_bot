@@ -63,12 +63,12 @@ pub(crate) async fn handle_status_overview(
 
     let quick_actions = InlineKeyboardMarkup::new(vec![
         vec![
-            InlineKeyboardButton::switch_inline_query_current_chat("📈 Graph CPU", "/graph cpu 1h"),
-            InlineKeyboardButton::switch_inline_query_current_chat("🚨 Alerts", "/alerts"),
+            InlineKeyboardButton::callback("📈 Graph CPU", "cmd:graph:cpu 1h"),
+            InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
         ],
         vec![
-            InlineKeyboardButton::switch_inline_query_current_chat("🔇 Mute 1h", "/mute 1h"),
-            InlineKeyboardButton::switch_inline_query_current_chat("🔔 Unmute", "/unmute"),
+            InlineKeyboardButton::callback("🔇 Mute 1h", "cmd:mute:1h"),
+            InlineKeyboardButton::callback("🔔 Unmute", "cmd:unmute"),
         ],
         vec![InlineKeyboardButton::switch_inline_query_current_chat(
             "🩺 Health",
