@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.7.2](https://github.com/recregt/kars_bot/compare/v1.7.1...v1.7.2) - 2026-02-21
+
+### CI
+
+- *(deps)* bump the actions-all group with 2 updates
+
+### Other
+
+- *(deps)* enable major version updates for github-actions
+
 ## [1.7.1](https://github.com/recregt/kars_bot/compare/v1.7.0...v1.7.1) - 2026-02-21
 
 ### CI
