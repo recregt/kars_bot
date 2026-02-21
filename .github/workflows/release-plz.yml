@@ -27,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           if [[ -z "${RELEASE_PLZ_TOKEN}" ]]; then
-            echo "::error::Missing RELEASE_PLZ_TOKEN secret. Configure a PAT or GitHub App token so release-plz PRs trigger required pull_request checks."
+            echo "::error::Missing RELEASE_PLZ_TOKEN secret."
             exit 1
           fi
 
@@ -36,7 +36,15 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Cache release-plz binary
+        id: cache-release-plz
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/bin/release-plz
+          key: release-plz-v0.3.156
+
       - name: Download release-plz binary
+        if: steps.cache-release-plz.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -79,43 +87,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           before_sha="${{ github.event.before }}"
           after_sha="${{ github.sha }}"
-
           if [[ -z "$before_sha" || "$before_sha" == "0000000000000000000000000000000000000000" ]]; then
-            echo "No valid before SHA; skipping automatic tag check."
             echo "tag_created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
           if ! git diff --unified=0 "$before_sha" "$after_sha" -- Cargo.toml | grep -Eq '^[+-]version = "[0-9]+\.[0-9]+\.[0-9]+"'; then
-            echo "Cargo.toml version unchanged in this push; no tag action required."
             echo "tag_created=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
           version="$(git show "$after_sha":Cargo.toml | awk -F '"' '/^version = /{print $2; exit}')"
           if [[ -z "$version" ]]; then
             echo "::error::Could not read version from Cargo.toml at $after_sha"
             exit 1
           fi
-
           tag="v$version"
           git fetch --tags --force
-
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "Tag $tag already exists; skipping."
             echo "tag_created=false" >> "$GITHUB_OUTPUT"
             echo "tag=$tag" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$tag" -m "Release $tag" "$after_sha"
           git push origin "refs/tags/$tag"
-          echo "Created and pushed missing tag $tag"
           echo "tag_created=true" >> "$GITHUB_OUTPUT"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
@@ -127,18 +124,12 @@ jobs:
         run: |
           set -euo pipefail
           tag="${{ steps.ensure_tag.outputs.tag }}"
-          if [[ -z "$tag" ]]; then
-            echo "::error::Expected tag output from ensure_tag step, but it was empty."
-            exit 1
-          fi
           gh workflow run release.yml --ref main -f tag="$tag"
-          echo "Dispatched release.yml for $tag"
 
       - name: Cleanup worktree
         if: always()
         shell: bash
         run: |
-          set -euo pipefail
           if [[ -d "/tmp/release-plz-prev-tag" ]]; then
             git worktree remove /tmp/release-plz-prev-tag --force
           fi
