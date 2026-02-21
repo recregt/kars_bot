@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.7.1](https://github.com/recregt/kars_bot/compare/v1.7.0...v1.7.1) - 2026-02-21
+
+### CI
+
+- add main branch trigger and shared cache key [#89]
+
+### Documentation
+
+- refresh operations page and runbooks
+- revise docs/README, roadmap and architecture overview
+- refresh top‑level README content
+- update CHANGELOG with latest entries
+
+### Other
+
+- ci improvements [#91]
+
 ## [1.7.0](https://github.com/recregt/kars_bot/compare/v1.6.4...v1.7.0) - 2026-02-21
 
 ### Added
