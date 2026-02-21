@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.7.0](https://github.com/recregt/kars_bot/compare/v1.6.4...v1.7.0) - 2026-02-21
+
+### Added
+
+- replace switch_inline_query buttons with callback buttons [#87]
+
 ## [1.6.4](https://github.com/recregt/kars_bot/compare/v1.6.3...v1.6.4) - 2026-02-20
 
 ### Fixed
