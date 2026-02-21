@@ -1,10 +1,10 @@
-use teloxide::prelude::*;
-
-use crate::app_context::AppContext;
-
 use super::command_def::MyCommands;
 use super::helpers::is_authorized;
 use super::router::route_command;
+use crate::app_context::AppContext;
+use std::sync::Arc;
+use teloxide::prelude::*;
+use teloxide::utils::command::BotCommands;
 
 pub async fn answer(
     bot: Bot,
@@ -13,7 +13,6 @@ pub async fn answer(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     let config = &app_context.config;
-
     if !is_authorized(&msg, config) {
         let owner_user_id = config
             .owner_user_id()
@@ -37,6 +36,53 @@ pub async fn answer(
         );
         return Ok(());
     }
-
     route_command(bot, msg, cmd, app_context).await
+}
+
+pub async fn answer_callback(
+    bot: Bot,
+    q: CallbackQuery,
+    app_context: Arc<AppContext>,
+) -> ResponseResult<()> {
+    bot.answer_callback_query(&q.id).await?;
+
+    let msg = match q.message {
+        Some(msg) => msg,
+        None => return Ok(()),
+    };
+
+    let data = match q.data {
+        Some(data) => data,
+        None => return Ok(()),
+    };
+
+    let config = &app_context.config;
+    let authorized = config
+        .owner_user_id()
+        .map(|id| id == q.from.id)
+        .unwrap_or(false);
+
+    if !authorized {
+        return Ok(());
+    }
+
+    // "cmd:graph:cpu 1h" → "/graph cpu 1h"
+    // "cmd:status"       → "/status"
+    let parts: Vec<&str> = data.splitn(3, ':').collect();
+    if parts.first() != Some(&"cmd") || parts.len() < 2 {
+        return Ok(());
+    }
+
+    let command_str = if parts.len() == 3 {
+        format!("/{} {}", parts[1], parts[2])
+    } else {
+        format!("/{}", parts[1])
+    };
+
+    let cmd = match MyCommands::parse(&command_str, "kars_bot") {
+        Ok(cmd) => cmd,
+        Err(_) => return Ok(()),
+    };
+
+    route_command(bot, msg, cmd, &app_context).await
 }

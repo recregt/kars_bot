@@ -9,6 +9,8 @@ mod release_notes;
 mod reporting_store;
 mod system;
 
+use std::sync::Arc;
+use teloxide::dispatching::UpdateFilterExt;
 use teloxide::prelude::*;
 use tokio::net::lookup_host;
 use tokio::signal;
@@ -16,7 +18,7 @@ use tracing_subscriber::EnvFilter;
 
 use crate::app_context::AppContext;
 use crate::capabilities::Capabilities;
-use crate::commands::{MyCommands, answer};
+use crate::commands::{MyCommands, answer, answer_callback};
 use crate::config::{Config, load_config};
 use crate::jobs::start_background_jobs;
 
@@ -49,27 +51,21 @@ fn log_capability_warnings(capabilities: &Capabilities) {
             "capability_degraded feature=systemd_services reason=systemctl_or_systemd_unavailable"
         );
     }
-
     if !capabilities.has_sensors {
         log::warn!("capability_degraded feature=temperature reason=sensors_unavailable");
     }
-
     if !capabilities.has_ss {
         log::warn!("capability_degraded feature=ports reason=ss_unavailable");
     }
-
     if !capabilities.has_ip {
         log::warn!("capability_degraded feature=network reason=ip_unavailable");
     }
-
     if !capabilities.has_free {
         log::warn!("capability_degraded feature=sysstatus_ram reason=free_unavailable");
     }
-
     if !capabilities.has_top {
         log::warn!("capability_degraded feature=cpu reason=top_unavailable");
     }
-
     if !capabilities.has_uptime {
         log::warn!("capability_degraded feature=uptime reason=uptime_unavailable");
     }
@@ -124,7 +120,6 @@ async fn wait_for_shutdown_signal() {
     }
 }
 
-// Main
 #[tokio::main]
 async fn main() {
     init_json_logging();
@@ -148,20 +143,42 @@ async fn main() {
     log_dns_probe().await;
 
     let bot = Bot::new(&config.bot_token);
+    let app_context = Arc::new(AppContext::new(
+        config.clone(),
+        2,
+        CONFIG_PATH,
+        capabilities,
+    ));
 
-    let app_context = AppContext::new(config.clone(), 2, CONFIG_PATH, capabilities);
+    start_background_jobs(bot.clone(), (*app_context).clone());
 
-    start_background_jobs(bot.clone(), app_context.clone());
+    let handler = dptree::entry()
+        .branch(
+            Update::filter_message()
+                .filter_command::<MyCommands>()
+                .endpoint({
+                    let app_context = app_context.clone();
+                    move |bot: Bot, msg: Message, cmd: MyCommands| {
+                        let app_context = app_context.clone();
+                        async move { answer(bot, msg, cmd, &app_context).await }
+                    }
+                }),
+        )
+        .branch(Update::filter_callback_query().endpoint({
+            let app_context = app_context.clone();
+            move |bot: Bot, q: CallbackQuery| {
+                let app_context = app_context.clone();
+                async move { answer_callback(bot, q, app_context).await }
+            }
+        }));
 
-    let repl = MyCommands::repl(bot, move |bot, msg, cmd| {
-        let app_context = app_context.clone();
-        async move { answer(bot, msg, cmd, &app_context).await }
-    });
+    let mut dispatcher = Dispatcher::builder(bot, handler)
+        .enable_ctrlc_handler()
+        .build();
 
-    tokio::pin!(repl);
     tokio::select! {
-        _ = &mut repl => {
-            log::info!("bot_repl_stopped reason=polling_ended");
+        _ = dispatcher.dispatch() => {
+            log::info!("bot_dispatcher_stopped");
         }
         _ = wait_for_shutdown_signal() => {
             log::warn!("bot_shutdown_sequence_started reason=signal");

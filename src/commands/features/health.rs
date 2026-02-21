@@ -12,17 +12,17 @@ use super::super::{command_def::MyCommands, helpers::as_html_block};
 pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> {
     let quick_actions = InlineKeyboardMarkup::new(vec![
         vec![
-            InlineKeyboardButton::switch_inline_query_current_chat("📊 Status", "/status"),
-            InlineKeyboardButton::switch_inline_query_current_chat("💓 Health", "/health"),
+            InlineKeyboardButton::callback("📊 Status", "cmd:status"),
+            InlineKeyboardButton::callback("💓 Health", "cmd:health"),
         ],
         vec![
-            InlineKeyboardButton::switch_inline_query_current_chat("📈 Graph CPU", "/graph cpu 1h"),
-            InlineKeyboardButton::switch_inline_query_current_chat("🧾 Recent 6h", "/recent 6h"),
+            InlineKeyboardButton::callback("📈 Graph CPU", "cmd:graph:cpu 1h"),
+            InlineKeyboardButton::callback("🧾 Recent 6h", "cmd:recent:6h"),
         ],
         vec![
-            InlineKeyboardButton::switch_inline_query_current_chat("🚨 Alerts", "/alerts"),
-            InlineKeyboardButton::switch_inline_query_current_chat("🔇 Mute 1h", "/mute 1h"),
-            InlineKeyboardButton::switch_inline_query_current_chat("🔔 Unmute", "/unmute"),
+            InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
+            InlineKeyboardButton::callback("🔇 Mute 1h", "cmd:mute:1h"),
+            InlineKeyboardButton::callback("🔔 Unmute", "cmd:unmute"),
         ],
     ]);
 
