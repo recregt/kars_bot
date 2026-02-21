@@ -146,6 +146,7 @@ pub(super) async fn run_self_update(current_version: &str) -> Result<Option<Stri
         .set_current_version(current_version)
         .map_err(|error| format!("set current version failed: {error}"))?
         .configure_version_specifier(UpdateRequest::SpecificTag(manifest.latest.tag.clone()))
+        .set_install_args(vec!["--no-modify-path".to_string()])
         .disable_installer_stdout()
         .disable_installer_stderr();
 
