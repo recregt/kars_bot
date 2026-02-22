@@ -2,13 +2,14 @@
 
 ## Versioning Guard and Release Flow
 
-- Local hooks are intentionally minimal: only pre-commit Rust formatting.
-- No local pre-push/post-merge gate. Branch safety is enforced in GitHub.
+* Local hooks are intentionally minimal: only pre-commit Rust formatting.
+* No local pre-push/post-merge gate. Branch safety is enforced in GitHub.
 
 Install hooks once per clone:
 
 ```bash
 scripts/install_hooks.sh
+
 ```
 
 Common local operations via `just`:
@@ -18,13 +19,15 @@ just --list
 just quality
 just sync
 just release-pr
+
 ```
 
 Notes:
-- Branch model is strict main-only: feature branch -> PR to `main` -> merge.
-- `main` requires PR + required check (`CI / check`).
-- Direct push to `main` is blocked by branch protection.
-- Remote feature branch is auto-deleted after merge.
+
+* Branch model is strict main-only: feature branch -> PR to `main` -> merge.
+* `main` requires PR + required check (`CI / check`).
+* Direct push to `main` is blocked by branch protection.
+* Remote feature branch is auto-deleted after merge.
 
 ### release-plz + cargo-dist lifecycle
 
@@ -37,9 +40,17 @@ Notes:
 
 This keeps changelog/version generation in `release-plz` and binary packaging in `cargo-dist`.
 
-## systemd Service
+## Self-Update & Security Constraints
 
-Create `/etc/systemd/system/kars-bot.service`:
+The bot features a self-update mechanism via `axoupdater`. Since the service runs in a hardened environment, the following logic applies:
+
+* **Environment Variable**: `INSTALLER_NO_MODIFY_PATH=1` is set within the application (via `unsafe { std::env::set_var(...) }`) before running the updater. This prevents the `cargo-dist` installer script from attempting to modify shell profiles (`.profile`, `.bashrc`), which would fail due to `ProtectHome=true`.
+* **Staging**: The updater uses `/tmp` for downloading and preparing the new binary.
+* **Atomic Swap**: The service must have write access to its own binary path to perform the swap.
+
+## systemd Service (Hardened)
+
+Create `/etc/systemd/system/kars-bot.service` with strict sandboxing:
 
 ```ini
 [Unit]
@@ -56,8 +67,19 @@ RestartSec=5
 User=bot
 Group=bot
 
+# Security Hardening
+NoNewPrivileges=yes
+ProtectHome=true
+ProtectSystem=strict
+PrivateTmp=yes
+
+# Sandboxed Write Access
+# The bot only needs to write to its own directory for self-updates
+ReadWritePaths=/opt/kars_bot/
+
 [Install]
 WantedBy=multi-user.target
+
 ```
 
 Enable and start:
@@ -66,6 +88,7 @@ Enable and start:
 sudo systemctl daemon-reload
 sudo systemctl enable --now kars-bot
 sudo systemctl status kars-bot
+
 ```
 
 ## Docker Build (Optional)
@@ -76,6 +99,7 @@ docker run --rm \
   -w /app \
   rust:1.93 \
   bash -lc "cargo build --release"
+
 ```
 
 ## Portable Linux Binary (musl, Optional)
@@ -85,12 +109,14 @@ Build with static musl target:
 ```bash
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target x86_64-unknown-linux-musl
+
 ```
 
 Artifact path:
 
 ```text
 target/x86_64-unknown-linux-musl/release/kars_bot
+
 ```
 
 Manual equivalent:
@@ -99,23 +125,27 @@ Manual equivalent:
 rustup target add x86_64-unknown-linux-musl
 sudo apt-get update && sudo apt-get install -y musl-tools
 cargo build --release --target x86_64-unknown-linux-musl
+
 ```
 
 Portability notes:
-- `musl` binaries are usually more portable across Linux distributions than default `glibc` builds.
-- Host tooling still affects command behavior (`systemctl`, `sensors`, `ss`, etc.); unsupported features degrade gracefully.
-- Some environments can still differ in kernel/cgroup visibility, so validate `/status`, `/health`, `/sysstatus`, and `/graph` on target host.
-- Runtime validation checklist: `docs/releases/runtime-validation-checklist.md`
+
+* `musl` binaries are usually more portable across Linux distributions than default `glibc` builds.
+* Host tooling still affects command behavior (`systemctl`, `sensors`, `ss`, etc.); unsupported features degrade gracefully.
+* Some environments can still differ in kernel/cgroup visibility, so validate `/status`, `/health`, `/sysstatus`, and `/graph` on target host.
+* Runtime validation checklist: `docs/releases/runtime-validation-checklist.md`
 
 ## Logging
 
-- Logging output is JSON by default and can be filtered with `RUST_LOG`.
-- Monitor loop emits structured fields: `cpu`, `ram`, `disk`, `cpu_over`, `ram_over`, `disk_over`.
+* Logging output is JSON by default and can be filtered with `RUST_LOG`.
+* Monitor loop emits structured fields: `cpu`, `ram`, `disk`, `cpu_over`, `ram_over`, `disk_over`.
 
 ```bash
 RUST_LOG=info ./target/release/kars_bot
+
 ```
 
 ```bash
 RUST_LOG=info ./target/release/kars_bot | jq 'select(.target == "monitor" and .fields.cpu > 80)'
+
 ```

@@ -5,12 +5,14 @@
 ```bash
 just build-release
 ./target/release/kars_bot
+
 ```
 
 ## Install Development Hooks
 
 ```bash
 scripts/install_hooks.sh
+
 ```
 
 ## Developer Command Hub
@@ -20,6 +22,7 @@ just --list
 just quality
 just sync
 just release-pr
+
 ```
 
 ## Minimal Configuration
@@ -64,6 +67,7 @@ retention_days = 7
 
 [security]
 redact_sensitive_output = false
+
 ```
 
 `[anomaly_journal]` is also accepted as a backward-compatible alias.
@@ -88,4 +92,12 @@ alerts - Show alert config/state
 mute - Mute alerts (/mute 30m)
 unmute - Unmute alerts
 update - Release check and controlled restart (/update check | /update apply)
+
 ```
+
+## Self-Update Quick Note
+
+When deploying in restricted environments (e.g., systemd with `ProtectHome=true`), the `/update` command automatically handles environment shielding:
+
+* **Automatic Bypass**: Uses `INSTALLER_NO_MODIFY_PATH=1` to skip shell profile modifications.
+* **Service Requirements**: Requires write access to its own directory for the binary swap (see `operations.md`).
