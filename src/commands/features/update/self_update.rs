@@ -1,4 +1,5 @@
 use std::cmp::Ordering;
+use std::fs::OpenOptions;
 
 use axoupdater::{AxoUpdater, ReleaseSource, ReleaseSourceType, UpdateRequest, Version};
 use serde::Deserialize;
@@ -146,9 +147,14 @@ pub(super) async fn run_self_update(current_version: &str) -> Result<Option<Stri
         .set_current_version(current_version)
         .map_err(|error| format!("set current version failed: {error}"))?
         .configure_version_specifier(UpdateRequest::SpecificTag(manifest.latest.tag.clone()))
-        .set_install_args(vec!["--no-modify-path".to_string()])
         .disable_installer_stdout()
         .disable_installer_stderr();
+
+    if should_disable_path_modification() {
+        unsafe {
+            std::env::set_var("INSTALLER_NO_MODIFY_PATH", "1");
+        }
+    }
 
     let result = updater
         .run()
@@ -166,6 +172,24 @@ pub(super) async fn run_self_update(current_version: &str) -> Result<Option<Stri
             updated.new_version_tag
         )
     }))
+}
+
+fn should_disable_path_modification() -> bool {
+    let Ok(home) = std::env::var("HOME") else {
+        return false;
+    };
+
+    let profile = std::path::Path::new(&home).join(".profile");
+    if profile.exists() {
+        return OpenOptions::new().append(true).open(profile).is_err();
+    }
+
+    match profile.parent() {
+        Some(parent) => std::fs::metadata(parent)
+            .map(|metadata| metadata.permissions().readonly())
+            .unwrap_or(false),
+        None => false,
+    }
 }
 
 fn compare_semver(current: &str, latest: &str) -> Ordering {
