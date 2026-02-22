@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.7.3](https://github.com/recregt/kars_bot/compare/v1.7.2...v1.7.3) - 2026-02-22
+
+### Fixed
+
+- *(update)* use INSTALLER_NO_MODIFY_PATH env var to bypass shell modification
+- *(update)* disable path modification in axoupdater to fix permission errors
+
 ## [1.7.2](https://github.com/recregt/kars_bot/compare/v1.7.1...v1.7.2) - 2026-02-21
 
 ### CI
