@@ -7,6 +7,7 @@ use crate::architecture::{
 };
 
 use super::super::helpers::{as_html_block, parse_mute_duration};
+use super::menu::main_menu_keyboard;
 
 pub(crate) async fn handle_alerts(
     bot: &Bot,
@@ -45,6 +46,7 @@ pub(crate) async fn handle_alerts(
     );
 
     bot.send_message(msg.chat.id, as_html_block("Alert Configuration", &body))
+        .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
 
@@ -63,6 +65,7 @@ pub(crate) async fn handle_mute(
             "Invalid duration. Use format like: 30s, 15m, 2h, 1d",
         );
         bot.send_message(msg.chat.id, message)
+            .reply_markup(main_menu_keyboard())
             .parse_mode(ParseMode::Html)
             .await?;
         return Ok(());
@@ -78,6 +81,7 @@ pub(crate) async fn handle_mute(
                     &format!("Please wait {retry_after_secs}s before changing mute state again."),
                 ),
             )
+            .reply_markup(main_menu_keyboard())
             .parse_mode(ParseMode::Html)
             .await?;
             return Ok(());
@@ -85,6 +89,7 @@ pub(crate) async fn handle_mute(
     };
     let body = format!("Alerts are muted until {}", muted_until.to_rfc3339());
     bot.send_message(msg.chat.id, as_html_block("Alerts muted", &body))
+        .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
 
@@ -106,6 +111,7 @@ pub(crate) async fn handle_unmute(
                 &format!("Please wait {retry_after_secs}s before changing mute state again."),
             ),
         )
+        .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -114,6 +120,7 @@ pub(crate) async fn handle_unmute(
         msg.chat.id,
         as_html_block("Alerts unmuted", "Alerts are active again."),
     )
+    .reply_markup(main_menu_keyboard())
     .parse_mode(ParseMode::Html)
     .await?;
 

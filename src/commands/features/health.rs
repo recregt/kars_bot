@@ -1,39 +1,20 @@
 use chrono::Utc;
-use teloxide::{
-    prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
-    utils::command::BotCommands,
-};
+use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
 
-use super::super::{command_def::MyCommands, helpers::as_html_block};
+use super::super::helpers::as_html_block;
+use super::menu::main_menu_keyboard;
 
 pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> {
-    let quick_actions = InlineKeyboardMarkup::new(vec![
-        vec![
-            InlineKeyboardButton::callback("📊 Status", "cmd:status"),
-            InlineKeyboardButton::callback("💓 Health", "cmd:health"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("📈 Graph CPU", "cmd:graph:cpu 1h"),
-            InlineKeyboardButton::callback("🧾 Recent 6h", "cmd:recent:6h"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
-            InlineKeyboardButton::callback("🔇 Mute 1h", "cmd:mute:1h"),
-            InlineKeyboardButton::callback("🔔 Unmute", "cmd:unmute"),
-        ],
-    ]);
-
     bot.send_message(
         msg.chat.id,
         as_html_block(
-            "Available commands",
-            &MyCommands::descriptions().to_string(),
+            "Control Center",
+            "Use buttons below for common flows.\n\nMain journeys:\n- Health & status checks\n- System diagnostics\n- Monitoring, alerts and graphs\n- Recent anomalies and exports\n\nSlash commands still work if you prefer manual usage.",
         ),
     )
-    .reply_markup(quick_actions)
+    .reply_markup(main_menu_keyboard())
     .parse_mode(ParseMode::Html)
     .await?;
 
@@ -79,6 +60,7 @@ pub(crate) async fn handle_health(
     };
 
     bot.send_message(msg.chat.id, as_html_block("Bot Health", &body))
+        .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
 
