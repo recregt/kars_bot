@@ -4,6 +4,47 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.8.0](https://github.com/recregt/kars_bot/compare/v1.7.4...v1.8.0) - 2026-02-26
+
+### Added
+
+- make telegram menus capability-aware
+- optimize telegram command flow with /menu and persistent nav
+- add /start command to open main menu
+- polish telegram ux with monitor-return and rich html cards
+- improve telegram ux with menu-driven flow and concise diagnostics
+- *(monitor)* add clock abstraction with time-travel tests
+
+### Changed
+
+- use edit-message flow for inline menu navigation
+- complete architecture facade migration for jobs and commands
+- *(architecture)* add hexagonal namespace via re-exports
+- *(app)* introduce composition root runtime builder
+- *(contracts)* add centralized abstraction hub
+- add AnomalyStorage trait with file and in-memory implementations; integrate into AppContext and tests
+- generalize notifier trait, apply to release and schedule jobs; add related tests
+- replace Option<ReportingStore> with Arc<dyn ReportingStorage> + NullReportingStorage
+- replace ActiveMetricsProvider enum with Box<dyn MetricsProvider>
+- split AppContext into MonitorContext and BotRuntime
+
+### Fixed
+
+- move just sync logic into dedicated shell script
+- make just sync use valid shell substitution and tty-safe prompt
+- correct just sync branch list command substitution
+
+### Other
+
+- implement interactive branch cleanup in just sync
+- improve just sync with interactive local branch cleanup
+- add shared test kit and remove duplicated fixtures
+- checkpoint all pending workspace changes
+- include anomaly_store argument in notification test
+- remove logs/ from .gitignore since tests no longer create it
+- update .gitignore and finalize notifier abstraction
+- add InMemoryReportingStore for faster, spy-able tests
+
 ## [1.7.4](https://github.com/recregt/kars_bot/compare/v1.7.3...v1.7.4) - 2026-02-22
 
 ### Documentation
