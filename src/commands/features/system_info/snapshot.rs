@@ -89,7 +89,7 @@ pub(crate) async fn handle_sys_status(
                 compact_lines(&command_body(&disk_out), 12)
             );
             send_html_or_file(bot, msg.chat.id, "System Snapshot", &body).await?;
-            send_navigation_hint(bot, msg.chat.id).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         (Err(error), _) | (_, Err(error)) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -134,7 +134,7 @@ pub(crate) async fn handle_ports(
                 config.config.security.redact_sensitive_output,
             );
             send_html_or_file(bot, msg.chat.id, "Open Ports", &body).await?;
-            send_navigation_hint(bot, msg.chat.id).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -198,7 +198,7 @@ pub(crate) async fn handle_services(
             let redacted =
                 maybe_redact_sensitive_output(body, config.config.security.redact_sensitive_output);
             send_html_or_file(bot, msg.chat.id, "Active Services", &redacted).await?;
-            send_navigation_hint(bot, msg.chat.id).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))

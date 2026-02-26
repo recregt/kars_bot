@@ -28,7 +28,7 @@ pub(crate) async fn handle_recent_anomalies(
                     ),
                 ),
             )
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
             return Ok(());
@@ -55,7 +55,7 @@ pub(crate) async fn handle_recent_anomalies(
             msg.chat.id,
             as_html_block("Recent anomalies", "No anomaly records found."),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -84,7 +84,7 @@ pub(crate) async fn handle_recent_anomalies(
         .join("\n");
 
     bot.send_message(msg.chat.id, as_html_block("Recent anomalies", &lines))
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 

@@ -65,7 +65,7 @@ pub async fn answer_callback(
     }
 
     if let Some(menu_name) = data.strip_prefix("menu:") {
-        return handle_menu_navigation(&bot, &msg, menu_name).await;
+        return handle_menu_navigation(&bot, &msg, menu_name, &app_context.capabilities).await;
     }
 
     // "cmd:graph:cpu 1h" → "/graph cpu 1h"

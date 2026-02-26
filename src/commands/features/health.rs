@@ -6,7 +6,11 @@ use crate::app_context::AppContext;
 use super::super::helpers::{as_html_card, escape_html_text};
 use super::menu::main_menu_keyboard;
 
-pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> {
+pub(crate) async fn handle_help(
+    bot: &Bot,
+    msg: &Message,
+    app_context: &AppContext,
+) -> ResponseResult<()> {
     bot.send_message(
         msg.chat.id,
         as_html_card(
@@ -14,7 +18,7 @@ pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> 
             "• Use buttons below for common flows.<br/><br/><b>Main journeys</b><br/>• Health &amp; status checks<br/>• System diagnostics<br/>• Monitoring, alerts and graphs<br/>• Recent anomalies and exports<br/><br/>Slash commands still work if you prefer manual usage.",
         ),
     )
-    .reply_markup(main_menu_keyboard())
+    .reply_markup(main_menu_keyboard(&app_context.capabilities))
     .parse_mode(ParseMode::Html)
     .await?;
 
@@ -65,7 +69,7 @@ pub(crate) async fn handle_health(
     );
 
     bot.send_message(msg.chat.id, health_html)
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 

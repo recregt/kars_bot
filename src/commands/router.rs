@@ -24,9 +24,9 @@ pub(super) async fn route_command(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     match cmd {
-        MyCommands::Start => handle_help(&bot, &msg).await?,
-        MyCommands::Menu => handle_help(&bot, &msg).await?,
-        MyCommands::Help => handle_help(&bot, &msg).await?,
+        MyCommands::Start => handle_help(&bot, &msg, app_context).await?,
+        MyCommands::Menu => handle_help(&bot, &msg, app_context).await?,
+        MyCommands::Help => handle_help(&bot, &msg, app_context).await?,
         MyCommands::Status => handle_status_overview(&bot, &msg, app_context).await?,
         MyCommands::Sysstatus => handle_sys_status(&bot, &msg, app_context, &cmd).await?,
         MyCommands::Ports => handle_ports(&bot, &msg, app_context, &cmd).await?,

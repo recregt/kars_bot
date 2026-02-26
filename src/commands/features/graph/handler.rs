@@ -40,7 +40,7 @@ pub(crate) async fn handle_graph(
                 "Graph feature is disabled (runtime config). Enable graph in config if needed.",
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -51,7 +51,7 @@ pub(crate) async fn handle_graph(
         graph_runtime.max_window_hours as i64,
     ) else {
         bot.send_message(msg.chat.id, as_html_block("Graph Usage", GRAPH_USAGE_TEXT))
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
         return Ok(());
@@ -64,7 +64,7 @@ pub(crate) async fn handle_graph(
                 &format!("Please wait {remaining_secs}s before using /graph again."),
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -81,7 +81,7 @@ pub(crate) async fn handle_graph(
                 "not enough samples yet",
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -96,7 +96,7 @@ pub(crate) async fn handle_graph(
                 "not enough samples yet",
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -133,7 +133,7 @@ pub(crate) async fn handle_graph(
                     &format!("{} (code: {})", error.user_message(), error.code()),
                 ),
             )
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
             return Ok(());
@@ -171,7 +171,7 @@ pub(crate) async fn handle_graph(
                     format!(" | {anomaly_labels}")
                 }
             ))
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .await?;
             log::info!(
                 "graph_command_completed metric={} window_minutes={} source_samples={} rendered_points={} elapsed_ms={}",
@@ -197,7 +197,7 @@ pub(crate) async fn handle_graph(
                     &format!("{} (code: {})", error.user_message(), error.code()),
                 ),
             )
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
         }

@@ -30,7 +30,7 @@ pub(crate) async fn handle_export(
             msg.chat.id,
             as_html_block("Export Disabled", "Export feature is disabled in config."),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -45,7 +45,7 @@ pub(crate) async fn handle_export(
             msg.chat.id,
             as_html_block("Export Usage", EXPORT_USAGE_TEXT),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -61,7 +61,7 @@ pub(crate) async fn handle_export(
             msg.chat.id,
             as_html_block("Export", "not enough samples yet"),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -82,7 +82,7 @@ pub(crate) async fn handle_export(
                 msg.chat.id,
                 as_html_block("Export", &format!("Could not build export: {error}")),
             )
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
             return Ok(());
@@ -96,7 +96,7 @@ pub(crate) async fn handle_export(
             request.metric.as_str(),
             format_window_suffix(request.window_minutes)
         ))
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .await?;
 
     Ok(())

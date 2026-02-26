@@ -51,7 +51,7 @@ pub(crate) async fn handle_alerts(
     );
 
     bot.send_message(msg.chat.id, alert_html)
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 
@@ -69,7 +69,7 @@ pub(crate) async fn handle_mute(
             "Mute failed",
             "Invalid duration. Use format like: <b>30s</b>, <b>15m</b>, <b>2h</b>, <b>1d</b>.",
         );
-        upsert_message_with_menu(bot, msg, message, "monitor").await?;
+        upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
         return Ok(());
     };
 
@@ -82,7 +82,8 @@ pub(crate) async fn handle_mute(
                     "Please wait <b>{retry_after_secs}s</b> before changing mute state again."
                 ),
             );
-            upsert_message_with_menu(bot, msg, message, "monitor").await?;
+            upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities)
+                .await?;
             return Ok(());
         }
     };
@@ -93,7 +94,7 @@ pub(crate) async fn handle_mute(
             escape_html_text(&muted_until.to_rfc3339())
         ),
     );
-    upsert_message_with_menu(bot, msg, message, "monitor").await?;
+    upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
 
     Ok(())
 }
@@ -110,14 +111,14 @@ pub(crate) async fn handle_unmute(
             "Unmute cooldown",
             &format!("Please wait <b>{retry_after_secs}s</b> before changing mute state again."),
         );
-        upsert_message_with_menu(bot, msg, message, "monitor").await?;
+        upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
         return Ok(());
     }
     let message = as_html_card(
         "Alerts unmuted ✅",
         "Alerts are active again.<br/><br/>You can continue from the Monitor menu below.",
     );
-    upsert_message_with_menu(bot, msg, message, "monitor").await?;
+    upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
 
     Ok(())
 }

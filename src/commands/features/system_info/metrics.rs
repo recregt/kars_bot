@@ -97,7 +97,7 @@ pub(crate) async fn handle_cpu(
     bot.send_message(msg.chat.id, message)
         .parse_mode(ParseMode::Html)
         .await?;
-    send_navigation_hint(bot, msg.chat.id).await?;
+    send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
 
     Ok(())
 }
@@ -140,7 +140,7 @@ pub(crate) async fn handle_network(
                 config.config.security.redact_sensitive_output,
             );
             send_html_or_file(bot, msg.chat.id, "Network Statistics", &body).await?;
-            send_navigation_hint(bot, msg.chat.id).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -184,7 +184,7 @@ pub(crate) async fn handle_uptime(
         Ok(output) => {
             let body = command_body(&output);
             send_html_or_file(bot, msg.chat.id, "System Uptime", &body).await?;
-            send_navigation_hint(bot, msg.chat.id).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -228,7 +228,7 @@ pub(crate) async fn handle_temp(
         Ok(output) => {
             let body = command_body(&output);
             send_html_or_file(bot, msg.chat.id, "Temperature Sensors", &body).await?;
-            send_navigation_hint(bot, msg.chat.id).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))

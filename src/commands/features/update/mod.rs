@@ -3,6 +3,7 @@ use std::cmp::Ordering;
 use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
+use crate::capabilities::Capabilities;
 
 use super::super::{
     command_def::MyCommands,
@@ -39,7 +40,15 @@ pub(crate) async fn handle_update(
     let readiness = orchestrator::run_update_check(check_timeout, CURRENT_VERSION).await;
 
     if mode.is_empty() || mode == "check" {
-        send_update_check(bot, msg, compare, &latest_version, readiness).await?;
+        send_update_check(
+            bot,
+            msg,
+            compare,
+            &latest_version,
+            readiness,
+            &app_context.capabilities,
+        )
+        .await?;
         return Ok(());
     }
 
@@ -48,7 +57,7 @@ pub(crate) async fn handle_update(
             msg.chat.id,
             as_html_block("Update Usage", "Usage:\n/update check\n/update apply"),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -62,7 +71,7 @@ pub(crate) async fn handle_update(
                 &format!("No newer release found. Current v{CURRENT_VERSION} is up to date."),
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -76,7 +85,7 @@ pub(crate) async fn handle_update(
                 "Controlled restart is unavailable on this host (systemd not detected).",
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -94,7 +103,7 @@ pub(crate) async fn handle_update(
                 &format!("Update apply is blocked by pre-checks.\n{detail}"),
             ),
         )
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -107,7 +116,7 @@ pub(crate) async fn handle_update(
             &format!("Starting update to v{latest_version}. Service may restart during apply."),
         ),
     )
-    .reply_markup(main_menu_keyboard())
+    .reply_markup(main_menu_keyboard(&app_context.capabilities))
     .parse_mode(ParseMode::Html)
     .await?;
 
@@ -116,7 +125,7 @@ pub(crate) async fn handle_update(
     match result {
         Ok(message) => {
             bot.send_message(msg.chat.id, as_html_block("Update", &message))
-                .reply_markup(main_menu_keyboard())
+                .reply_markup(main_menu_keyboard(&app_context.capabilities))
                 .parse_mode(ParseMode::Html)
                 .await?;
         }
@@ -125,7 +134,7 @@ pub(crate) async fn handle_update(
                 msg.chat.id,
                 as_html_block("Update", &format!("Update apply failed: {error}")),
             )
-            .reply_markup(main_menu_keyboard())
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
         }
@@ -140,6 +149,7 @@ async fn send_update_check(
     compare: Ordering,
     latest_version: &str,
     readiness: Result<(bool, String), String>,
+    capabilities: &Capabilities,
 ) -> ResponseResult<()> {
     let readiness_line = match readiness {
         Ok((true, details)) => format!("Apply readiness: ready\n{details}"),
@@ -158,7 +168,7 @@ async fn send_update_check(
     };
 
     bot.send_message(msg.chat.id, as_html_block("Update Check", &body))
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
     Ok(())

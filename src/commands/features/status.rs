@@ -64,7 +64,7 @@ pub(crate) async fn handle_status_overview(
     );
 
     bot.send_message(msg.chat.id, status_html)
-        .reply_markup(main_menu_keyboard())
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 

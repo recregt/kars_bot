@@ -4,41 +4,93 @@ use teloxide::{
     types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
 };
 
+use crate::capabilities::Capabilities;
 use crate::commands::helpers::as_html_card;
 
-pub(crate) fn main_menu_keyboard() -> InlineKeyboardMarkup {
-    InlineKeyboardMarkup::new(vec![
-        vec![
-            InlineKeyboardButton::callback("📊 Status", "cmd:status"),
-            InlineKeyboardButton::callback("💓 Health", "cmd:health"),
-            InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("🖥️ System", "menu:system"),
-            InlineKeyboardButton::callback("📈 Monitor", "menu:monitor"),
-            InlineKeyboardButton::callback("📦 Data", "menu:data"),
-        ],
-        vec![InlineKeyboardButton::callback("❓ Help", "menu:help")],
-    ])
+fn has_any_system_capability(capabilities: &Capabilities) -> bool {
+    capabilities.has_free
+        || capabilities.has_top
+        || capabilities.has_sensors
+        || capabilities.has_ip
+        || capabilities.has_ss
+        || capabilities.has_uptime
+        || capabilities.is_systemd
 }
 
-fn system_menu_keyboard() -> InlineKeyboardMarkup {
-    InlineKeyboardMarkup::new(vec![
-        vec![
-            InlineKeyboardButton::callback("📦 Sys Snapshot", "cmd:sysstatus"),
-            InlineKeyboardButton::callback("🧠 CPU", "cmd:cpu"),
-            InlineKeyboardButton::callback("🌡️ Temp", "cmd:temp"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("🌐 Network", "cmd:network"),
-            InlineKeyboardButton::callback("⏱️ Uptime", "cmd:uptime"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("🔌 Ports", "cmd:ports"),
-            InlineKeyboardButton::callback("🧩 Services", "cmd:services"),
-        ],
-        vec![InlineKeyboardButton::callback("⬅️ Main Menu", "menu:main")],
-    ])
+pub(crate) fn main_menu_keyboard(capabilities: &Capabilities) -> InlineKeyboardMarkup {
+    let mut rows = vec![vec![
+        InlineKeyboardButton::callback("📊 Status", "cmd:status"),
+        InlineKeyboardButton::callback("💓 Health", "cmd:health"),
+        InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
+    ]];
+
+    let mut second_row = vec![
+        InlineKeyboardButton::callback("📈 Monitor", "menu:monitor"),
+        InlineKeyboardButton::callback("📦 Data", "menu:data"),
+    ];
+    if has_any_system_capability(capabilities) {
+        second_row.insert(
+            0,
+            InlineKeyboardButton::callback("🖥️ System", "menu:system"),
+        );
+    }
+    rows.push(second_row);
+    rows.push(vec![InlineKeyboardButton::callback("❓ Help", "menu:help")]);
+
+    InlineKeyboardMarkup::new(rows)
+}
+
+fn system_menu_keyboard(capabilities: &Capabilities) -> InlineKeyboardMarkup {
+    let mut rows: Vec<Vec<InlineKeyboardButton>> = Vec::new();
+
+    let mut resource_row: Vec<InlineKeyboardButton> = Vec::new();
+    if capabilities.has_free {
+        resource_row.push(InlineKeyboardButton::callback(
+            "📦 Sys Snapshot",
+            "cmd:sysstatus",
+        ));
+    }
+    if capabilities.has_top {
+        resource_row.push(InlineKeyboardButton::callback("🧠 CPU", "cmd:cpu"));
+    }
+    if capabilities.has_sensors {
+        resource_row.push(InlineKeyboardButton::callback("🌡️ Temp", "cmd:temp"));
+    }
+    if !resource_row.is_empty() {
+        rows.push(resource_row);
+    }
+
+    let mut network_row: Vec<InlineKeyboardButton> = Vec::new();
+    if capabilities.has_ip {
+        network_row.push(InlineKeyboardButton::callback("🌐 Network", "cmd:network"));
+    }
+    if capabilities.has_uptime {
+        network_row.push(InlineKeyboardButton::callback("⏱️ Uptime", "cmd:uptime"));
+    }
+    if !network_row.is_empty() {
+        rows.push(network_row);
+    }
+
+    let mut services_row: Vec<InlineKeyboardButton> = Vec::new();
+    if capabilities.has_ss {
+        services_row.push(InlineKeyboardButton::callback("🔌 Ports", "cmd:ports"));
+    }
+    if capabilities.is_systemd {
+        services_row.push(InlineKeyboardButton::callback(
+            "🧩 Services",
+            "cmd:services",
+        ));
+    }
+    if !services_row.is_empty() {
+        rows.push(services_row);
+    }
+
+    rows.push(vec![InlineKeyboardButton::callback(
+        "⬅️ Main Menu",
+        "menu:main",
+    )]);
+
+    InlineKeyboardMarkup::new(rows)
 }
 
 fn monitor_menu_keyboard() -> InlineKeyboardMarkup {
@@ -94,13 +146,13 @@ fn menu_screen(menu_name: &str) -> Option<(&'static str, &'static str)> {
     }
 }
 
-fn menu_keyboard(menu_name: &str) -> Option<InlineKeyboardMarkup> {
+fn menu_keyboard(menu_name: &str, capabilities: &Capabilities) -> Option<InlineKeyboardMarkup> {
     match menu_name {
-        "main" => Some(main_menu_keyboard()),
-        "system" => Some(system_menu_keyboard()),
+        "main" => Some(main_menu_keyboard(capabilities)),
+        "system" => Some(system_menu_keyboard(capabilities)),
         "monitor" => Some(monitor_menu_keyboard()),
         "data" => Some(data_menu_keyboard()),
-        "help" => Some(main_menu_keyboard()),
+        "help" => Some(main_menu_keyboard(capabilities)),
         _ => None,
     }
 }
@@ -116,11 +168,12 @@ pub(crate) async fn handle_menu_navigation(
     bot: &Bot,
     msg: &Message,
     menu_name: &str,
+    capabilities: &Capabilities,
 ) -> ResponseResult<()> {
     let Some((title, description)) = menu_screen(menu_name) else {
         return Ok(());
     };
-    let Some(keyboard) = menu_keyboard(menu_name) else {
+    let Some(keyboard) = menu_keyboard(menu_name, capabilities) else {
         return Ok(());
     };
 
@@ -138,8 +191,9 @@ pub(crate) async fn upsert_message_with_menu(
     msg: &Message,
     content: String,
     menu_name: &str,
+    capabilities: &Capabilities,
 ) -> ResponseResult<()> {
-    let Some(keyboard) = menu_keyboard(menu_name) else {
+    let Some(keyboard) = menu_keyboard(menu_name, capabilities) else {
         return Ok(());
     };
 
@@ -171,7 +225,11 @@ async fn upsert_message_with_keyboard(
     Ok(())
 }
 
-pub(crate) async fn send_navigation_hint(bot: &Bot, chat_id: ChatId) -> ResponseResult<()> {
+pub(crate) async fn send_navigation_hint(
+    bot: &Bot,
+    chat_id: ChatId,
+    capabilities: &Capabilities,
+) -> ResponseResult<()> {
     bot.send_message(
         chat_id,
         as_html_card(
@@ -179,7 +237,7 @@ pub(crate) async fn send_navigation_hint(bot: &Bot, chat_id: ChatId) -> Response
             "Continue from menu buttons below or use /help for full command list.",
         ),
     )
-    .reply_markup(main_menu_keyboard())
+    .reply_markup(main_menu_keyboard(capabilities))
     .parse_mode(ParseMode::Html)
     .await?;
 
