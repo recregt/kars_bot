@@ -21,6 +21,7 @@ pub struct AppContext {
     pub bot_runtime: BotRuntime,
     pub capabilities: Arc<Capabilities>,
     pub reporting_store: Arc<dyn ReportingStorage>,
+    pub anomaly_storage: Arc<dyn crate::anomaly_db::AnomalyStorage>,
 }
 
 impl AppContext {
@@ -34,6 +35,8 @@ impl AppContext {
         let graph_runtime = config.graph.clone();
         let runtime_config = RuntimeConfig::from_config(&config);
         let reporting_store = ReportingStore::new_arc_from_config(&config);
+        let anomaly_storage: Arc<dyn crate::anomaly_db::AnomalyStorage> =
+            Arc::new(crate::anomaly_db::FileAnomalyStorage::new());
 
         Self {
             config,
@@ -45,6 +48,7 @@ impl AppContext {
             bot_runtime: BotRuntime::new(command_concurrency),
             capabilities: Arc::new(capabilities),
             reporting_store,
+            anomaly_storage,
         }
     }
 

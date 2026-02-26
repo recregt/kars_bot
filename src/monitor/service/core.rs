@@ -3,7 +3,6 @@ use std::{sync::Arc, time::Instant};
 use chrono::Utc;
 use tokio::sync::Mutex;
 
-use crate::anomaly_db::record_anomaly_if_needed;
 use crate::config::{Config, RuntimeConfig};
 use crate::reporting_store::ReportingStorage;
 
@@ -19,6 +18,7 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
     config: &Config,
     runtime_config: &RuntimeConfig,
     reporting_store: &dyn ReportingStorage,
+    anomaly_storage: &dyn crate::anomaly_db::AnomalyStorage,
     state: &Arc<Mutex<AlertState>>,
     metric_history: &Arc<Mutex<MetricHistory>>,
     provider: &mut P,
@@ -49,7 +49,9 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
     let mut effective_config = config.clone();
     effective_config.alerts = runtime_config.alerts.clone();
 
-    record_anomaly_if_needed(&effective_config, metrics.cpu, metrics.ram, metrics.disk);
+    anomaly_storage
+        .record_if_needed(&effective_config, metrics.cpu, metrics.ram, metrics.disk)
+        .await;
 
     let notifications = evaluate_alerts_at(&effective_config, state, metrics, Instant::now()).await;
 

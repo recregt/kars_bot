@@ -47,6 +47,7 @@ pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
                 &app_context.config,
                 &runtime_config,
                 reporting_store.as_ref(),
+                app_context.anomaly_storage.as_ref(),
                 &app_context.monitor.alert_state,
                 &app_context.monitor.metric_history,
                 &mut metrics_provider,

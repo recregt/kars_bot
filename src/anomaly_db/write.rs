@@ -148,3 +148,41 @@ mod tests {
         let _ = fs::remove_file(path);
     }
 }
+
+// additional tests for the new async storage trait
+#[cfg(test)]
+mod storage_tests {
+    use crate::anomaly_db::AnomalyStorage;
+    use crate::config::Config;
+
+    #[tokio::test]
+    async fn in_memory_storage_records_events_without_disk() {
+        let config = Config {
+            bot_token: "tok".to_string(),
+            owner_id: 1,
+            monitor_interval: 1,
+            command_timeout_secs: 1,
+            alerts: crate::config::Alerts::default(),
+            daily_summary: crate::config::DailySummary::default(),
+            weekly_report: crate::config::WeeklyReport::default(),
+            graph: crate::config::Graph::default(),
+            anomaly_db: crate::config::AnomalyDb {
+                enabled: true,
+                dir: "logs".to_string(),
+                max_file_size_bytes: 0,
+                retention_days: 0,
+            },
+            simulation: crate::config::Simulation::default(),
+            reporting_store: crate::config::ReportingStoreConfig::default(),
+            release_notifier: crate::config::ReleaseNotifierConfig::default(),
+            security: crate::config::Security::default(),
+        };
+
+        let store = crate::anomaly_db::InMemoryAnomalyStorage::new();
+
+        store.record_if_needed(&config, 90.0, 0.0, 0.0).await;
+        let recent = store.recent(&config, 10).await;
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].cpu, 90.0);
+    }
+}
