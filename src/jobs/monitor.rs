@@ -3,13 +3,12 @@ use teloxide::prelude::*;
 use tokio::time::{Duration, sleep};
 
 use crate::app_context::AppContext;
-use crate::monitor::ActiveMetricsProvider;
 use crate::monitor::check_alerts;
+use crate::monitor::new_metrics_provider;
 
 pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
     tokio::spawn(async move {
-        let mut metrics_provider =
-            ActiveMetricsProvider::new(app_context.config.simulation.enabled);
+        let mut metrics_provider = new_metrics_provider(app_context.config.simulation.enabled);
         if app_context.config.simulation.enabled {
             log::warn!(
                 "simulation_mode_enabled profile={} source=monitor_provider",
