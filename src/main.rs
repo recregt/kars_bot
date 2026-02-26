@@ -1,4 +1,5 @@
 mod anomaly_db;
+mod app_builder;
 mod app_context;
 mod bot_runtime;
 mod capabilities;
@@ -12,18 +13,13 @@ mod release_notes;
 mod reporting_store;
 mod system;
 
-use std::sync::Arc;
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::prelude::*;
-use tokio::net::lookup_host;
 use tokio::signal;
 use tracing_subscriber::EnvFilter;
 
-use crate::app_context::AppContext;
-use crate::capabilities::Capabilities;
+use crate::app_builder::build_runtime;
 use crate::commands::{MyCommands, answer, answer_callback};
-use crate::config::{Config, load_config};
-use crate::jobs::start_background_jobs;
 
 fn init_json_logging() {
     if let Err(error) = tracing_log::LogTracer::init() {
@@ -46,49 +42,6 @@ fn init_json_logging() {
 }
 
 const CONFIG_PATH: &str = "config.toml";
-
-fn log_capability_warnings(capabilities: &Capabilities) {
-    if !capabilities.is_systemd {
-        log::warn!(
-            "capability_degraded feature=systemd_services reason=systemctl_or_systemd_unavailable"
-        );
-    }
-    if !capabilities.has_sensors {
-        log::warn!("capability_degraded feature=temperature reason=sensors_unavailable");
-    }
-    if !capabilities.has_ss {
-        log::warn!("capability_degraded feature=ports reason=ss_unavailable");
-    }
-    if !capabilities.has_ip {
-        log::warn!("capability_degraded feature=network reason=ip_unavailable");
-    }
-    if !capabilities.has_free {
-        log::warn!("capability_degraded feature=sysstatus_ram reason=free_unavailable");
-    }
-    if !capabilities.has_top {
-        log::warn!("capability_degraded feature=cpu reason=top_unavailable");
-    }
-    if !capabilities.has_uptime {
-        log::warn!("capability_degraded feature=uptime reason=uptime_unavailable");
-    }
-}
-
-async fn log_dns_probe() {
-    match lookup_host(("api.telegram.org", 443)).await {
-        Ok(mut addresses) => {
-            if let Some(address) = addresses.next() {
-                log::info!("dns_probe_ok host=api.telegram.org address={address}");
-            } else {
-                log::warn!("dns_probe_degraded host=api.telegram.org reason=no_records");
-            }
-        }
-        Err(error) => {
-            log::warn!(
-                "dns_probe_degraded host=api.telegram.org reason=lookup_failed error={error}"
-            );
-        }
-    }
-}
 
 async fn wait_for_shutdown_signal() {
     #[cfg(unix)]
@@ -124,34 +77,17 @@ async fn wait_for_shutdown_signal() {
 #[tokio::main]
 async fn main() {
     init_json_logging();
+    log::info!("Kars Server Bot is starting...");
 
-    let config: Config = match load_config(CONFIG_PATH) {
-        Ok(config) => config,
+    let runtime = match build_runtime(CONFIG_PATH, 2).await {
+        Ok(runtime) => runtime,
         Err(error) => {
-            log::error!("Configuration error: {error}");
+            log::error!("{error}");
             return;
         }
     };
-
-    if let Err(error) = config.validate() {
-        log::error!("Configuration validation failed: {error}");
-        return;
-    }
-
-    log::info!("Kars Server Bot is starting...");
-    let capabilities = Capabilities::detect();
-    log_capability_warnings(&capabilities);
-    log_dns_probe().await;
-
-    let bot = Bot::new(&config.bot_token);
-    let app_context = Arc::new(AppContext::new(
-        config.clone(),
-        2,
-        CONFIG_PATH,
-        capabilities,
-    ));
-
-    start_background_jobs(bot.clone(), (*app_context).clone());
+    let bot = runtime.bot;
+    let app_context = runtime.app_context;
 
     let handler = dptree::entry()
         .branch(
