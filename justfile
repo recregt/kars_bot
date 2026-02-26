@@ -15,7 +15,7 @@ sync:
     @echo ">>> Sync complete!"
     @echo ""
     @# Yerel branch'leri listele (main hariç)
-    @branches=$(shell git branch | grep -v "main" | sed 's/[* ] //'); \
+    @branches=$(git branch | grep -v "main" | sed 's/[* ] //'); \
     if [ -n "$$branches" ]; then \
         echo ">>> Local branches remaining (excluding main):"; \
         for b in $$branches; do echo "  - $$b"; done; \
