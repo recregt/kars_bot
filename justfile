@@ -14,7 +14,6 @@ sync:
     git clean -fd
     @echo ">>> Sync complete!"
     @echo ""
-    @# Yerel branch'leri listele (main hariç)
     @branches=$(git branch | grep -v "main" | sed 's/[* ] //'); \
     if [ -n "$$branches" ]; then \
         echo ">>> Local branches remaining (excluding main):"; \
