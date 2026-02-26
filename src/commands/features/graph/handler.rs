@@ -25,7 +25,9 @@ pub(crate) async fn handle_graph(
     let command_started_at = Instant::now();
     let graph_runtime = app_context.graph_runtime.read().await.clone();
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let Some(_permit) = acquire_command_slot(&app_context.command_slots, msg, bot).await? else {
+    let Some(_permit) =
+        acquire_command_slot(&app_context.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
 
@@ -64,7 +66,7 @@ pub(crate) async fn handle_graph(
         return Ok(());
     }
     let samples = {
-        let history = app_context.metric_history.lock().await;
+        let history = app_context.monitor.metric_history.lock().await;
         history.latest_window(request.window.minutes())
     };
     if samples.len() < 2 {
@@ -105,7 +107,7 @@ pub(crate) async fn handle_graph(
     let point_count = points.len();
     let GraphRequest { metric, window } = request;
     let render_slot = match acquire_render_slot(
-        app_context.graph_render_slots.clone(),
+        app_context.bot_runtime.graph_render_slots.clone(),
         RENDER_SLOT_WAIT_TIMEOUT_SECS,
     )
     .await

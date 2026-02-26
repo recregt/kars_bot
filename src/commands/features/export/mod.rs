@@ -17,7 +17,9 @@ pub(crate) async fn handle_export(
     app_context: &AppContext,
     query: &str,
 ) -> ResponseResult<()> {
-    let Some(_permit) = acquire_command_slot(&app_context.command_slots, msg, bot).await? else {
+    let Some(_permit) =
+        acquire_command_slot(&app_context.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
 
@@ -47,7 +49,7 @@ pub(crate) async fn handle_export(
     };
 
     let samples = {
-        let history = app_context.metric_history.lock().await;
+        let history = app_context.monitor.metric_history.lock().await;
         history.latest_window(request.window_minutes)
     };
 

@@ -24,11 +24,11 @@ pub(crate) async fn build_weekly_cpu_report(
         if persisted.len() >= 2 {
             persisted
         } else {
-            let history = app_context.metric_history.lock().await;
+            let history = app_context.monitor.metric_history.lock().await;
             history.latest_window(WEEKLY_WINDOW_MINUTES)
         }
     } else {
-        let history = app_context.metric_history.lock().await;
+        let history = app_context.monitor.metric_history.lock().await;
         history.latest_window(WEEKLY_WINDOW_MINUTES)
     };
 
@@ -54,7 +54,7 @@ pub(crate) async fn build_weekly_cpu_report(
     let points = downsample_points(&samples, GraphMetric::Cpu, points_limit);
 
     let render_slot = acquire_render_slot(
-        app_context.graph_render_slots.clone(),
+        app_context.bot_runtime.graph_render_slots.clone(),
         RENDER_SLOT_WAIT_TIMEOUT_SECS,
     )
     .await

@@ -38,7 +38,7 @@ pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
             previous_tick = Some(now);
 
             {
-                let mut tick = app_context.last_monitor_tick.lock().await;
+                let mut tick = app_context.monitor.last_monitor_tick.lock().await;
                 *tick = Some(now);
             }
 
@@ -47,8 +47,8 @@ pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
                 &app_context.config,
                 &runtime_config,
                 reporting_store.as_ref(),
-                &app_context.alert_state,
-                &app_context.metric_history,
+                &app_context.monitor.alert_state,
+                &app_context.monitor.metric_history,
                 &mut metrics_provider,
             )
             .await;

@@ -11,7 +11,7 @@ pub(crate) async fn handle_alerts(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let snapshot = alert_snapshot(&app_context.alert_state).await;
+    let snapshot = alert_snapshot(&app_context.monitor.alert_state).await;
     let now = chrono::Utc::now();
     let mute_line = match snapshot.muted_until {
         Some(until) if now <= until => {
@@ -66,7 +66,7 @@ pub(crate) async fn handle_mute(
         return Ok(());
     };
 
-    let muted_until = match mute_alerts_for(&app_context.alert_state, duration).await {
+    let muted_until = match mute_alerts_for(&app_context.monitor.alert_state, duration).await {
         Ok(until) => until,
         Err(MuteActionError::Cooldown { retry_after_secs }) => {
             bot.send_message(
@@ -98,7 +98,7 @@ pub(crate) async fn handle_unmute(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     if let Err(MuteActionError::Cooldown { retry_after_secs }) =
-        unmute_alerts(&app_context.alert_state).await
+        unmute_alerts(&app_context.monitor.alert_state).await
     {
         bot.send_message(
             msg.chat.id,

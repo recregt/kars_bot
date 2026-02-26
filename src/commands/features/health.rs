@@ -46,7 +46,7 @@ pub(crate) async fn handle_health(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let last_tick = *app_context.last_monitor_tick.lock().await;
+    let last_tick = *app_context.monitor.last_monitor_tick.lock().await;
     let now = Utc::now();
     let threshold_secs = (runtime_config.monitor_interval * 2) as i64;
 

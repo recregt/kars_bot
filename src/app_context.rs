@@ -1,12 +1,12 @@
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
-use tokio::sync::{Mutex, Notify, RwLock, Semaphore};
+use tokio::sync::{Notify, RwLock};
 
 use crate::{
+    bot_runtime::BotRuntime,
     capabilities::Capabilities,
     config::{Config, Graph, RuntimeConfig},
-    monitor::{AlertState, MetricHistory},
+    monitor_context::MonitorContext,
     reporting_store::ReportingStore,
 };
 
@@ -16,14 +16,10 @@ pub struct AppContext {
     pub runtime_config: Arc<RwLock<RuntimeConfig>>,
     pub config_path: Arc<String>,
     pub graph_runtime: Arc<RwLock<Graph>>,
-    pub alert_state: Arc<Mutex<AlertState>>,
-    pub metric_history: Arc<Mutex<MetricHistory>>,
-    pub last_graph_command_at: Arc<Mutex<Option<Instant>>>,
-    pub last_monitor_tick: Arc<Mutex<Option<DateTime<Utc>>>>,
-    pub command_slots: Arc<Semaphore>,
-    pub graph_render_slots: Arc<Semaphore>,
-    pub capabilities: Arc<Capabilities>,
     pub runtime_update_notify: Arc<Notify>,
+    pub monitor: MonitorContext,
+    pub bot_runtime: BotRuntime,
+    pub capabilities: Arc<Capabilities>,
     pub reporting_store: Option<ReportingStore>,
 }
 
@@ -53,16 +49,10 @@ impl AppContext {
             runtime_config: Arc::new(RwLock::new(runtime_config)),
             config_path: Arc::new(config_path.into()),
             graph_runtime: Arc::new(RwLock::new(graph_runtime)),
-            alert_state: Arc::new(Mutex::new(AlertState::default())),
-            metric_history: Arc::new(Mutex::new(MetricHistory::with_monitor_interval_secs(
-                monitor_interval,
-            ))),
-            last_graph_command_at: Arc::new(Mutex::new(None)),
-            last_monitor_tick: Arc::new(Mutex::new(None)),
-            command_slots: Arc::new(Semaphore::new(command_concurrency)),
-            graph_render_slots: Arc::new(Semaphore::new(1)),
-            capabilities: Arc::new(capabilities),
             runtime_update_notify: Arc::new(Notify::new()),
+            monitor: MonitorContext::new(monitor_interval),
+            bot_runtime: BotRuntime::new(command_concurrency),
+            capabilities: Arc::new(capabilities),
             reporting_store,
         }
     }
@@ -77,7 +67,6 @@ impl AppContext {
             let mut runtime = self.runtime_config.write().await;
             *runtime = runtime_config.clone();
         }
-
         self.update_graph_runtime(runtime_config.graph).await;
         self.runtime_update_notify.notify_waiters();
     }

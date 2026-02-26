@@ -16,7 +16,7 @@ pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
             );
             sleep(wait).await;
 
-            let report = take_daily_summary_report(&app_context.alert_state).await;
+            let report = take_daily_summary_report(&app_context.monitor.alert_state).await;
             let message = format_daily_summary_message(report);
             let owner_chat_id = match app_context.config.owner_chat_id() {
                 Ok(chat_id) => chat_id,

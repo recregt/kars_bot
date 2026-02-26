@@ -27,7 +27,8 @@ pub(crate) async fn handle_cpu(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
     let message = match run_cmd(
@@ -79,7 +80,8 @@ pub(crate) async fn handle_network(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
     match run_cmd(
@@ -125,7 +127,8 @@ pub(crate) async fn handle_uptime(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
     match run_cmd(
@@ -167,7 +170,8 @@ pub(crate) async fn handle_temp(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
     match run_cmd(
