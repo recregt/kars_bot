@@ -1,4 +1,9 @@
-use super::Config;
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
+use crate::config::Config;
+use crate::monitor::{AlertState, MetricHistory};
 
 pub fn base_test_config() -> Config {
     Config {
@@ -16,4 +21,14 @@ pub fn base_test_config() -> Config {
         release_notifier: Default::default(),
         security: Default::default(),
     }
+}
+
+pub fn test_alert_state() -> Arc<Mutex<AlertState>> {
+    Arc::new(Mutex::new(AlertState::default()))
+}
+
+pub fn test_metric_history(monitor_interval_secs: u64) -> Arc<Mutex<MetricHistory>> {
+    Arc::new(Mutex::new(MetricHistory::with_monitor_interval_secs(
+        monitor_interval_secs,
+    )))
 }

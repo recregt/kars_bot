@@ -74,7 +74,8 @@ mod tests {
 
     use crate::{
         capabilities::Capabilities,
-        config::{ReportingStoreConfig, RuntimeConfig, test_utils::base_test_config},
+        config::{ReportingStoreConfig, RuntimeConfig},
+        test_utils::base_test_config,
     };
 
     use super::AppContext;

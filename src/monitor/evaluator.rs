@@ -62,7 +62,7 @@ mod tests {
 
     use tokio::sync::Mutex;
 
-    use crate::config::{Config, test_utils::base_test_config};
+    use crate::{config::Config, test_utils::base_test_config};
 
     use super::{AlertState, Metrics, evaluate_alerts_at};
     use crate::monitor::provider::{

@@ -7,6 +7,7 @@ use crate::monitor::{
     AlertState, CheckAlertsContext, check_alerts,
     provider::{Metrics, MockMetricsProvider},
 };
+use crate::test_utils::{base_test_config, test_alert_state, test_metric_history};
 
 use super::clock::{Clock, MockClock};
 use super::core::check_alerts_with_clock;
@@ -82,7 +83,7 @@ async fn daily_summary_report_contract_resets_window() {
 
 #[tokio::test]
 async fn notifications_triggered_when_threshold_exceeded() {
-    let mut config = crate::config::test_utils::base_test_config();
+    let mut config = base_test_config();
     config.owner_id = 42;
     config.monitor_interval = 1;
     config.command_timeout_secs = 1;
@@ -95,10 +96,8 @@ async fn notifications_triggered_when_threshold_exceeded() {
     runtime.alerts.cpu = 0.0;
 
     let store = crate::reporting_store::NullReportingStorage;
-    let state = Arc::new(Mutex::new(AlertState::default()));
-    let history = Arc::new(Mutex::new(
-        crate::monitor::MetricHistory::with_monitor_interval_secs(1),
-    ));
+    let state = test_alert_state();
+    let history = test_metric_history(1);
     let mut provider = MockMetricsProvider::new(vec![Metrics::new(50.0, 0.0, 0.0)]);
     let notifier = crate::monitor::SpyNotifier::new();
     let anomaly_store = crate::anomaly_db::InMemoryAnomalyStorage::new();
@@ -154,7 +153,7 @@ async fn mute_and_unmute_support_time_travel_without_sleep() {
 
 #[tokio::test]
 async fn alert_cooldown_supports_time_travel_without_waiting() {
-    let mut config = crate::config::test_utils::base_test_config();
+    let mut config = base_test_config();
     config.owner_id = 42;
     config.monitor_interval = 1;
     config.command_timeout_secs = 1;
@@ -166,10 +165,8 @@ async fn alert_cooldown_supports_time_travel_without_waiting() {
 
     let runtime = crate::config::RuntimeConfig::from_config(&config);
     let store = crate::reporting_store::NullReportingStorage;
-    let state = Arc::new(Mutex::new(AlertState::default()));
-    let history = Arc::new(Mutex::new(
-        crate::monitor::MetricHistory::with_monitor_interval_secs(1),
-    ));
+    let state = test_alert_state();
+    let history = test_metric_history(1);
     let notifier = crate::monitor::SpyNotifier::new();
     let anomaly_store = crate::anomaly_db::InMemoryAnomalyStorage::new();
     let clock = MockClock::new(Utc::now());

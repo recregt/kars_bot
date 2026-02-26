@@ -92,7 +92,7 @@ mod tests {
         let changelog = dir.path().join("CHANGELOG.md");
         fs::write(&changelog, "### v1.0.0\n- test").unwrap();
 
-        let mut config = crate::config::test_utils::base_test_config();
+        let mut config = crate::test_utils::base_test_config();
         config.monitor_interval = 1;
         config.command_timeout_secs = 1;
         config.release_notifier = crate::config::ReleaseNotifierConfig {

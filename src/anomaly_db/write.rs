@@ -156,7 +156,7 @@ mod storage_tests {
 
     #[tokio::test]
     async fn in_memory_storage_records_events_without_disk() {
-        let mut config = crate::config::test_utils::base_test_config();
+        let mut config = crate::test_utils::base_test_config();
         config.monitor_interval = 1;
         config.command_timeout_secs = 1;
         config.anomaly_db = crate::config::AnomalyDb {

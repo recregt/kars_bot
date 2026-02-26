@@ -12,6 +12,8 @@ mod monitor_context;
 mod release_notes;
 mod reporting_store;
 mod system;
+#[cfg(test)]
+mod test_utils;
 
 use teloxide::dispatching::UpdateFilterExt;
 use teloxide::prelude::*;
