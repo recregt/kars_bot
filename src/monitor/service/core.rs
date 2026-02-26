@@ -2,8 +2,10 @@ use std::sync::Arc;
 
 use tokio::sync::Mutex;
 
+use crate::architecture::ports::{
+    AnomalyStoragePort, MetricsProviderPort, NotifierPort, ReportingStoragePort,
+};
 use crate::config::{Config, RuntimeConfig};
-use crate::contracts::{AnomalyStorage, MetricsProvider, Notifier, ReportingStorage};
 
 use super::super::{
     evaluator::evaluate_alerts_at,
@@ -13,17 +15,17 @@ use super::super::{
 
 use super::clock::{Clock, SystemClock};
 
-pub struct CheckAlertsContext<'a, N: Notifier> {
+pub struct CheckAlertsContext<'a, N: NotifierPort> {
     pub notifier: &'a N,
     pub config: &'a Config,
     pub runtime_config: &'a RuntimeConfig,
-    pub reporting_store: &'a dyn ReportingStorage,
-    pub anomaly_storage: &'a dyn AnomalyStorage,
+    pub reporting_store: &'a dyn ReportingStoragePort,
+    pub anomaly_storage: &'a dyn AnomalyStoragePort,
     pub state: &'a Arc<Mutex<AlertState>>,
     pub metric_history: &'a Arc<Mutex<MetricHistory>>,
 }
 
-pub async fn check_alerts<P: MetricsProvider, N: Notifier>(
+pub async fn check_alerts<P: MetricsProviderPort, N: NotifierPort>(
     context: CheckAlertsContext<'_, N>,
     provider: &mut P,
 ) {
@@ -31,7 +33,11 @@ pub async fn check_alerts<P: MetricsProvider, N: Notifier>(
     check_alerts_with_clock(context, provider, &clock).await;
 }
 
-pub(super) async fn check_alerts_with_clock<P: MetricsProvider, N: Notifier, C: Clock + ?Sized>(
+pub(super) async fn check_alerts_with_clock<
+    P: MetricsProviderPort,
+    N: NotifierPort,
+    C: Clock + ?Sized,
+>(
     context: CheckAlertsContext<'_, N>,
     provider: &mut P,
     clock: &C,

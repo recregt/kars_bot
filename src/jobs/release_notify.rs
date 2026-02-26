@@ -1,13 +1,12 @@
 use std::{fs, path::Path, path::PathBuf};
 
-use crate::monitor::Notifier;
-
 use chrono::Utc;
 use serde_json::json;
 use teloxide::prelude::*;
 use tokio::time::{Duration, sleep};
 
 use crate::app_context::AppContext;
+use crate::architecture::{adapters::TeloxideNotifier, ports::NotifierPort};
 use crate::release_notes::release_notes_for_version;
 
 pub(super) fn start_release_notify_job(bot: Bot, app_context: AppContext) {
@@ -15,7 +14,7 @@ pub(super) fn start_release_notify_job(bot: Bot, app_context: AppContext) {
         return;
     }
 
-    let notifier = crate::monitor::TeloxideNotifier(bot.clone());
+    let notifier = TeloxideNotifier(bot.clone());
 
     tokio::spawn(async move {
         perform_release_notify(&notifier, &app_context.config).await;
@@ -23,7 +22,7 @@ pub(super) fn start_release_notify_job(bot: Bot, app_context: AppContext) {
 }
 
 // separated logic so it can be called from tests with a spy notifier
-async fn perform_release_notify<N: Notifier>(notifier: &N, config: &crate::config::Config) {
+async fn perform_release_notify<N: NotifierPort>(notifier: &N, config: &crate::config::Config) {
     sleep(Duration::from_secs(5)).await;
 
     let version = env!("CARGO_PKG_VERSION");
@@ -81,7 +80,7 @@ fn write_notified_version(path: &Path, version: &str) -> Result<(), std::io::Err
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::monitor::{SentItem, SpyNotifier};
+    use crate::architecture::adapters::{SentItem, SpyNotifier};
     use std::fs;
     use tempfile::tempdir;
 

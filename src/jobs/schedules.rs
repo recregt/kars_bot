@@ -1,15 +1,18 @@
-use crate::monitor::Notifier;
 use chrono::{Datelike, Days, TimeZone, Utc};
 use teloxide::prelude::*;
 use tokio::time::{Duration, interval, sleep};
 
 use crate::anomaly_db::run_maintenance;
 use crate::app_context::AppContext;
+use crate::architecture::{
+    adapters::TeloxideNotifier,
+    ports::NotifierPort,
+    use_cases::{DailySummaryReport, take_daily_summary_report_use_case},
+};
 use crate::commands::build_weekly_cpu_report;
-use crate::monitor::{DailySummaryReport, take_daily_summary_report};
 
 pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
-    let notifier = crate::monitor::TeloxideNotifier(bot.clone());
+    let notifier = TeloxideNotifier(bot.clone());
     tokio::spawn(async move {
         loop {
             let wait = duration_until_next_daily_summary(
@@ -18,7 +21,7 @@ pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
             );
             sleep(wait).await;
 
-            let report = take_daily_summary_report(&app_context.monitor.alert_state).await;
+            let report = take_daily_summary_report_use_case(&app_context.monitor.alert_state).await;
             let message = format_daily_summary_message(report);
             let owner_chat_id = match app_context.config.owner_chat_id() {
                 Ok(chat_id) => chat_id,
@@ -47,7 +50,7 @@ pub(super) fn start_maintenance_job(app_context: AppContext) {
 }
 
 pub(super) fn start_weekly_report_job(bot: Bot, app_context: AppContext) {
-    let notifier = crate::monitor::TeloxideNotifier(bot.clone());
+    let notifier = TeloxideNotifier(bot.clone());
     tokio::spawn(async move {
         loop {
             let wait = duration_until_next_weekly_report(

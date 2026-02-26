@@ -3,12 +3,14 @@ use teloxide::prelude::*;
 use tokio::time::{Duration, sleep};
 
 use crate::app_context::AppContext;
-use crate::monitor::new_metrics_provider;
-use crate::monitor::{CheckAlertsContext, check_alerts};
+use crate::architecture::{
+    adapters::{TeloxideNotifier, new_metrics_provider},
+    use_cases::{CheckAlertsContext, check_alerts_use_case},
+};
 
 pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
     tokio::spawn(async move {
-        let notifier = crate::monitor::TeloxideNotifier(bot.clone());
+        let notifier = TeloxideNotifier(bot.clone());
         let mut metrics_provider = new_metrics_provider(app_context.config.simulation.enabled);
         if app_context.config.simulation.enabled {
             log::warn!(
@@ -40,7 +42,7 @@ pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
                 *tick = Some(now);
             }
 
-            check_alerts(
+            check_alerts_use_case(
                 CheckAlertsContext {
                     notifier: &notifier,
                     config: &app_context.config,
