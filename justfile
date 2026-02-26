@@ -14,12 +14,13 @@ sync:
     git clean -fd
     @echo ">>> Sync complete!"
     @echo ""
-    @branches=$(git branch | grep -v "main" | sed 's/[* ] //'); \
+    @branches=$$(git branch | grep -v "main" | sed 's/[* ] //'); \
     if [ -n "$$branches" ]; then \
         echo ">>> Local branches remaining (excluding main):"; \
         for b in $$branches; do echo "  - $$b"; done; \
         echo ""; \
-        printf ">>> Do you want to clean these branches? [y/N]: " && read ans && \
+        printf ">>> Do you want to clean these branches? [y/N]: "; \
+        read -r ans < /dev/tty; \
         if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
             echo ">>> Cleaning branches..."; \
             git branch -D $$branches; \
