@@ -7,30 +7,7 @@ install-hooks:
   scripts/install_hooks.sh
 
 sync:
-    @echo ">>> Syncing with main branch (remote)..."
-    git fetch --all --prune
-    git checkout main
-    git reset --hard origin/main
-    git clean -fd
-    @echo ">>> Sync complete!"
-    @echo ""
-    @branches=$$(git branch | grep -v "main" | sed 's/[* ] //'); \
-    if [ -n "$$branches" ]; then \
-        echo ">>> Local branches remaining (excluding main):"; \
-        for b in $$branches; do echo "  - $$b"; done; \
-        echo ""; \
-        printf ">>> Do you want to clean these branches? [y/N]: "; \
-        read -r ans < /dev/tty; \
-        if [ "$$ans" = "y" ] || [ "$$ans" = "Y" ]; then \
-            echo ">>> Cleaning branches..."; \
-            git branch -D $$branches; \
-            echo ">>> Cleaned!"; \
-        else \
-            echo ">>> Keeping branches."; \
-        fi; \
-    else \
-        echo ">>> No extra branches to clean."; \
-    fi
+  bash scripts/sync_main.sh
   
 fmt:
   cargo fmt --all
