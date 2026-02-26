@@ -1,4 +1,5 @@
 use teloxide::{
+    RequestError,
     prelude::*,
     types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
 };
@@ -73,67 +74,75 @@ fn data_menu_keyboard() -> InlineKeyboardMarkup {
     ])
 }
 
+fn menu_screen(menu_name: &str) -> Option<(&'static str, &'static str)> {
+    match menu_name {
+        "main" => Some((
+            "Main",
+            "Use buttons to run actions directly. No need to type commands manually.",
+        )),
+        "system" => Some(("Main › System", "Live host diagnostics and service checks.")),
+        "monitor" => Some((
+            "Main › Monitor",
+            "Alert controls, graphs and anomaly drill-down actions.",
+        )),
+        "data" => Some(("Main › Data", "Recent anomalies and export shortcuts.")),
+        "help" => Some((
+            "Main › Help",
+            "1) Open a menu\n2) Tap an action\n3) Use ⬅️ Main Menu to continue\n\nTip: Slash commands still work, but all common flows are available as buttons.",
+        )),
+        _ => None,
+    }
+}
+
+fn menu_keyboard(menu_name: &str) -> Option<InlineKeyboardMarkup> {
+    match menu_name {
+        "main" => Some(main_menu_keyboard()),
+        "system" => Some(system_menu_keyboard()),
+        "monitor" => Some(monitor_menu_keyboard()),
+        "data" => Some(data_menu_keyboard()),
+        "help" => Some(main_menu_keyboard()),
+        _ => None,
+    }
+}
+
+fn is_not_modified_error(error: &RequestError) -> bool {
+    error
+        .to_string()
+        .to_lowercase()
+        .contains("message is not modified")
+}
+
 pub(crate) async fn handle_menu_navigation(
     bot: &Bot,
     msg: &Message,
     menu_name: &str,
 ) -> ResponseResult<()> {
-    match menu_name {
-        "main" => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    "Main Menu",
-                    "Use buttons to run actions directly. No need to type commands manually.",
-                ),
-            )
-            .reply_markup(main_menu_keyboard())
-            .parse_mode(ParseMode::Html)
-            .await?;
+    let Some((title, description)) = menu_screen(menu_name) else {
+        return Ok(());
+    };
+    let Some(keyboard) = menu_keyboard(menu_name) else {
+        return Ok(());
+    };
+
+    let content = as_html_block(title, description);
+
+    match bot
+        .edit_message_text(msg.chat.id, msg.id, content.clone())
+        .reply_markup(keyboard)
+        .parse_mode(ParseMode::Html)
+        .await
+    {
+        Ok(_) => {}
+        Err(error) if is_not_modified_error(&error) => {}
+        Err(_) => {
+            let Some(fallback_keyboard) = menu_keyboard(menu_name) else {
+                return Ok(());
+            };
+            bot.send_message(msg.chat.id, content)
+                .reply_markup(fallback_keyboard)
+                .parse_mode(ParseMode::Html)
+                .await?;
         }
-        "system" => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block("System Menu", "Live host diagnostics and service checks."),
-            )
-            .reply_markup(system_menu_keyboard())
-            .parse_mode(ParseMode::Html)
-            .await?;
-        }
-        "monitor" => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    "Monitor Menu",
-                    "Alert controls, graphs and anomaly drill-down actions.",
-                ),
-            )
-            .reply_markup(monitor_menu_keyboard())
-            .parse_mode(ParseMode::Html)
-            .await?;
-        }
-        "data" => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block("Data Menu", "Recent anomalies and export shortcuts."),
-            )
-            .reply_markup(data_menu_keyboard())
-            .parse_mode(ParseMode::Html)
-            .await?;
-        }
-        "help" => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    "Quick Guide",
-                    "1) Open a menu\n2) Tap an action\n3) Use ⬅️ Main Menu to continue\n\nTip: Slash commands still work, but all common flows are available as buttons.",
-                ),
-            )
-            .reply_markup(main_menu_keyboard())
-            .parse_mode(ParseMode::Html)
-            .await?;
-        }
-        _ => {}
     }
 
     Ok(())
