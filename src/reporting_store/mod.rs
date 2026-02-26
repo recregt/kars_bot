@@ -18,9 +18,63 @@ pub trait ReportingStorage: Send + Sync {
     fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary>;
 }
 
-/// Devre dışı olduğunda kullanılan no-op implementasyon.
-/// Option<ReportingStore> yerine her zaman geçerli bir Arc<dyn ReportingStorage> vardır.
 pub struct NullReportingStorage;
+
+#[cfg(test)]
+pub struct InMemoryReportingStore {
+    samples: std::sync::Mutex<Vec<MetricSample>>,
+}
+
+#[cfg(test)]
+impl InMemoryReportingStore {
+    pub fn new() -> Self {
+        Self {
+            samples: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+}
+
+#[cfg(test)]
+impl ReportingStorage for InMemoryReportingStore {
+    fn record_sample(&self, sample: MetricSample) -> Result<(), String> {
+        let mut guard = self.samples.lock().unwrap();
+        guard.push(sample);
+        Ok(())
+    }
+
+    fn latest_window(&self, minutes: i64) -> Vec<MetricSample> {
+        let cutoff = Utc::now() - ChronoDuration::minutes(minutes.max(1));
+        let guard = self.samples.lock().unwrap();
+        guard
+            .iter()
+            .cloned()
+            .filter(|s| s.timestamp >= cutoff)
+            .collect()
+    }
+
+    fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary> {
+        let days = days.max(1);
+        let start_day = (Utc::now() - ChronoDuration::days(days - 1))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        let mut summary = RollingMetricSummary::empty();
+        let guard = self.samples.lock().unwrap();
+        for sample in guard.iter() {
+            let day_key = sample.timestamp.format("%Y-%m-%d").to_string();
+            if day_key >= start_day {
+                // reuse existing logic by creating a one-sample daily rollup
+                let rollup = DailyRollup::new(day_key.clone(), *sample);
+                summary.accumulate_rollup(&rollup);
+            }
+        }
+
+        if summary.sample_count == 0 {
+            return None;
+        }
+        Some(summary.finalize())
+    }
+}
 
 impl ReportingStorage for NullReportingStorage {
     fn record_sample(&self, _: MetricSample) -> Result<(), String> {

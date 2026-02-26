@@ -106,3 +106,21 @@ fn rolling_summary_survives_store_reopen() {
     assert!(summary.sample_count >= 1);
     assert!(summary.cpu_avg >= 55.0);
 }
+
+#[test]
+fn in_memory_store_spy_behaviour() {
+    let store = crate::reporting_store::InMemoryReportingStore::new();
+    let now = Utc::now();
+    assert!(store.latest_window(10).is_empty());
+    store
+        .record_sample(MetricSample {
+            timestamp: now,
+            cpu: 12.3,
+            ram: 45.6,
+            disk: 78.9,
+        })
+        .unwrap();
+    let recent = store.latest_window(10);
+    assert_eq!(recent.len(), 1);
+    assert_eq!(recent[0].cpu, 12.3);
+}
