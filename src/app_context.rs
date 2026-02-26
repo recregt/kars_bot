@@ -3,12 +3,14 @@ use std::sync::Arc;
 use tokio::sync::{Notify, RwLock};
 
 use crate::{
+    architecture::{
+        adapters::{FileAnomalyStorage, ReportingStoreAdapter},
+        ports::{AnomalyStoragePort, ReportingStoragePort},
+    },
     bot_runtime::BotRuntime,
     capabilities::Capabilities,
     config::{Config, Graph, RuntimeConfig},
-    contracts::{AnomalyStorage, ReportingStorage},
     monitor_context::MonitorContext,
-    reporting_store::ReportingStore,
 };
 
 #[derive(Clone)]
@@ -21,8 +23,8 @@ pub struct AppContext {
     pub monitor: MonitorContext,
     pub bot_runtime: BotRuntime,
     pub capabilities: Arc<Capabilities>,
-    pub reporting_store: Arc<dyn ReportingStorage>,
-    pub anomaly_storage: Arc<dyn AnomalyStorage>,
+    pub reporting_store: Arc<dyn ReportingStoragePort>,
+    pub anomaly_storage: Arc<dyn AnomalyStoragePort>,
 }
 
 impl AppContext {
@@ -35,9 +37,8 @@ impl AppContext {
         let monitor_interval = config.monitor_interval;
         let graph_runtime = config.graph.clone();
         let runtime_config = RuntimeConfig::from_config(&config);
-        let reporting_store = ReportingStore::new_arc_from_config(&config);
-        let anomaly_storage: Arc<dyn AnomalyStorage> =
-            Arc::new(crate::anomaly_db::FileAnomalyStorage::new());
+        let reporting_store = ReportingStoreAdapter::new_arc_from_config(&config);
+        let anomaly_storage: Arc<dyn AnomalyStoragePort> = Arc::new(FileAnomalyStorage::new());
 
         Self {
             config,

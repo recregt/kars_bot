@@ -1,6 +1,7 @@
 mod anomaly_db;
 mod app_builder;
 mod app_context;
+mod architecture;
 mod bot_runtime;
 mod capabilities;
 mod commands;
