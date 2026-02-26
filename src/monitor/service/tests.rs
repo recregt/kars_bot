@@ -4,10 +4,13 @@ use chrono::{Duration as ChronoDuration, Utc};
 use tokio::sync::Mutex;
 
 use crate::monitor::{
-    AlertState, check_alerts,
+    AlertState, CheckAlertsContext, check_alerts,
     provider::{Metrics, MockMetricsProvider},
 };
 
+use super::clock::{Clock, MockClock};
+use super::core::check_alerts_with_clock;
+use super::mute::{mute_alerts_for_with_clock, unmute_alerts_with_clock};
 use super::{
     MuteActionError, alert_snapshot, mute_alerts_for, take_daily_summary_report, unmute_alerts,
 };
@@ -16,7 +19,6 @@ use super::{
 async fn mute_unmute_contract_is_consistent() {
     let state = Arc::new(Mutex::new(AlertState::default()));
 
-    // use a small duration so test finishes quickly
     let muted_until = mute_alerts_for(&state, ChronoDuration::seconds(1))
         .await
         .expect("mute should succeed");
@@ -25,10 +27,7 @@ async fn mute_unmute_contract_is_consistent() {
     assert_eq!(snapshot.muted_until, Some(muted_until));
     assert!(muted_until > Utc::now());
 
-    // wait only long enough for the mute duration to pass
-    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
-
-    // COOLDOWN is 10 seconds, so artificially rewind the last action time
+    // COOLDOWN is 10 seconds, so rewind the last action time deterministically.
     {
         let mut lock = state.lock().await;
         if let Some(last) = lock.last_mute_action_at {
@@ -83,28 +82,15 @@ async fn daily_summary_report_contract_resets_window() {
 
 #[tokio::test]
 async fn notifications_triggered_when_threshold_exceeded() {
-    // prepare minimal config with low thresholds
-    let config = crate::config::Config {
-        bot_token: "tok".to_string(),
-        owner_id: 42,
-        monitor_interval: 1,
-        command_timeout_secs: 1,
-        alerts: crate::config::Alerts {
-            cpu: 0.0,
-            ram: 100.0,
-            disk: 100.0,
-            cooldown_secs: 1,
-            hysteresis: 0.0,
-        },
-        daily_summary: Default::default(),
-        weekly_report: Default::default(),
-        graph: Default::default(),
-        anomaly_db: Default::default(),
-        simulation: Default::default(),
-        reporting_store: Default::default(),
-        release_notifier: Default::default(),
-        security: Default::default(),
-    };
+    let mut config = crate::config::test_utils::base_test_config();
+    config.owner_id = 42;
+    config.monitor_interval = 1;
+    config.command_timeout_secs = 1;
+    config.alerts.cpu = 0.0;
+    config.alerts.ram = 100.0;
+    config.alerts.disk = 100.0;
+    config.alerts.cooldown_secs = 1;
+    config.alerts.hysteresis = 0.0;
     let mut runtime = crate::config::RuntimeConfig::from_config(&config);
     runtime.alerts.cpu = 0.0;
 
@@ -118,13 +104,15 @@ async fn notifications_triggered_when_threshold_exceeded() {
     let anomaly_store = crate::anomaly_db::InMemoryAnomalyStorage::new();
 
     check_alerts(
-        &notifier,
-        &config,
-        &runtime,
-        &store,
-        &anomaly_store,
-        &state,
-        &history,
+        CheckAlertsContext {
+            notifier: &notifier,
+            config: &config,
+            runtime_config: &runtime,
+            reporting_store: &store,
+            anomaly_storage: &anomaly_store,
+            state: &state,
+            metric_history: &history,
+        },
         &mut provider,
     )
     .await;
@@ -133,6 +121,116 @@ async fn notifications_triggered_when_threshold_exceeded() {
     assert_eq!(sent.len(), 1);
     match &sent[0] {
         crate::monitor::SentItem::Message(_, text) => assert!(text.contains("CPU")),
-        other => panic!("expected message, got {:?}", other),
+        other => panic!("expected message, got {other:?}"),
     }
+}
+
+#[tokio::test]
+async fn mute_and_unmute_support_time_travel_without_sleep() {
+    let state = Arc::new(Mutex::new(AlertState::default()));
+    let clock = MockClock::new(Utc::now());
+
+    let muted_until = mute_alerts_for_with_clock(&state, ChronoDuration::minutes(1), &clock)
+        .await
+        .expect("initial mute should succeed");
+    assert!(muted_until > clock.now_utc());
+
+    let second = mute_alerts_for_with_clock(&state, ChronoDuration::minutes(1), &clock).await;
+    assert!(matches!(
+        second,
+        Err(MuteActionError::Cooldown {
+            retry_after_secs: _
+        })
+    ));
+
+    clock.advance(std::time::Duration::from_secs(11));
+
+    unmute_alerts_with_clock(&state, &clock)
+        .await
+        .expect("unmute after virtual cooldown should succeed");
+    let snapshot = alert_snapshot(&state).await;
+    assert_eq!(snapshot.muted_until, None);
+}
+
+#[tokio::test]
+async fn alert_cooldown_supports_time_travel_without_waiting() {
+    let mut config = crate::config::test_utils::base_test_config();
+    config.owner_id = 42;
+    config.monitor_interval = 1;
+    config.command_timeout_secs = 1;
+    config.alerts.cpu = 0.0;
+    config.alerts.ram = 100.0;
+    config.alerts.disk = 100.0;
+    config.alerts.cooldown_secs = 300;
+    config.alerts.hysteresis = 0.0;
+
+    let runtime = crate::config::RuntimeConfig::from_config(&config);
+    let store = crate::reporting_store::NullReportingStorage;
+    let state = Arc::new(Mutex::new(AlertState::default()));
+    let history = Arc::new(Mutex::new(
+        crate::monitor::MetricHistory::with_monitor_interval_secs(1),
+    ));
+    let notifier = crate::monitor::SpyNotifier::new();
+    let anomaly_store = crate::anomaly_db::InMemoryAnomalyStorage::new();
+    let clock = MockClock::new(Utc::now());
+
+    let mut provider = MockMetricsProvider::new(vec![
+        Metrics::new(50.0, 0.0, 0.0),
+        Metrics::new(60.0, 0.0, 0.0),
+        Metrics::new(70.0, 0.0, 0.0),
+    ]);
+
+    check_alerts_with_clock(
+        CheckAlertsContext {
+            notifier: &notifier,
+            config: &config,
+            runtime_config: &runtime,
+            reporting_store: &store,
+            anomaly_storage: &anomaly_store,
+            state: &state,
+            metric_history: &history,
+        },
+        &mut provider,
+        &clock,
+    )
+    .await;
+
+    clock.advance(std::time::Duration::from_secs(60));
+    check_alerts_with_clock(
+        CheckAlertsContext {
+            notifier: &notifier,
+            config: &config,
+            runtime_config: &runtime,
+            reporting_store: &store,
+            anomaly_storage: &anomaly_store,
+            state: &state,
+            metric_history: &history,
+        },
+        &mut provider,
+        &clock,
+    )
+    .await;
+
+    clock.advance(std::time::Duration::from_secs(241));
+    check_alerts_with_clock(
+        CheckAlertsContext {
+            notifier: &notifier,
+            config: &config,
+            runtime_config: &runtime,
+            reporting_store: &store,
+            anomaly_storage: &anomaly_store,
+            state: &state,
+            metric_history: &history,
+        },
+        &mut provider,
+        &clock,
+    )
+    .await;
+
+    let sent = notifier.sent.lock().await;
+    assert_eq!(
+        sent.len(),
+        2,
+        "expected one immediate + one post-cooldown alert"
+    );
 }

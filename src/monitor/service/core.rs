@@ -1,6 +1,5 @@
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
-use chrono::Utc;
 use tokio::sync::Mutex;
 
 use crate::config::{Config, RuntimeConfig};
@@ -13,20 +12,49 @@ use super::super::{
     state::AlertState,
 };
 
+use super::clock::{Clock, SystemClock};
+
+pub struct CheckAlertsContext<'a, N: crate::monitor::Notifier> {
+    pub notifier: &'a N,
+    pub config: &'a Config,
+    pub runtime_config: &'a RuntimeConfig,
+    pub reporting_store: &'a dyn ReportingStorage,
+    pub anomaly_storage: &'a dyn crate::anomaly_db::AnomalyStorage,
+    pub state: &'a Arc<Mutex<AlertState>>,
+    pub metric_history: &'a Arc<Mutex<MetricHistory>>,
+}
+
 pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
-    notifier: &N,
-    config: &Config,
-    runtime_config: &RuntimeConfig,
-    reporting_store: &dyn ReportingStorage,
-    anomaly_storage: &dyn crate::anomaly_db::AnomalyStorage,
-    state: &Arc<Mutex<AlertState>>,
-    metric_history: &Arc<Mutex<MetricHistory>>,
+    context: CheckAlertsContext<'_, N>,
     provider: &mut P,
 ) {
+    let clock = SystemClock;
+    check_alerts_with_clock(context, provider, &clock).await;
+}
+
+pub(super) async fn check_alerts_with_clock<
+    P: MetricsProvider,
+    N: crate::monitor::Notifier,
+    C: Clock + ?Sized,
+>(
+    context: CheckAlertsContext<'_, N>,
+    provider: &mut P,
+    clock: &C,
+) {
+    let CheckAlertsContext {
+        notifier,
+        config,
+        runtime_config,
+        reporting_store,
+        anomaly_storage,
+        state,
+        metric_history,
+    } = context;
+
     let metrics = match provider.collect_metrics().await {
         Ok(metrics) => metrics,
         Err(error) => {
-            log::warn!("monitoring provider error: {}", error);
+            log::warn!("monitoring provider error: {error}");
             return;
         }
     };
@@ -53,7 +81,8 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
         .record_if_needed(&effective_config, metrics.cpu, metrics.ram, metrics.disk)
         .await;
 
-    let notifications = evaluate_alerts_at(&effective_config, state, metrics, Instant::now()).await;
+    let notifications =
+        evaluate_alerts_at(&effective_config, state, metrics, clock.now_instant()).await;
 
     {
         let mut state = state.lock().await;
@@ -62,7 +91,7 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
     }
 
     let sample = MetricSample {
-        timestamp: Utc::now(),
+        timestamp: clock.now_utc(),
         cpu: metrics.cpu,
         ram: metrics.ram,
         disk: metrics.disk,
@@ -74,13 +103,13 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
     }
 
     if let Err(error) = reporting_store.record_sample(sample) {
-        log::warn!("reporting_store_write_failed error={}", error);
+        log::warn!("reporting_store_write_failed error={error}");
     }
 
     let owner_chat_id = match config.owner_chat_id() {
         Ok(chat_id) => chat_id,
         Err(error) => {
-            log::error!("CRITICAL: invalid owner chat id in config: {}", error);
+            log::error!("CRITICAL: invalid owner chat id in config: {error}");
             return;
         }
     };
@@ -90,7 +119,7 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
         state.muted_until
     };
     if let Some(until) = muted_until
-        && Utc::now() < until
+        && clock.now_utc() < until
     {
         return;
     }
