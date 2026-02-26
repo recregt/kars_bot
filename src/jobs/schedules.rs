@@ -1,5 +1,6 @@
+use crate::monitor::Notifier;
 use chrono::{Datelike, Days, TimeZone, Utc};
-use teloxide::{prelude::*, types::InputFile};
+use teloxide::prelude::*;
 use tokio::time::{Duration, interval, sleep};
 
 use crate::anomaly_db::run_maintenance;
@@ -8,6 +9,7 @@ use crate::commands::build_weekly_cpu_report;
 use crate::monitor::{DailySummaryReport, take_daily_summary_report};
 
 pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
+    let notifier = crate::monitor::TeloxideNotifier(bot.clone());
     tokio::spawn(async move {
         loop {
             let wait = duration_until_next_daily_summary(
@@ -26,7 +28,7 @@ pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
                 }
             };
 
-            if let Err(error) = bot.send_message(owner_chat_id, message).await {
+            if let Err(error) = notifier.send_message(owner_chat_id, message).await {
                 log::error!("failed to send daily summary: {}", error);
             }
         }
@@ -45,6 +47,7 @@ pub(super) fn start_maintenance_job(app_context: AppContext) {
 }
 
 pub(super) fn start_weekly_report_job(bot: Bot, app_context: AppContext) {
+    let notifier = crate::monitor::TeloxideNotifier(bot.clone());
     tokio::spawn(async move {
         loop {
             let wait = duration_until_next_weekly_report(
@@ -64,12 +67,13 @@ pub(super) fn start_weekly_report_job(bot: Bot, app_context: AppContext) {
 
             match build_weekly_cpu_report(&app_context).await {
                 Ok(report) => {
-                    if let Err(error) = bot
+                    if let Err(error) = notifier
                         .send_photo(
                             owner_chat_id,
-                            InputFile::memory(report.png_bytes).file_name(report.file_name),
+                            report.png_bytes,
+                            report.file_name,
+                            report.caption,
                         )
-                        .caption(report.caption)
                         .await
                     {
                         log::error!("failed to send weekly report chart: {}", error);
@@ -77,7 +81,7 @@ pub(super) fn start_weekly_report_job(bot: Bot, app_context: AppContext) {
                 }
                 Err(error) => {
                     log::warn!("weekly report skipped: {}", error);
-                    if let Err(send_error) = bot
+                    if let Err(send_error) = notifier
                         .send_message(
                             owner_chat_id,
                             format!(

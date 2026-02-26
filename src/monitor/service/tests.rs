@@ -129,5 +129,8 @@ async fn notifications_triggered_when_threshold_exceeded() {
 
     let sent = notifier.sent.lock().await;
     assert_eq!(sent.len(), 1);
-    assert!(sent[0].1.contains("CPU"));
+    match &sent[0] {
+        crate::monitor::SentItem::Message(_, text) => assert!(text.contains("CPU")),
+        other => panic!("expected message, got {:?}", other),
+    }
 }

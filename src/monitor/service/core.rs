@@ -14,7 +14,7 @@ use super::super::{
     state::AlertState,
 };
 
-pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::AlertNotifier>(
+pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::Notifier>(
     notifier: &N,
     config: &Config,
     runtime_config: &RuntimeConfig,
@@ -94,7 +94,7 @@ pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::AlertNotifier>(
     }
 
     for notification in notifications {
-        if let Err(error) = notifier.send(owner_chat_id, notification).await {
+        if let Err(error) = notifier.send_message(owner_chat_id, notification).await {
             log::error!(
                 "CRITICAL: Failed to send alert to {}: {}",
                 owner_chat_id.0,

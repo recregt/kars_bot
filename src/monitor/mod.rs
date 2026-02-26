@@ -13,6 +13,8 @@ pub use service::{
 };
 
 #[cfg(test)]
-pub use notify::SpyNotifier;
-pub use notify::{AlertNotifier, TeloxideNotifier};
+pub use notify::{SentItem, SpyNotifier};
+
+pub use notify::{Notifier, TeloxideNotifier};
+
 pub use state::{AlertState, DailySummaryReport};
