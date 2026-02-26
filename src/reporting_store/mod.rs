@@ -12,6 +12,82 @@ pub use model::RollingMetricSummary;
 
 use model::{DailyRollup, StoredMetricSample};
 
+pub trait ReportingStorage: Send + Sync {
+    fn record_sample(&self, sample: MetricSample) -> Result<(), String>;
+    fn latest_window(&self, minutes: i64) -> Vec<MetricSample>;
+    fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary>;
+}
+
+pub struct NullReportingStorage;
+
+#[cfg(test)]
+pub struct InMemoryReportingStore {
+    samples: std::sync::Mutex<Vec<MetricSample>>,
+}
+
+#[cfg(test)]
+impl InMemoryReportingStore {
+    pub fn new() -> Self {
+        Self {
+            samples: std::sync::Mutex::new(Vec::new()),
+        }
+    }
+}
+
+#[cfg(test)]
+impl ReportingStorage for InMemoryReportingStore {
+    fn record_sample(&self, sample: MetricSample) -> Result<(), String> {
+        let mut guard = self.samples.lock().unwrap();
+        guard.push(sample);
+        Ok(())
+    }
+
+    fn latest_window(&self, minutes: i64) -> Vec<MetricSample> {
+        let cutoff = Utc::now() - ChronoDuration::minutes(minutes.max(1));
+        let guard = self.samples.lock().unwrap();
+        guard
+            .iter()
+            .copied()
+            .filter(|s| s.timestamp >= cutoff)
+            .collect()
+    }
+
+    fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary> {
+        let days = days.max(1);
+        let start_day = (Utc::now() - ChronoDuration::days(days - 1))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        let mut summary = RollingMetricSummary::empty();
+        let guard = self.samples.lock().unwrap();
+        for sample in guard.iter() {
+            let day_key = sample.timestamp.format("%Y-%m-%d").to_string();
+            if day_key >= start_day {
+                // reuse existing logic by creating a one-sample daily rollup
+                let rollup = DailyRollup::new(day_key.clone(), *sample);
+                summary.accumulate_rollup(&rollup);
+            }
+        }
+
+        if summary.sample_count == 0 {
+            return None;
+        }
+        Some(summary.finalize())
+    }
+}
+
+impl ReportingStorage for NullReportingStorage {
+    fn record_sample(&self, _: MetricSample) -> Result<(), String> {
+        Ok(())
+    }
+    fn latest_window(&self, _: i64) -> Vec<MetricSample> {
+        vec![]
+    }
+    fn rolling_summary_days(&self, _: i64) -> Option<RollingMetricSummary> {
+        None
+    }
+}
+
 #[derive(Clone)]
 pub struct ReportingStore {
     samples: sled::Tree,
@@ -37,7 +113,20 @@ impl ReportingStore {
         }))
     }
 
-    pub fn record_sample(&self, sample: MetricSample) -> Result<(), sled::Error> {
+    pub fn new_arc_from_config(config: &Config) -> Arc<dyn ReportingStorage> {
+        match Self::open_from_config(config) {
+            Ok(Some(store)) => Arc::new(store),
+            Ok(None) => Arc::new(NullReportingStorage),
+            Err(error) => {
+                log::warn!("reporting_store_disabled reason=open_failed error={error}");
+                Arc::new(NullReportingStorage)
+            }
+        }
+    }
+}
+
+impl ReportingStorage for ReportingStore {
+    fn record_sample(&self, sample: MetricSample) -> Result<(), String> {
         let mut key = Vec::with_capacity(12);
         key.extend_from_slice(&sample.timestamp.timestamp_millis().to_be_bytes());
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
@@ -51,19 +140,20 @@ impl ReportingStore {
         };
 
         if let Ok(value) = serde_json::to_vec(&payload) {
-            self.samples.insert(key, value)?;
+            self.samples.insert(key, value).map_err(|e| e.to_string())?;
         }
 
-        self.update_daily_rollup(sample)?;
+        self.update_daily_rollup(sample)
+            .map_err(|e| e.to_string())?;
 
         if seq.is_multiple_of(120) {
-            self.prune_old()?;
+            self.prune_old().map_err(|e| e.to_string())?;
         }
 
         Ok(())
     }
 
-    pub fn latest_window(&self, minutes: i64) -> Vec<MetricSample> {
+    fn latest_window(&self, minutes: i64) -> Vec<MetricSample> {
         let now = Utc::now();
         let cutoff = now - ChronoDuration::minutes(minutes.max(1));
 
@@ -73,7 +163,7 @@ impl ReportingStore {
 
         self.samples
             .range(start_key..)
-            .filter_map(|item| item.ok())
+            .filter_map(std::result::Result::ok)
             .filter_map(|(_, value)| serde_json::from_slice::<StoredMetricSample>(&value).ok())
             .filter_map(|item| {
                 chrono::DateTime::parse_from_rfc3339(&item.timestamp_utc)
@@ -88,7 +178,7 @@ impl ReportingStore {
             .collect()
     }
 
-    pub fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary> {
+    fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary> {
         let days = days.max(1);
         let start_day = (Utc::now() - ChronoDuration::days(days - 1))
             .format("%Y-%m-%d")
@@ -96,9 +186,7 @@ impl ReportingStore {
 
         let mut summary = RollingMetricSummary::empty();
         for item in self.daily_rollups.range(start_day.as_bytes()..) {
-            let Ok((_, value)) = item else {
-                continue;
-            };
+            let Ok((_, value)) = item else { continue };
             let Ok(rollup) = serde_json::from_slice::<DailyRollup>(&value) else {
                 continue;
             };
@@ -111,7 +199,9 @@ impl ReportingStore {
 
         Some(summary.finalize())
     }
+}
 
+impl ReportingStore {
     fn update_daily_rollup(&self, sample: MetricSample) -> Result<(), sled::Error> {
         let day_key = sample.timestamp.format("%Y-%m-%d").to_string();
         let current = self
@@ -134,14 +224,14 @@ impl ReportingStore {
     }
 
     fn prune_old(&self) -> Result<(), sled::Error> {
-        let cutoff = Utc::now() - ChronoDuration::days(self.retention_days as i64);
+        let cutoff = Utc::now() - ChronoDuration::days(i64::from(self.retention_days));
         let cutoff_key = cutoff.timestamp_millis().to_be_bytes();
 
         let keys_to_remove = self
             .samples
             .iter()
             .keys()
-            .filter_map(|key| key.ok())
+            .filter_map(std::result::Result::ok)
             .take_while(|key| {
                 key.as_ref().len() >= 8 && &key.as_ref()[0..8] < cutoff_key.as_slice()
             })
@@ -156,7 +246,7 @@ impl ReportingStore {
             .daily_rollups
             .iter()
             .keys()
-            .filter_map(|key| key.ok())
+            .filter_map(std::result::Result::ok)
             .filter_map(|key| String::from_utf8(key.to_vec()).ok())
             .take_while(|day| day < &cutoff_day)
             .collect::<Vec<_>>();

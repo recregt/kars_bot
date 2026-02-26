@@ -6,6 +6,7 @@ use teloxide::prelude::*;
 use tokio::time::{Duration, sleep};
 
 use crate::app_context::AppContext;
+use crate::architecture::{adapters::TeloxideNotifier, ports::NotifierPort};
 use crate::release_notes::release_notes_for_version;
 
 pub(super) fn start_release_notify_job(bot: Bot, app_context: AppContext) {
@@ -13,42 +14,45 @@ pub(super) fn start_release_notify_job(bot: Bot, app_context: AppContext) {
         return;
     }
 
+    let notifier = TeloxideNotifier(bot.clone());
+
     tokio::spawn(async move {
-        sleep(Duration::from_secs(5)).await;
-
-        let version = env!("CARGO_PKG_VERSION");
-        let state_path = PathBuf::from(&app_context.config.release_notifier.state_path);
-
-        if read_notified_version(&state_path).as_deref() == Some(version) {
-            return;
-        }
-
-        let notes =
-            release_notes_for_version(&app_context.config.release_notifier.changelog_path, version)
-                .unwrap_or_else(|| "No changelog notes found for this release.".to_string());
-
-        let owner_chat_id = match app_context.config.owner_chat_id() {
-            Ok(chat_id) => chat_id,
-            Err(error) => {
-                log::error!("release notify skipped: invalid owner chat id: {}", error);
-                return;
-            }
-        };
-
-        let message = format!(
-            "🚀 Deploy Notification\n\nVersion: v{}\n\n{}",
-            version, notes
-        );
-
-        if let Err(error) = bot.send_message(owner_chat_id, message).await {
-            log::warn!("release notify send failed: {}", error);
-            return;
-        }
-
-        if let Err(error) = write_notified_version(&state_path, version) {
-            log::warn!("release notify state write failed: {}", error);
-        }
+        perform_release_notify(&notifier, &app_context.config).await;
     });
+}
+
+// separated logic so it can be called from tests with a spy notifier
+async fn perform_release_notify<N: NotifierPort>(notifier: &N, config: &crate::config::Config) {
+    sleep(Duration::from_secs(5)).await;
+
+    let version = env!("CARGO_PKG_VERSION");
+    let state_path = PathBuf::from(&config.release_notifier.state_path);
+
+    if read_notified_version(&state_path).as_deref() == Some(version) {
+        return;
+    }
+
+    let notes = release_notes_for_version(&config.release_notifier.changelog_path, version)
+        .unwrap_or_else(|| "No changelog notes found for this release.".to_string());
+
+    let owner_chat_id = match config.owner_chat_id() {
+        Ok(chat_id) => chat_id,
+        Err(error) => {
+            log::error!("release notify skipped: invalid owner chat id: {error}");
+            return;
+        }
+    };
+
+    let message = format!("🚀 Deploy Notification\n\nVersion: v{version}\n\n{notes}");
+
+    if let Err(error) = notifier.send_message(owner_chat_id, message).await {
+        log::warn!("release notify send failed: {error}");
+        return;
+    }
+
+    if let Err(error) = write_notified_version(&state_path, version) {
+        log::warn!("release notify state write failed: {error}");
+    }
 }
 
 fn read_notified_version(path: &Path) -> Option<String> {
@@ -57,7 +61,7 @@ fn read_notified_version(path: &Path) -> Option<String> {
         .ok()?
         .get("last_notified_version")?
         .as_str()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 fn write_notified_version(path: &Path, version: &str) -> Result<(), std::io::Error> {
@@ -71,4 +75,41 @@ fn write_notified_version(path: &Path, version: &str) -> Result<(), std::io::Err
     });
 
     fs::write(path, payload.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::architecture::adapters::{SentItem, SpyNotifier};
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn perform_release_notify_writes_state_and_sends_message() {
+        // create temporary changelog and state path
+        let dir = tempdir().expect("temp dir");
+        let changelog = dir.path().join("CHANGELOG.md");
+        fs::write(&changelog, "### v1.0.0\n- test").unwrap();
+
+        let mut config = crate::test_utils::base_test_config();
+        config.monitor_interval = 1;
+        config.command_timeout_secs = 1;
+        config.release_notifier = crate::config::ReleaseNotifierConfig {
+            enabled: true,
+            changelog_path: changelog.to_string_lossy().to_string(),
+            state_path: dir.path().join("state.json").to_string_lossy().to_string(),
+        };
+
+        let notifier = SpyNotifier::new();
+        perform_release_notify(&notifier, &config).await;
+
+        // check that a message was recorded and state file exists
+        let sent = notifier.sent.lock().await;
+        assert_eq!(sent.len(), 1);
+        match &sent[0] {
+            SentItem::Message(_, text) => assert!(text.contains("Deploy Notification")),
+            _ => panic!("expected message"),
+        }
+        assert!(fs::metadata(&config.release_notifier.state_path).is_ok());
+    }
 }

@@ -30,7 +30,7 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
         ) {
             Ok(watcher) => watcher,
             Err(error) => {
-                log::warn!("config hot-reload disabled: watcher init failed: {}", error);
+                log::warn!("config hot-reload disabled: watcher init failed: {error}");
                 return;
             }
         };
@@ -38,11 +38,7 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
         if let Err(error) =
             watcher.watch(Path::new(config_path.as_str()), RecursiveMode::NonRecursive)
         {
-            log::warn!(
-                "config hot-reload disabled: failed to watch {}: {}",
-                config_path,
-                error
-            );
+            log::warn!("config hot-reload disabled: failed to watch {config_path}: {error}");
             return;
         }
 
@@ -50,7 +46,7 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
             let event = match event_result {
                 Ok(event) => event,
                 Err(error) => {
-                    log::warn!("config hot-reload event error: {}", error);
+                    log::warn!("config hot-reload event error: {error}");
                     continue;
                 }
             };
@@ -80,7 +76,7 @@ pub(super) fn start_config_hot_reload_job(app_context: AppContext) {
                     );
                 }
                 Err(error) => {
-                    log::warn!("config hot-reload ignored invalid config: {}", error);
+                    log::warn!("config hot-reload ignored invalid config: {error}");
                 }
             }
         }

@@ -36,8 +36,7 @@ pub(crate) fn parse_recent_query(query: Option<&str>) -> Result<RecentQuery, Str
         }
 
         return Err(format!(
-            "unsupported token '{}' (expected one of: 6h, cpu>85, ram<=70, disk>90)",
-            token
+            "unsupported token '{token}' (expected one of: 6h, cpu>85, ram<=70, disk>90)"
         ));
     }
 

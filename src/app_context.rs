@@ -1,13 +1,16 @@
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
-use chrono::{DateTime, Utc};
-use tokio::sync::{Mutex, Notify, RwLock, Semaphore};
+use tokio::sync::{Notify, RwLock};
 
 use crate::{
+    architecture::{
+        adapters::{FileAnomalyStorage, ReportingStoreAdapter},
+        ports::{AnomalyStoragePort, ReportingStoragePort},
+    },
+    bot_runtime::BotRuntime,
     capabilities::Capabilities,
     config::{Config, Graph, RuntimeConfig},
-    monitor::{AlertState, MetricHistory},
-    reporting_store::ReportingStore,
+    monitor_context::MonitorContext,
 };
 
 #[derive(Clone)]
@@ -16,15 +19,12 @@ pub struct AppContext {
     pub runtime_config: Arc<RwLock<RuntimeConfig>>,
     pub config_path: Arc<String>,
     pub graph_runtime: Arc<RwLock<Graph>>,
-    pub alert_state: Arc<Mutex<AlertState>>,
-    pub metric_history: Arc<Mutex<MetricHistory>>,
-    pub last_graph_command_at: Arc<Mutex<Option<Instant>>>,
-    pub last_monitor_tick: Arc<Mutex<Option<DateTime<Utc>>>>,
-    pub command_slots: Arc<Semaphore>,
-    pub graph_render_slots: Arc<Semaphore>,
-    pub capabilities: Arc<Capabilities>,
     pub runtime_update_notify: Arc<Notify>,
-    pub reporting_store: Option<ReportingStore>,
+    pub monitor: MonitorContext,
+    pub bot_runtime: BotRuntime,
+    pub capabilities: Arc<Capabilities>,
+    pub reporting_store: Arc<dyn ReportingStoragePort>,
+    pub anomaly_storage: Arc<dyn AnomalyStoragePort>,
 }
 
 impl AppContext {
@@ -37,33 +37,20 @@ impl AppContext {
         let monitor_interval = config.monitor_interval;
         let graph_runtime = config.graph.clone();
         let runtime_config = RuntimeConfig::from_config(&config);
-        let reporting_store = match ReportingStore::open_from_config(&config) {
-            Ok(store) => store,
-            Err(error) => {
-                log::warn!(
-                    "reporting_store_disabled reason=open_failed error={}",
-                    error
-                );
-                None
-            }
-        };
+        let reporting_store = ReportingStoreAdapter::new_arc_from_config(&config);
+        let anomaly_storage: Arc<dyn AnomalyStoragePort> = Arc::new(FileAnomalyStorage::new());
 
         Self {
             config,
             runtime_config: Arc::new(RwLock::new(runtime_config)),
             config_path: Arc::new(config_path.into()),
             graph_runtime: Arc::new(RwLock::new(graph_runtime)),
-            alert_state: Arc::new(Mutex::new(AlertState::default())),
-            metric_history: Arc::new(Mutex::new(MetricHistory::with_monitor_interval_secs(
-                monitor_interval,
-            ))),
-            last_graph_command_at: Arc::new(Mutex::new(None)),
-            last_monitor_tick: Arc::new(Mutex::new(None)),
-            command_slots: Arc::new(Semaphore::new(command_concurrency)),
-            graph_render_slots: Arc::new(Semaphore::new(1)),
-            capabilities: Arc::new(capabilities),
             runtime_update_notify: Arc::new(Notify::new()),
+            monitor: MonitorContext::new(monitor_interval),
+            bot_runtime: BotRuntime::new(command_concurrency),
+            capabilities: Arc::new(capabilities),
             reporting_store,
+            anomaly_storage,
         }
     }
 
@@ -77,7 +64,6 @@ impl AppContext {
             let mut runtime = self.runtime_config.write().await;
             *runtime = runtime_config.clone();
         }
-
         self.update_graph_runtime(runtime_config.graph).await;
         self.runtime_update_notify.notify_waiters();
     }
@@ -89,39 +75,24 @@ mod tests {
 
     use crate::{
         capabilities::Capabilities,
-        config::{
-            Alerts, AnomalyDb, Config, DailySummary, Graph, ReleaseNotifierConfig,
-            ReportingStoreConfig, RuntimeConfig, Security, Simulation, WeeklyReport,
-        },
+        config::{ReportingStoreConfig, RuntimeConfig},
+        test_utils::base_test_config,
     };
 
     use super::AppContext;
 
-    fn test_config() -> Config {
-        Config {
-            bot_token: "token".to_string(),
-            owner_id: 1,
-            alerts: Alerts {
-                cpu: 85.0,
-                ram: 90.0,
-                disk: 90.0,
-                cooldown_secs: 300,
-                hysteresis: 3.0,
-            },
-            monitor_interval: 10,
-            command_timeout_secs: 30,
-            daily_summary: DailySummary::default(),
-            weekly_report: WeeklyReport::default(),
-            graph: Graph::default(),
-            anomaly_db: AnomalyDb::default(),
-            simulation: Simulation::default(),
-            reporting_store: ReportingStoreConfig {
-                enabled: false,
-                ..ReportingStoreConfig::default()
-            },
-            release_notifier: ReleaseNotifierConfig::default(),
-            security: Security::default(),
-        }
+    fn test_config() -> crate::config::Config {
+        let mut config = base_test_config();
+        config.alerts.cpu = 85.0;
+        config.alerts.ram = 90.0;
+        config.alerts.disk = 90.0;
+        config.alerts.cooldown_secs = 300;
+        config.alerts.hysteresis = 3.0;
+        config.reporting_store = ReportingStoreConfig {
+            enabled: false,
+            ..ReportingStoreConfig::default()
+        };
+        config
     }
 
     #[tokio::test]

@@ -1,6 +1,18 @@
 use serde::Deserialize;
 
-use super::defaults::*;
+use super::defaults::{
+    default_alert_cpu, default_alert_disk, default_alert_ram, default_anomaly_db_dir,
+    default_anomaly_db_enabled, default_anomaly_db_max_file_size_bytes,
+    default_anomaly_db_retention_days, default_command_timeout_secs, default_cooldown_secs,
+    default_daily_summary_enabled, default_daily_summary_hour, default_daily_summary_minute,
+    default_graph_enabled, default_graph_max_points, default_graph_max_window_hours,
+    default_graph_window_minutes, default_hysteresis, default_monitor_interval,
+    default_redact_sensitive_output, default_release_notifier_changelog_path,
+    default_release_notifier_state_path, default_reporting_store_path,
+    default_reporting_store_retention_days, default_simulation_profile,
+    default_weekly_report_enabled, default_weekly_report_hour, default_weekly_report_minute,
+    default_weekly_report_weekday,
+};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {

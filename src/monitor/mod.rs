@@ -1,13 +1,20 @@
 mod evaluator;
 mod history;
+mod notify;
 mod provider;
 mod service;
 mod state;
 
 pub use history::{MetricHistory, MetricSample};
-pub use provider::ActiveMetricsProvider;
+pub use provider::{MetricsProvider, new_metrics_provider};
 pub use service::{
-    MuteActionError, alert_snapshot, check_alerts, mute_alerts_for, take_daily_summary_report,
-    unmute_alerts,
+    CheckAlertsContext, MuteActionError, alert_snapshot, check_alerts, mute_alerts_for,
+    take_daily_summary_report, unmute_alerts,
 };
+
+#[cfg(test)]
+pub use notify::{SentItem, SpyNotifier};
+
+pub use notify::{Notifier, TeloxideNotifier};
+
 pub use state::{AlertState, DailySummaryReport};

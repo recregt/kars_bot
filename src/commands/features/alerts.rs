@@ -1,7 +1,10 @@
 use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
-use crate::monitor::{MuteActionError, alert_snapshot, mute_alerts_for, unmute_alerts};
+use crate::architecture::{
+    ports::MuteActionError,
+    use_cases::{alert_snapshot_use_case, mute_alerts_use_case, unmute_alerts_use_case},
+};
 
 use super::super::helpers::{as_html_block, parse_mute_duration};
 
@@ -11,7 +14,7 @@ pub(crate) async fn handle_alerts(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let snapshot = alert_snapshot(&app_context.alert_state).await;
+    let snapshot = alert_snapshot_use_case(&app_context.monitor.alert_state).await;
     let now = chrono::Utc::now();
     let mute_line = match snapshot.muted_until {
         Some(until) if now <= until => {
@@ -26,8 +29,7 @@ pub(crate) async fn handle_alerts(
     };
     let summary_line = snapshot
         .last_daily_summary_at
-        .map(|time| time.to_rfc3339())
-        .unwrap_or_else(|| "not generated yet".to_string());
+        .map_or_else(|| "not generated yet".to_string(), |time| time.to_rfc3339());
     let body = format!(
         "Thresholds:\n- CPU: {:.1}%\n- RAM: {:.1}%\n- Disk: {:.1}%\n\nControl:\n- Cooldown: {}s\n- Hysteresis: {:.1}%\n- Mute: {}\n- Last daily summary (UTC): {}\n\nCurrent State:\n- CPU alerting: {}\n- RAM alerting: {}\n- Disk alerting: {}",
         runtime_config.alerts.cpu,
@@ -66,17 +68,14 @@ pub(crate) async fn handle_mute(
         return Ok(());
     };
 
-    let muted_until = match mute_alerts_for(&app_context.alert_state, duration).await {
+    let muted_until = match mute_alerts_use_case(&app_context.monitor.alert_state, duration).await {
         Ok(until) => until,
         Err(MuteActionError::Cooldown { retry_after_secs }) => {
             bot.send_message(
                 msg.chat.id,
                 as_html_block(
                     "Mute cooldown",
-                    &format!(
-                        "Please wait {}s before changing mute state again.",
-                        retry_after_secs
-                    ),
+                    &format!("Please wait {retry_after_secs}s before changing mute state again."),
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -98,16 +97,13 @@ pub(crate) async fn handle_unmute(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     if let Err(MuteActionError::Cooldown { retry_after_secs }) =
-        unmute_alerts(&app_context.alert_state).await
+        unmute_alerts_use_case(&app_context.monitor.alert_state).await
     {
         bot.send_message(
             msg.chat.id,
             as_html_block(
                 "Unmute cooldown",
-                &format!(
-                    "Please wait {}s before changing mute state again.",
-                    retry_after_secs
-                ),
+                &format!("Please wait {retry_after_secs}s before changing mute state again."),
             ),
         )
         .parse_mode(ParseMode::Html)

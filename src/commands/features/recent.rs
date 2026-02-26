@@ -1,6 +1,5 @@
 use teloxide::{prelude::*, types::ParseMode};
 
-use crate::anomaly_db::recent_anomalies;
 use crate::app_context::AppContext;
 
 use super::super::helpers::as_html_block;
@@ -24,8 +23,7 @@ pub(crate) async fn handle_recent_anomalies(
                 as_html_block(
                     "Recent anomalies",
                     &format!(
-                        "Invalid query: {}\n\nUsage:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85\n/recent cpu>85 ram>80 6h",
-                        error
+                        "Invalid query: {error}\n\nUsage:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85\n/recent cpu>85 ram>80 6h"
                     ),
                 ),
             )
@@ -41,7 +39,10 @@ pub(crate) async fn handle_recent_anomalies(
         RecentQuery::Filters(_) => MAX_LIMIT,
     };
 
-    let mut recent = recent_anomalies(&app_context.config, SCAN_LIMIT);
+    let mut recent = app_context
+        .anomaly_storage
+        .recent(&app_context.config, SCAN_LIMIT)
+        .await;
     recent = apply_recent_query(recent, parsed_query);
     if recent.len() > desired_limit {
         recent.truncate(desired_limit);

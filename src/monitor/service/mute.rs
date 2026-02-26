@@ -4,6 +4,7 @@ use chrono::{DateTime, Duration as ChronoDuration, Utc};
 use tokio::sync::Mutex;
 
 use super::super::state::AlertState;
+use super::clock::{Clock, SystemClock};
 
 const MUTE_ACTION_COOLDOWN_SECS: i64 = 10;
 
@@ -34,7 +35,16 @@ pub async fn mute_alerts_for(
     state: &Arc<Mutex<AlertState>>,
     duration: ChronoDuration,
 ) -> Result<DateTime<Utc>, MuteActionError> {
-    let now = Utc::now();
+    let clock = SystemClock;
+    mute_alerts_for_with_clock(state, duration, &clock).await
+}
+
+pub(super) async fn mute_alerts_for_with_clock<C: Clock + ?Sized>(
+    state: &Arc<Mutex<AlertState>>,
+    duration: ChronoDuration,
+    clock: &C,
+) -> Result<DateTime<Utc>, MuteActionError> {
+    let now = clock.now_utc();
     let until = now + duration;
     let mut state = state.lock().await;
     ensure_mute_action_allowed(&mut state, now)?;
@@ -43,7 +53,15 @@ pub async fn mute_alerts_for(
 }
 
 pub async fn unmute_alerts(state: &Arc<Mutex<AlertState>>) -> Result<(), MuteActionError> {
-    let now = Utc::now();
+    let clock = SystemClock;
+    unmute_alerts_with_clock(state, &clock).await
+}
+
+pub(super) async fn unmute_alerts_with_clock<C: Clock + ?Sized>(
+    state: &Arc<Mutex<AlertState>>,
+    clock: &C,
+) -> Result<(), MuteActionError> {
+    let now = clock.now_utc();
     let mut state = state.lock().await;
     ensure_mute_action_allowed(&mut state, now)?;
     state.muted_until = None;

@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use async_trait::async_trait;
 use sysinfo::{CpuExt, DiskExt, System, SystemExt};
 use thiserror::Error;
 
@@ -32,32 +33,9 @@ impl MonitorError {
     }
 }
 
-pub trait MetricsProvider {
+#[async_trait]
+pub trait MetricsProvider: Send {
     async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError>;
-}
-
-pub enum ActiveMetricsProvider {
-    Real(Box<RealMetricsProvider>),
-    Simulated(SimulatedMetricsProvider),
-}
-
-impl ActiveMetricsProvider {
-    pub fn new(simulation_enabled: bool) -> Self {
-        if simulation_enabled {
-            Self::Simulated(SimulatedMetricsProvider::new())
-        } else {
-            Self::Real(Box::new(RealMetricsProvider::new()))
-        }
-    }
-}
-
-impl MetricsProvider for ActiveMetricsProvider {
-    async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
-        match self {
-            ActiveMetricsProvider::Real(provider) => provider.collect_metrics().await,
-            ActiveMetricsProvider::Simulated(provider) => provider.collect_metrics().await,
-        }
-    }
 }
 
 pub struct RealMetricsProvider {
@@ -82,6 +60,7 @@ impl SimulatedMetricsProvider {
     }
 }
 
+#[async_trait]
 impl MetricsProvider for SimulatedMetricsProvider {
     async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
         self.tick = self.tick.saturating_add(1);
@@ -94,11 +73,9 @@ impl MetricsProvider for SimulatedMetricsProvider {
         if self.tick.is_multiple_of(30) {
             cpu = 95.0;
         }
-
         if self.tick.is_multiple_of(47) {
             ram = 93.0;
         }
-
         if self.tick.is_multiple_of(83) {
             disk = 91.0;
         }
@@ -111,6 +88,7 @@ impl MetricsProvider for SimulatedMetricsProvider {
     }
 }
 
+#[async_trait]
 impl MetricsProvider for RealMetricsProvider {
     async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
         self.system.refresh_cpu();
@@ -134,7 +112,7 @@ impl MetricsProvider for RealMetricsProvider {
             .iter()
             .find(|disk| disk.mount_point() == Path::new("/"))
             .or_else(|| self.system.disks().first())
-            .map(|disk| {
+            .map_or(0.0, |disk| {
                 let total_space = disk.total_space() as f32;
                 let used_space = (disk.total_space() - disk.available_space()) as f32;
                 if total_space > 0.0 {
@@ -142,10 +120,26 @@ impl MetricsProvider for RealMetricsProvider {
                 } else {
                     0.0
                 }
-            })
-            .unwrap_or(0.0);
+            });
 
         Ok(Metrics { cpu, ram, disk })
+    }
+}
+
+/// `ActiveMetricsProvider` kaldırıldı — yerine Box<dyn MetricsProvider> kullanılır.
+/// Oluşturmak için: `new_metrics_provider(simulation_enabled)`
+#[async_trait]
+impl MetricsProvider for Box<dyn MetricsProvider> {
+    async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
+        (**self).collect_metrics().await
+    }
+}
+
+pub fn new_metrics_provider(simulation_enabled: bool) -> Box<dyn MetricsProvider> {
+    if simulation_enabled {
+        Box::new(SimulatedMetricsProvider::new())
+    } else {
+        Box::new(RealMetricsProvider::new())
     }
 }
 
@@ -162,12 +156,12 @@ impl MockMetricsProvider {
 }
 
 #[cfg(test)]
+#[async_trait]
 impl MetricsProvider for MockMetricsProvider {
     async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {
         if self.sequence.is_empty() {
             return Err(MonitorError::mock_metrics_exhausted());
         }
-
         Ok(self.sequence.remove(0))
     }
 }

@@ -4,7 +4,7 @@ use teloxide::{
 };
 
 use crate::app_context::AppContext;
-use crate::monitor::alert_snapshot;
+use crate::architecture::use_cases::alert_snapshot_use_case;
 
 use super::super::helpers::as_html_block;
 
@@ -15,8 +15,8 @@ pub(crate) async fn handle_status_overview(
 ) -> ResponseResult<()> {
     let graph_runtime = app_context.graph_runtime.read().await.clone();
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let alert_state = alert_snapshot(&app_context.alert_state).await;
-    let last_monitor_tick = *app_context.last_monitor_tick.lock().await;
+    let alert_state = alert_snapshot_use_case(&app_context.monitor.alert_state).await;
+    let last_monitor_tick = *app_context.monitor.last_monitor_tick.lock().await;
     let now = chrono::Utc::now();
 
     let mute_state = match alert_state.muted_until {
@@ -24,9 +24,8 @@ pub(crate) async fn handle_status_overview(
         _ => "not muted".to_string(),
     };
 
-    let last_tick_text = last_monitor_tick
-        .map(|tick| tick.to_rfc3339())
-        .unwrap_or_else(|| "not available yet".to_string());
+    let last_tick_text =
+        last_monitor_tick.map_or_else(|| "not available yet".to_string(), |tick| tick.to_rfc3339());
 
     let capabilities = app_context.capabilities.as_ref();
 

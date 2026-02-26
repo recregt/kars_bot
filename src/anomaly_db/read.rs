@@ -68,8 +68,7 @@ fn newest_index_files(index_dir: &Path) -> Vec<PathBuf> {
         .filter(|path| {
             path.file_name()
                 .and_then(|name| name.to_str())
-                .map(|name| name.starts_with("index-") && name.contains(".jsonl"))
-                .unwrap_or(false)
+                .is_some_and(|name| name.starts_with("index-") && name.contains(".jsonl"))
         })
         .collect::<Vec<_>>();
 
@@ -111,7 +110,7 @@ fn read_tail_lines(path: &Path, max_lines: usize) -> Result<Vec<String>, std::io
 
     let mut lines = String::from_utf8_lossy(&bytes)
         .lines()
-        .map(|line| line.to_string())
+        .map(std::string::ToString::to_string)
         .collect::<Vec<_>>();
 
     if lines.len() > max_lines {

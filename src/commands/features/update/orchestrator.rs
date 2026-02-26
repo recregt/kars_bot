@@ -37,7 +37,7 @@ pub(super) async fn extract_readiness(
                 msg.chat.id,
                 as_html_block(
                     "Update",
-                    &format!("Update check failed before apply: {}", error),
+                    &format!("Update check failed before apply: {error}"),
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -57,12 +57,7 @@ pub(super) async fn run_update_apply(
         lock.acquire(),
     )
     .await
-    .map_err(|_| {
-        format!(
-            "update apply lock timeout after {}s",
-            UPDATE_LOCK_TIMEOUT_SECS
-        )
-    })?
+    .map_err(|_| format!("update apply lock timeout after {UPDATE_LOCK_TIMEOUT_SECS}s"))?
     .map_err(|source| format!("update apply lock error: {source}"))?;
 
     let output = self_update::run_self_update(current_version).await;

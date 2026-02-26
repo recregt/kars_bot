@@ -25,7 +25,9 @@ pub(crate) async fn handle_graph(
     let command_started_at = Instant::now();
     let graph_runtime = app_context.graph_runtime.read().await.clone();
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let Some(_permit) = acquire_command_slot(&app_context.command_slots, msg, bot).await? else {
+    let Some(_permit) =
+        acquire_command_slot(&app_context.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
 
@@ -56,7 +58,7 @@ pub(crate) async fn handle_graph(
             msg.chat.id,
             as_html_block(
                 "Graph Cooldown",
-                &format!("Please wait {}s before using /graph again.", remaining_secs),
+                &format!("Please wait {remaining_secs}s before using /graph again."),
             ),
         )
         .parse_mode(ParseMode::Html)
@@ -64,7 +66,7 @@ pub(crate) async fn handle_graph(
         return Ok(());
     }
     let samples = {
-        let history = app_context.metric_history.lock().await;
+        let history = app_context.monitor.metric_history.lock().await;
         history.latest_window(request.window.minutes())
     };
     if samples.len() < 2 {
@@ -79,20 +81,19 @@ pub(crate) async fn handle_graph(
         .await?;
         return Ok(());
     }
-    let summary = match compute_metric_summary(request.metric, &samples) {
-        Some(summary) => summary,
-        None => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    &format!("{} Graph", request.metric.title()),
-                    "not enough samples yet",
-                ),
-            )
-            .parse_mode(ParseMode::Html)
-            .await?;
-            return Ok(());
-        }
+    let summary = if let Some(summary) = compute_metric_summary(request.metric, &samples) {
+        summary
+    } else {
+        bot.send_message(
+            msg.chat.id,
+            as_html_block(
+                &format!("{} Graph", request.metric.title()),
+                "not enough samples yet",
+            ),
+        )
+        .parse_mode(ParseMode::Html)
+        .await?;
+        return Ok(());
     };
     let threshold = request.metric.threshold(&runtime_config.alerts);
     let anomaly_labels = assess_anomaly_labels(request.metric, &samples, threshold)
@@ -105,7 +106,7 @@ pub(crate) async fn handle_graph(
     let point_count = points.len();
     let GraphRequest { metric, window } = request;
     let render_slot = match acquire_render_slot(
-        app_context.graph_render_slots.clone(),
+        app_context.bot_runtime.graph_render_slots.clone(),
         RENDER_SLOT_WAIT_TIMEOUT_SECS,
     )
     .await
@@ -158,9 +159,9 @@ pub(crate) async fn handle_graph(
                 summary.max,
                 summary.avg,
                 if anomaly_labels.is_empty() {
-                    "".to_string()
+                    String::new()
                 } else {
-                    format!(" | {}", anomaly_labels)
+                    format!(" | {anomaly_labels}")
                 }
             ))
             .await?;

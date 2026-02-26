@@ -40,7 +40,7 @@ pub fn record_anomaly_if_needed(config: &Config, cpu: f32, ram: f32, disk: f32) 
 
     let paths = paths_from_config(config);
     if let Err(error) = ensure_db_dirs(&paths) {
-        log::warn!("anomaly db: failed to create directory: {}", error);
+        log::warn!("anomaly db: failed to create directory: {error}");
         return;
     }
 
@@ -58,7 +58,7 @@ pub fn record_anomaly_if_needed(config: &Config, cpu: f32, ram: f32, disk: f32) 
         config.anomaly_db.max_file_size_bytes,
         config.anomaly_db.retention_days,
     ) {
-        log::warn!("anomaly db: failed to write event line: {}", error);
+        log::warn!("anomaly db: failed to write event line: {error}");
         return;
     }
 
@@ -83,7 +83,7 @@ pub fn record_anomaly_if_needed(config: &Config, cpu: f32, ram: f32, disk: f32) 
     };
     let index_path = paths.index_dir.join(index_file_name);
     if let Err(error) = append_json_line(&index_path, &index_entry) {
-        log::warn!("anomaly db: failed to write index line: {}", error);
+        log::warn!("anomaly db: failed to write index line: {error}");
     }
 }
 
@@ -146,5 +146,31 @@ mod tests {
         assert!(lines[1].contains("\"value\":2"));
 
         let _ = fs::remove_file(path);
+    }
+}
+
+// additional tests for the new async storage trait
+#[cfg(test)]
+mod storage_tests {
+    use crate::anomaly_db::AnomalyStorage;
+
+    #[tokio::test]
+    async fn in_memory_storage_records_events_without_disk() {
+        let mut config = crate::test_utils::base_test_config();
+        config.monitor_interval = 1;
+        config.command_timeout_secs = 1;
+        config.anomaly_db = crate::config::AnomalyDb {
+            enabled: true,
+            dir: "logs".to_string(),
+            max_file_size_bytes: 0,
+            retention_days: 0,
+        };
+
+        let store = crate::anomaly_db::InMemoryAnomalyStorage::new();
+
+        store.record_if_needed(&config, 90.0, 0.0, 0.0).await;
+        let recent = store.recent(&config, 10).await;
+        assert_eq!(recent.len(), 1);
+        assert_eq!(recent[0].cpu, 90.0);
     }
 }

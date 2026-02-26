@@ -111,7 +111,7 @@ pub(super) fn format_window_suffix(window_minutes: i64) -> String {
     if window_minutes % 60 == 0 {
         format!("{}h", window_minutes / 60)
     } else {
-        format!("{}m", window_minutes)
+        format!("{window_minutes}m")
     }
 }
 

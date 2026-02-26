@@ -1,33 +1,61 @@
-use std::{sync::Arc, time::Instant};
+use std::sync::Arc;
 
-use chrono::Utc;
-use teloxide::prelude::*;
 use tokio::sync::Mutex;
 
-use crate::anomaly_db::record_anomaly_if_needed;
+use crate::architecture::ports::{
+    AnomalyStoragePort, MetricsProviderPort, NotifierPort, ReportingStoragePort,
+};
 use crate::config::{Config, RuntimeConfig};
-use crate::reporting_store::ReportingStore;
 
 use super::super::{
     evaluator::evaluate_alerts_at,
     history::{MetricHistory, MetricSample},
-    provider::MetricsProvider,
     state::AlertState,
 };
 
-pub async fn check_alerts<P: MetricsProvider>(
-    bot: &Bot,
-    config: &Config,
-    runtime_config: &RuntimeConfig,
-    reporting_store: Option<&ReportingStore>,
-    state: &Arc<Mutex<AlertState>>,
-    metric_history: &Arc<Mutex<MetricHistory>>,
+use super::clock::{Clock, SystemClock};
+
+pub struct CheckAlertsContext<'a, N: NotifierPort> {
+    pub notifier: &'a N,
+    pub config: &'a Config,
+    pub runtime_config: &'a RuntimeConfig,
+    pub reporting_store: &'a dyn ReportingStoragePort,
+    pub anomaly_storage: &'a dyn AnomalyStoragePort,
+    pub state: &'a Arc<Mutex<AlertState>>,
+    pub metric_history: &'a Arc<Mutex<MetricHistory>>,
+}
+
+pub async fn check_alerts<P: MetricsProviderPort, N: NotifierPort>(
+    context: CheckAlertsContext<'_, N>,
     provider: &mut P,
 ) {
+    let clock = SystemClock;
+    check_alerts_with_clock(context, provider, &clock).await;
+}
+
+pub(super) async fn check_alerts_with_clock<
+    P: MetricsProviderPort,
+    N: NotifierPort,
+    C: Clock + ?Sized,
+>(
+    context: CheckAlertsContext<'_, N>,
+    provider: &mut P,
+    clock: &C,
+) {
+    let CheckAlertsContext {
+        notifier,
+        config,
+        runtime_config,
+        reporting_store,
+        anomaly_storage,
+        state,
+        metric_history,
+    } = context;
+
     let metrics = match provider.collect_metrics().await {
         Ok(metrics) => metrics,
         Err(error) => {
-            log::warn!("monitoring provider error: {}", error);
+            log::warn!("monitoring provider error: {error}");
             return;
         }
     };
@@ -50,9 +78,12 @@ pub async fn check_alerts<P: MetricsProvider>(
     let mut effective_config = config.clone();
     effective_config.alerts = runtime_config.alerts.clone();
 
-    record_anomaly_if_needed(&effective_config, metrics.cpu, metrics.ram, metrics.disk);
+    anomaly_storage
+        .record_if_needed(&effective_config, metrics.cpu, metrics.ram, metrics.disk)
+        .await;
 
-    let notifications = evaluate_alerts_at(&effective_config, state, metrics, Instant::now()).await;
+    let notifications =
+        evaluate_alerts_at(&effective_config, state, metrics, clock.now_instant()).await;
 
     {
         let mut state = state.lock().await;
@@ -61,7 +92,7 @@ pub async fn check_alerts<P: MetricsProvider>(
     }
 
     let sample = MetricSample {
-        timestamp: Utc::now(),
+        timestamp: clock.now_utc(),
         cpu: metrics.cpu,
         ram: metrics.ram,
         disk: metrics.disk,
@@ -72,16 +103,14 @@ pub async fn check_alerts<P: MetricsProvider>(
         history.push(sample);
     }
 
-    if let Some(store) = reporting_store
-        && let Err(error) = store.record_sample(sample)
-    {
-        log::warn!("reporting_store_write_failed error={}", error);
+    if let Err(error) = reporting_store.record_sample(sample) {
+        log::warn!("reporting_store_write_failed error={error}");
     }
 
     let owner_chat_id = match config.owner_chat_id() {
         Ok(chat_id) => chat_id,
         Err(error) => {
-            log::error!("CRITICAL: invalid owner chat id in config: {}", error);
+            log::error!("CRITICAL: invalid owner chat id in config: {error}");
             return;
         }
     };
@@ -91,13 +120,13 @@ pub async fn check_alerts<P: MetricsProvider>(
         state.muted_until
     };
     if let Some(until) = muted_until
-        && Utc::now() < until
+        && clock.now_utc() < until
     {
         return;
     }
 
     for notification in notifications {
-        if let Err(error) = bot.send_message(owner_chat_id, notification).await {
+        if let Err(error) = notifier.send_message(owner_chat_id, notification).await {
             log::error!(
                 "CRITICAL: Failed to send alert to {}: {}",
                 owner_chat_id.0,

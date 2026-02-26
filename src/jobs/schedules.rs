@@ -1,13 +1,18 @@
 use chrono::{Datelike, Days, TimeZone, Utc};
-use teloxide::{prelude::*, types::InputFile};
+use teloxide::prelude::*;
 use tokio::time::{Duration, interval, sleep};
 
 use crate::anomaly_db::run_maintenance;
 use crate::app_context::AppContext;
+use crate::architecture::{
+    adapters::TeloxideNotifier,
+    ports::NotifierPort,
+    use_cases::{DailySummaryReport, take_daily_summary_report_use_case},
+};
 use crate::commands::build_weekly_cpu_report;
-use crate::monitor::{DailySummaryReport, take_daily_summary_report};
 
 pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
+    let notifier = TeloxideNotifier(bot.clone());
     tokio::spawn(async move {
         loop {
             let wait = duration_until_next_daily_summary(
@@ -16,18 +21,18 @@ pub(super) fn start_daily_summary_job(bot: Bot, app_context: AppContext) {
             );
             sleep(wait).await;
 
-            let report = take_daily_summary_report(&app_context.alert_state).await;
+            let report = take_daily_summary_report_use_case(&app_context.monitor.alert_state).await;
             let message = format_daily_summary_message(report);
             let owner_chat_id = match app_context.config.owner_chat_id() {
                 Ok(chat_id) => chat_id,
                 Err(error) => {
-                    log::error!("daily summary skipped: invalid owner chat id: {}", error);
+                    log::error!("daily summary skipped: invalid owner chat id: {error}");
                     continue;
                 }
             };
 
-            if let Err(error) = bot.send_message(owner_chat_id, message).await {
-                log::error!("failed to send daily summary: {}", error);
+            if let Err(error) = notifier.send_message(owner_chat_id, message).await {
+                log::error!("failed to send daily summary: {error}");
             }
         }
     });
@@ -45,6 +50,7 @@ pub(super) fn start_maintenance_job(app_context: AppContext) {
 }
 
 pub(super) fn start_weekly_report_job(bot: Bot, app_context: AppContext) {
+    let notifier = TeloxideNotifier(bot.clone());
     tokio::spawn(async move {
         loop {
             let wait = duration_until_next_weekly_report(
@@ -57,37 +63,37 @@ pub(super) fn start_weekly_report_job(bot: Bot, app_context: AppContext) {
             let owner_chat_id = match app_context.config.owner_chat_id() {
                 Ok(chat_id) => chat_id,
                 Err(error) => {
-                    log::error!("weekly report skipped: invalid owner chat id: {}", error);
+                    log::error!("weekly report skipped: invalid owner chat id: {error}");
                     continue;
                 }
             };
 
             match build_weekly_cpu_report(&app_context).await {
                 Ok(report) => {
-                    if let Err(error) = bot
+                    if let Err(error) = notifier
                         .send_photo(
                             owner_chat_id,
-                            InputFile::memory(report.png_bytes).file_name(report.file_name),
+                            report.png_bytes,
+                            report.file_name,
+                            report.caption,
                         )
-                        .caption(report.caption)
                         .await
                     {
-                        log::error!("failed to send weekly report chart: {}", error);
+                        log::error!("failed to send weekly report chart: {error}");
                     }
                 }
                 Err(error) => {
-                    log::warn!("weekly report skipped: {}", error);
-                    if let Err(send_error) = bot
+                    log::warn!("weekly report skipped: {error}");
+                    if let Err(send_error) = notifier
                         .send_message(
                             owner_chat_id,
                             format!(
-                                "📈 Weekly Report\n\nCould not generate chart this cycle: {}",
-                                error
+                                "📈 Weekly Report\n\nCould not generate chart this cycle: {error}"
                             ),
                         )
                         .await
                     {
-                        log::error!("failed to send weekly report fallback: {}", send_error);
+                        log::error!("failed to send weekly report fallback: {send_error}");
                     }
                 }
             }
@@ -99,7 +105,8 @@ fn duration_until_next_daily_summary(hour_utc: u8, minute_utc: u8) -> Duration {
     let now = Utc::now();
 
     let today = now.date_naive();
-    let Some(scheduled_today_naive) = today.and_hms_opt(hour_utc as u32, minute_utc as u32, 0)
+    let Some(scheduled_today_naive) =
+        today.and_hms_opt(u32::from(hour_utc), u32::from(minute_utc), 0)
     else {
         return Duration::from_secs(60);
     };
@@ -108,7 +115,7 @@ fn duration_until_next_daily_summary(hour_utc: u8, minute_utc: u8) -> Duration {
     if scheduled <= now {
         let tomorrow = today.checked_add_days(Days::new(1)).unwrap_or(today);
         let Some(scheduled_tomorrow_naive) =
-            tomorrow.and_hms_opt(hour_utc as u32, minute_utc as u32, 0)
+            tomorrow.and_hms_opt(u32::from(hour_utc), u32::from(minute_utc), 0)
         else {
             return Duration::from_secs(60);
         };
@@ -124,11 +131,11 @@ fn duration_until_next_weekly_report(weekday_utc: u8, hour_utc: u8, minute_utc: 
     let now = Utc::now();
     let today = now.date_naive();
 
-    let current_weekday = now.weekday().num_days_from_monday() as i64;
-    let target_weekday = (weekday_utc.saturating_sub(1)) as i64;
+    let current_weekday = i64::from(now.weekday().num_days_from_monday());
+    let target_weekday = i64::from(weekday_utc.saturating_sub(1));
 
     let mut days_ahead = (target_weekday - current_weekday).rem_euclid(7);
-    let scheduled_today = match today.and_hms_opt(hour_utc as u32, minute_utc as u32, 0) {
+    let scheduled_today = match today.and_hms_opt(u32::from(hour_utc), u32::from(minute_utc), 0) {
         Some(value) => Utc.from_utc_datetime(&value),
         None => return Duration::from_secs(60),
     };
@@ -142,7 +149,7 @@ fn duration_until_next_weekly_report(weekday_utc: u8, hour_utc: u8, minute_utc: 
         None => return Duration::from_secs(60),
     };
 
-    let scheduled = match target_date.and_hms_opt(hour_utc as u32, minute_utc as u32, 0) {
+    let scheduled = match target_date.and_hms_opt(u32::from(hour_utc), u32::from(minute_utc), 0) {
         Some(value) => Utc.from_utc_datetime(&value),
         None => return Duration::from_secs(60),
     };

@@ -46,7 +46,7 @@ pub(crate) async fn handle_health(
     app_context: &AppContext,
 ) -> ResponseResult<()> {
     let runtime_config = app_context.runtime_config.read().await.clone();
-    let last_tick = *app_context.last_monitor_tick.lock().await;
+    let last_tick = *app_context.monitor.last_monitor_tick.lock().await;
     let now = Utc::now();
     let threshold_secs = (runtime_config.monitor_interval * 2) as i64;
 
@@ -55,13 +55,11 @@ pub(crate) async fn handle_health(
             let lag_secs = now.signed_duration_since(tick).num_seconds().max(0);
             let status_line = if lag_secs > threshold_secs {
                 format!(
-                    "⚠️ CRITICAL: Monitor loop is delayed. Last tick: {}s ago (threshold: {}s)",
-                    lag_secs, threshold_secs
+                    "⚠️ CRITICAL: Monitor loop is delayed. Last tick: {lag_secs}s ago (threshold: {threshold_secs}s)"
                 )
             } else {
                 format!(
-                    "✅ Healthy. Last monitor tick: {}s ago (threshold: {}s)",
-                    lag_secs, threshold_secs
+                    "✅ Healthy. Last monitor tick: {lag_secs}s ago (threshold: {threshold_secs}s)"
                 )
             };
 

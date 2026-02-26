@@ -30,7 +30,8 @@ pub(crate) async fn handle_sys_status(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
 
@@ -72,7 +73,8 @@ pub(crate) async fn handle_ports(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
     match run_cmd(
@@ -118,7 +120,8 @@ pub(crate) async fn handle_services(
         return Ok(());
     }
 
-    let Some(_permit) = acquire_command_slot(&config.command_slots, msg, bot).await? else {
+    let Some(_permit) = acquire_command_slot(&config.bot_runtime.command_slots, msg, bot).await?
+    else {
         return Ok(());
     };
 
