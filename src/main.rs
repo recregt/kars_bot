@@ -4,6 +4,7 @@ mod bot_runtime;
 mod capabilities;
 mod commands;
 mod config;
+mod contracts;
 mod jobs;
 mod monitor;
 mod monitor_context;

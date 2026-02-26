@@ -6,7 +6,7 @@ mod service;
 mod state;
 
 pub use history::{MetricHistory, MetricSample};
-pub use provider::new_metrics_provider;
+pub use provider::{MetricsProvider, new_metrics_provider};
 pub use service::{
     CheckAlertsContext, MuteActionError, alert_snapshot, check_alerts, mute_alerts_for,
     take_daily_summary_report, unmute_alerts,
