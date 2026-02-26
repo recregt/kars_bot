@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::anomaly_db::record_anomaly_if_needed;
 use crate::config::{Config, RuntimeConfig};
-use crate::reporting_store::ReportingStore;
+use crate::reporting_store::ReportingStorage;
 
 use super::super::{
     evaluator::evaluate_alerts_at,
@@ -19,7 +19,7 @@ pub async fn check_alerts<P: MetricsProvider>(
     bot: &Bot,
     config: &Config,
     runtime_config: &RuntimeConfig,
-    reporting_store: Option<&ReportingStore>,
+    reporting_store: &dyn ReportingStorage,
     state: &Arc<Mutex<AlertState>>,
     metric_history: &Arc<Mutex<MetricHistory>>,
     provider: &mut P,
@@ -72,9 +72,7 @@ pub async fn check_alerts<P: MetricsProvider>(
         history.push(sample);
     }
 
-    if let Some(store) = reporting_store
-        && let Err(error) = store.record_sample(sample)
-    {
+    if let Err(error) = reporting_store.record_sample(sample) {
         log::warn!("reporting_store_write_failed error={}", error);
     }
 

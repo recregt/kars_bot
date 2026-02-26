@@ -7,7 +7,7 @@ use crate::{
     capabilities::Capabilities,
     config::{Config, Graph, RuntimeConfig},
     monitor_context::MonitorContext,
-    reporting_store::ReportingStore,
+    reporting_store::{ReportingStorage, ReportingStore},
 };
 
 #[derive(Clone)]
@@ -20,7 +20,7 @@ pub struct AppContext {
     pub monitor: MonitorContext,
     pub bot_runtime: BotRuntime,
     pub capabilities: Arc<Capabilities>,
-    pub reporting_store: Option<ReportingStore>,
+    pub reporting_store: Arc<dyn ReportingStorage>,
 }
 
 impl AppContext {
@@ -33,16 +33,7 @@ impl AppContext {
         let monitor_interval = config.monitor_interval;
         let graph_runtime = config.graph.clone();
         let runtime_config = RuntimeConfig::from_config(&config);
-        let reporting_store = match ReportingStore::open_from_config(&config) {
-            Ok(store) => store,
-            Err(error) => {
-                log::warn!(
-                    "reporting_store_disabled reason=open_failed error={}",
-                    error
-                );
-                None
-            }
-        };
+        let reporting_store = ReportingStore::new_arc_from_config(&config);
 
         Self {
             config,

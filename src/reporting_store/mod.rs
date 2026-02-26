@@ -12,6 +12,28 @@ pub use model::RollingMetricSummary;
 
 use model::{DailyRollup, StoredMetricSample};
 
+pub trait ReportingStorage: Send + Sync {
+    fn record_sample(&self, sample: MetricSample) -> Result<(), String>;
+    fn latest_window(&self, minutes: i64) -> Vec<MetricSample>;
+    fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary>;
+}
+
+/// Devre dışı olduğunda kullanılan no-op implementasyon.
+/// Option<ReportingStore> yerine her zaman geçerli bir Arc<dyn ReportingStorage> vardır.
+pub struct NullReportingStorage;
+
+impl ReportingStorage for NullReportingStorage {
+    fn record_sample(&self, _: MetricSample) -> Result<(), String> {
+        Ok(())
+    }
+    fn latest_window(&self, _: i64) -> Vec<MetricSample> {
+        vec![]
+    }
+    fn rolling_summary_days(&self, _: i64) -> Option<RollingMetricSummary> {
+        None
+    }
+}
+
 #[derive(Clone)]
 pub struct ReportingStore {
     samples: sled::Tree,
@@ -37,7 +59,23 @@ impl ReportingStore {
         }))
     }
 
-    pub fn record_sample(&self, sample: MetricSample) -> Result<(), sled::Error> {
+    pub fn new_arc_from_config(config: &Config) -> Arc<dyn ReportingStorage> {
+        match Self::open_from_config(config) {
+            Ok(Some(store)) => Arc::new(store),
+            Ok(None) => Arc::new(NullReportingStorage),
+            Err(error) => {
+                log::warn!(
+                    "reporting_store_disabled reason=open_failed error={}",
+                    error
+                );
+                Arc::new(NullReportingStorage)
+            }
+        }
+    }
+}
+
+impl ReportingStorage for ReportingStore {
+    fn record_sample(&self, sample: MetricSample) -> Result<(), String> {
         let mut key = Vec::with_capacity(12);
         key.extend_from_slice(&sample.timestamp.timestamp_millis().to_be_bytes());
         let seq = self.sequence.fetch_add(1, Ordering::Relaxed);
@@ -51,19 +89,20 @@ impl ReportingStore {
         };
 
         if let Ok(value) = serde_json::to_vec(&payload) {
-            self.samples.insert(key, value)?;
+            self.samples.insert(key, value).map_err(|e| e.to_string())?;
         }
 
-        self.update_daily_rollup(sample)?;
+        self.update_daily_rollup(sample)
+            .map_err(|e| e.to_string())?;
 
         if seq.is_multiple_of(120) {
-            self.prune_old()?;
+            self.prune_old().map_err(|e| e.to_string())?;
         }
 
         Ok(())
     }
 
-    pub fn latest_window(&self, minutes: i64) -> Vec<MetricSample> {
+    fn latest_window(&self, minutes: i64) -> Vec<MetricSample> {
         let now = Utc::now();
         let cutoff = now - ChronoDuration::minutes(minutes.max(1));
 
@@ -88,7 +127,7 @@ impl ReportingStore {
             .collect()
     }
 
-    pub fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary> {
+    fn rolling_summary_days(&self, days: i64) -> Option<RollingMetricSummary> {
         let days = days.max(1);
         let start_day = (Utc::now() - ChronoDuration::days(days - 1))
             .format("%Y-%m-%d")
@@ -96,9 +135,7 @@ impl ReportingStore {
 
         let mut summary = RollingMetricSummary::empty();
         for item in self.daily_rollups.range(start_day.as_bytes()..) {
-            let Ok((_, value)) = item else {
-                continue;
-            };
+            let Ok((_, value)) = item else { continue };
             let Ok(rollup) = serde_json::from_slice::<DailyRollup>(&value) else {
                 continue;
             };
@@ -111,7 +148,9 @@ impl ReportingStore {
 
         Some(summary.finalize())
     }
+}
 
+impl ReportingStore {
     fn update_daily_rollup(&self, sample: MetricSample) -> Result<(), sled::Error> {
         let day_key = sample.timestamp.format("%Y-%m-%d").to_string();
         let current = self

@@ -19,23 +19,17 @@ pub(crate) async fn build_weekly_cpu_report(
         return Err("graph feature is disabled in config".to_string());
     }
 
-    let samples = if let Some(store) = app_context.reporting_store.as_ref() {
-        let persisted = store.latest_window(WEEKLY_WINDOW_MINUTES);
-        if persisted.len() >= 2 {
-            persisted
-        } else {
-            let history = app_context.monitor.metric_history.lock().await;
-            history.latest_window(WEEKLY_WINDOW_MINUTES)
-        }
+    let persisted = app_context
+        .reporting_store
+        .latest_window(WEEKLY_WINDOW_MINUTES);
+    let samples = if persisted.len() >= 2 {
+        persisted
     } else {
         let history = app_context.monitor.metric_history.lock().await;
         history.latest_window(WEEKLY_WINDOW_MINUTES)
     };
 
-    let persisted_rollup = app_context
-        .reporting_store
-        .as_ref()
-        .and_then(|store| store.rolling_summary_days(7));
+    let persisted_rollup = app_context.reporting_store.rolling_summary_days(7);
 
     if samples.len() < 2 {
         return Err("not enough samples yet".to_string());

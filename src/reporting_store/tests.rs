@@ -1,3 +1,4 @@
+use crate::reporting_store::ReportingStorage;
 use std::sync::{Arc, atomic::AtomicU32};
 
 use chrono::{Duration, Utc};
