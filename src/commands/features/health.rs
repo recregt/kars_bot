@@ -3,15 +3,15 @@ use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
 
-use super::super::helpers::as_html_block;
+use super::super::helpers::{as_html_card, escape_html_text};
 use super::menu::main_menu_keyboard;
 
 pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> {
     bot.send_message(
         msg.chat.id,
-        as_html_block(
+        as_html_card(
             "Control Center",
-            "Use buttons below for common flows.\n\nMain journeys:\n- Health & status checks\n- System diagnostics\n- Monitoring, alerts and graphs\n- Recent anomalies and exports\n\nSlash commands still work if you prefer manual usage.",
+            "• Use buttons below for common flows.<br/><br/><b>Main journeys</b><br/>• Health &amp; status checks<br/>• System diagnostics<br/>• Monitoring, alerts and graphs<br/>• Recent anomalies and exports<br/><br/>Slash commands still work if you prefer manual usage.",
         ),
     )
     .reply_markup(main_menu_keyboard())
@@ -59,7 +59,12 @@ pub(crate) async fn handle_health(
         ),
     };
 
-    bot.send_message(msg.chat.id, as_html_block("Bot Health", &body))
+    let health_html = as_html_card(
+        "Bot Health",
+        &escape_html_text(&body).replace('\n', "<br/>"),
+    );
+
+    bot.send_message(msg.chat.id, health_html)
         .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;

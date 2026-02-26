@@ -50,6 +50,15 @@ pub(crate) fn as_html_block(title: &str, body: &str) -> String {
     message
 }
 
+pub(crate) fn as_html_card(title: &str, body_html: &str) -> String {
+    let escaped_title = html_escape::encode_text(title);
+    format!("<b>{escaped_title}</b>\n{body_html}")
+}
+
+pub(crate) fn escape_html_text(text: &str) -> String {
+    html_escape::encode_text(text).into_owned()
+}
+
 pub(crate) fn command_error_html(error: &CommandError) -> String {
     format!(
         "<b>Command execution failed</b>\n<pre>{}</pre>",

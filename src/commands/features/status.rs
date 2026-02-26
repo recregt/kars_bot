@@ -3,7 +3,7 @@ use teloxide::{prelude::*, types::ParseMode};
 use crate::app_context::AppContext;
 use crate::architecture::use_cases::alert_snapshot_use_case;
 
-use super::super::helpers::as_html_block;
+use super::super::helpers::{as_html_card, escape_html_text};
 use super::menu::main_menu_keyboard;
 
 pub(crate) async fn handle_status_overview(
@@ -58,7 +58,12 @@ pub(crate) async fn handle_status_overview(
         capabilities.has_uptime,
     );
 
-    bot.send_message(msg.chat.id, as_html_block("Bot Status", &body))
+    let status_html = as_html_card(
+        "Bot Status",
+        &escape_html_text(&body).replace('\n', "<br/>"),
+    );
+
+    bot.send_message(msg.chat.id, status_html)
         .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;

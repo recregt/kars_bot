@@ -4,7 +4,7 @@ use teloxide::{
     types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
 };
 
-use crate::commands::helpers::as_html_block;
+use crate::commands::helpers::as_html_card;
 
 pub(crate) fn main_menu_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new(vec![
@@ -124,22 +124,45 @@ pub(crate) async fn handle_menu_navigation(
         return Ok(());
     };
 
-    let content = as_html_block(title, description);
+    let content = as_html_card(
+        title,
+        &format!("• {}", html_escape::encode_text(description)),
+    );
+    upsert_message_with_keyboard(bot, msg, content, keyboard).await?;
 
+    Ok(())
+}
+
+pub(crate) async fn upsert_message_with_menu(
+    bot: &Bot,
+    msg: &Message,
+    content: String,
+    menu_name: &str,
+) -> ResponseResult<()> {
+    let Some(keyboard) = menu_keyboard(menu_name) else {
+        return Ok(());
+    };
+
+    upsert_message_with_keyboard(bot, msg, content, keyboard).await
+}
+
+async fn upsert_message_with_keyboard(
+    bot: &Bot,
+    msg: &Message,
+    content: String,
+    keyboard: InlineKeyboardMarkup,
+) -> ResponseResult<()> {
     match bot
         .edit_message_text(msg.chat.id, msg.id, content.clone())
-        .reply_markup(keyboard)
+        .reply_markup(keyboard.clone())
         .parse_mode(ParseMode::Html)
         .await
     {
         Ok(_) => {}
         Err(error) if is_not_modified_error(&error) => {}
         Err(_) => {
-            let Some(fallback_keyboard) = menu_keyboard(menu_name) else {
-                return Ok(());
-            };
             bot.send_message(msg.chat.id, content)
-                .reply_markup(fallback_keyboard)
+                .reply_markup(keyboard)
                 .parse_mode(ParseMode::Html)
                 .await?;
         }
@@ -151,7 +174,7 @@ pub(crate) async fn handle_menu_navigation(
 pub(crate) async fn send_navigation_hint(bot: &Bot, chat_id: ChatId) -> ResponseResult<()> {
     bot.send_message(
         chat_id,
-        as_html_block(
+        as_html_card(
             "Next",
             "Continue from menu buttons below or use /help for full command list.",
         ),
