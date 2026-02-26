@@ -10,7 +10,42 @@ use super::super::super::{
         send_html_or_file, timeout_for,
     },
 };
+use super::super::menu::send_navigation_hint;
 use super::common::unsupported_feature_message;
+
+fn summarize_memory(stdout: &str) -> Option<String> {
+    let mem_line = stdout
+        .lines()
+        .find(|line| line.trim_start().starts_with("Mem:"))?;
+    let cols: Vec<&str> = mem_line.split_whitespace().collect();
+    if cols.len() < 4 {
+        return None;
+    }
+
+    Some(format!(
+        "Memory: used {} / total {} (free {})",
+        cols[2], cols[1], cols[3]
+    ))
+}
+
+fn summarize_root_disk(stdout: &str) -> Option<String> {
+    let root_line = stdout
+        .lines()
+        .find(|line| line.split_whitespace().last() == Some("/"))?;
+    let cols: Vec<&str> = root_line.split_whitespace().collect();
+    if cols.len() < 6 {
+        return None;
+    }
+
+    Some(format!(
+        "Disk (/): used {} / size {} ({} used, avail {})",
+        cols[2], cols[1], cols[4], cols[3]
+    ))
+}
+
+fn compact_lines(text: &str, max_lines: usize) -> String {
+    text.lines().take(max_lines).collect::<Vec<_>>().join("\n")
+}
 
 pub(crate) async fn handle_sys_status(
     bot: &Bot,
@@ -41,12 +76,20 @@ pub(crate) async fn handle_sys_status(
 
     match (ram, disk) {
         (Ok(ram_out), Ok(disk_out)) => {
+            let memory_summary = summarize_memory(&ram_out.stdout)
+                .unwrap_or_else(|| "Memory summary unavailable".to_string());
+            let disk_summary = summarize_root_disk(&disk_out.stdout)
+                .unwrap_or_else(|| "Disk summary unavailable".to_string());
+
             let body = format!(
-                "RAM:\n{}\n\nDisk:\n{}",
-                command_body(&ram_out),
-                command_body(&disk_out)
+                "Summary:\n- {}\n- {}\n\nRAM (details):\n{}\n\nDisk (details):\n{}",
+                memory_summary,
+                disk_summary,
+                compact_lines(&command_body(&ram_out), 12),
+                compact_lines(&command_body(&disk_out), 12)
             );
             send_html_or_file(bot, msg.chat.id, "System Snapshot", &body).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         (Err(error), _) | (_, Err(error)) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -91,6 +134,7 @@ pub(crate) async fn handle_ports(
                 config.config.security.redact_sensitive_output,
             );
             send_html_or_file(bot, msg.chat.id, "Open Ports", &body).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -154,6 +198,7 @@ pub(crate) async fn handle_services(
             let redacted =
                 maybe_redact_sensitive_output(body, config.config.security.redact_sensitive_output);
             send_html_or_file(bot, msg.chat.id, "Active Services", &redacted).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))

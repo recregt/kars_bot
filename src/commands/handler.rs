@@ -1,4 +1,5 @@
 use super::command_def::MyCommands;
+use super::features::menu::handle_menu_navigation;
 use super::helpers::is_authorized;
 use super::router::route_command;
 use crate::app_context::AppContext;
@@ -61,6 +62,10 @@ pub async fn answer_callback(
 
     if !authorized {
         return Ok(());
+    }
+
+    if let Some(menu_name) = data.strip_prefix("menu:") {
+        return handle_menu_navigation(&bot, &msg, menu_name, &app_context.capabilities).await;
     }
 
     // "cmd:graph:cpu 1h" → "/graph cpu 1h"

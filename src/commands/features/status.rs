@@ -1,12 +1,10 @@
-use teloxide::{
-    prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
-};
+use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
 use crate::architecture::use_cases::alert_snapshot_use_case;
 
-use super::super::helpers::as_html_block;
+use super::super::helpers::{as_html_card, escape_html_text};
+use super::menu::main_menu_keyboard;
 
 pub(crate) async fn handle_status_overview(
     bot: &Bot,
@@ -30,7 +28,7 @@ pub(crate) async fn handle_status_overview(
     let capabilities = app_context.capabilities.as_ref();
 
     let body = format!(
-        "Auth Mode: Owner Only (DM)\nStorage: Hierarchical JSONL + Indexed\nMaintenance: {}\nRetention: {} days\nAnomaly dir: {}\n\nRuntime:\n- Monitor interval: {}s\n- Last monitor tick: {}\n- Mute state: {}\n\nReporting Store:\n- enabled: {}\n- path: {}\n- retention: {} days\n\nSecurity:\n- redact_sensitive_output: {}\n\nSimulation:\n- enabled: {}\n- profile: {}\n\nGraph Runtime:\n- enabled: {}\n- default window: {}m\n- max window: {}h\n- max points: {}\n\nCapabilities:\n- is_systemd: {}\n- has_sensors: {}\n- has_free: {}\n- has_top: {}\n- has_ip: {}\n- has_ss: {}\n- has_uptime: {}\n\nQuick Action Safety:\n- Buttons prefill commands only; execution happens after you manually send.\n\nSmart Query Examples:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85",
+        "Auth Mode: Owner Only (DM)\nStorage: Hierarchical JSONL + Indexed\nMaintenance: {}\nRetention: {} days\nAnomaly dir: {}\n\nRuntime:\n- Monitor interval: {}s\n- Last monitor tick: {}\n- Mute state: {}\n\nReporting Store:\n- enabled: {}\n- path: {}\n- retention: {} days\n\nSecurity:\n- redact_sensitive_output: {}\n\nSimulation:\n- enabled: {}\n- profile: {}\n\nGraph Runtime:\n- enabled: {}\n- default window: {}m\n- max window: {}h\n- max points: {}\n\nCapabilities:\n- is_systemd: {}\n- has_sensors: {}\n- has_free: {}\n- has_top: {}\n- has_ip: {}\n- has_ss: {}\n- has_uptime: {}\n\nButton-first UX:\n- Use menu buttons below to run actions directly.\n- Slash commands are optional for advanced queries.\n\nAdvanced examples:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85",
         if app_context.config.anomaly_db.enabled {
             "Active (Hourly)"
         } else {
@@ -60,23 +58,13 @@ pub(crate) async fn handle_status_overview(
         capabilities.has_uptime,
     );
 
-    let quick_actions = InlineKeyboardMarkup::new(vec![
-        vec![
-            InlineKeyboardButton::callback("📈 Graph CPU", "cmd:graph:cpu 1h"),
-            InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("🔇 Mute 1h", "cmd:mute:1h"),
-            InlineKeyboardButton::callback("🔔 Unmute", "cmd:unmute"),
-        ],
-        vec![InlineKeyboardButton::switch_inline_query_current_chat(
-            "🩺 Health",
-            "/health",
-        )],
-    ]);
+    let status_html = as_html_card(
+        "Bot Status",
+        &escape_html_text(&body).replace('\n', "<br/>"),
+    );
 
-    bot.send_message(msg.chat.id, as_html_block("Bot Status", &body))
-        .reply_markup(quick_actions)
+    bot.send_message(msg.chat.id, status_html)
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 

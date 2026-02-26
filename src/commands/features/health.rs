@@ -1,39 +1,24 @@
 use chrono::Utc;
-use teloxide::{
-    prelude::*,
-    types::{InlineKeyboardButton, InlineKeyboardMarkup, ParseMode},
-    utils::command::BotCommands,
-};
+use teloxide::{prelude::*, types::ParseMode};
 
 use crate::app_context::AppContext;
 
-use super::super::{command_def::MyCommands, helpers::as_html_block};
+use super::super::helpers::{as_html_card, escape_html_text};
+use super::menu::main_menu_keyboard;
 
-pub(crate) async fn handle_help(bot: &Bot, msg: &Message) -> ResponseResult<()> {
-    let quick_actions = InlineKeyboardMarkup::new(vec![
-        vec![
-            InlineKeyboardButton::callback("📊 Status", "cmd:status"),
-            InlineKeyboardButton::callback("💓 Health", "cmd:health"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("📈 Graph CPU", "cmd:graph:cpu 1h"),
-            InlineKeyboardButton::callback("🧾 Recent 6h", "cmd:recent:6h"),
-        ],
-        vec![
-            InlineKeyboardButton::callback("🚨 Alerts", "cmd:alerts"),
-            InlineKeyboardButton::callback("🔇 Mute 1h", "cmd:mute:1h"),
-            InlineKeyboardButton::callback("🔔 Unmute", "cmd:unmute"),
-        ],
-    ]);
-
+pub(crate) async fn handle_help(
+    bot: &Bot,
+    msg: &Message,
+    app_context: &AppContext,
+) -> ResponseResult<()> {
     bot.send_message(
         msg.chat.id,
-        as_html_block(
-            "Available commands",
-            &MyCommands::descriptions().to_string(),
+        as_html_card(
+            "Control Center",
+            "• Use buttons below for common flows.<br/><br/><b>Main journeys</b><br/>• Health &amp; status checks<br/>• System diagnostics<br/>• Monitoring, alerts and graphs<br/>• Recent anomalies and exports<br/><br/>Slash commands still work if you prefer manual usage.",
         ),
     )
-    .reply_markup(quick_actions)
+    .reply_markup(main_menu_keyboard(&app_context.capabilities))
     .parse_mode(ParseMode::Html)
     .await?;
 
@@ -78,7 +63,13 @@ pub(crate) async fn handle_health(
         ),
     };
 
-    bot.send_message(msg.chat.id, as_html_block("Bot Health", &body))
+    let health_html = as_html_card(
+        "Bot Health",
+        &escape_html_text(&body).replace('\n', "<br/>"),
+    );
+
+    bot.send_message(msg.chat.id, health_html)
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 

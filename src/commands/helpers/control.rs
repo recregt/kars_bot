@@ -15,7 +15,9 @@ const TELEGRAM_FILE_FALLBACK_THRESHOLD: usize = 3900;
 
 pub(crate) fn timeout_for(cmd: &MyCommands, command_timeout_secs: u64) -> u64 {
     match cmd {
-        MyCommands::Status
+        MyCommands::Start
+        | MyCommands::Menu
+        | MyCommands::Status
         | MyCommands::Sysstatus
         | MyCommands::Ports
         | MyCommands::Cpu

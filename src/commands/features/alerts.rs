@@ -6,7 +6,8 @@ use crate::architecture::{
     use_cases::{alert_snapshot_use_case, mute_alerts_use_case, unmute_alerts_use_case},
 };
 
-use super::super::helpers::{as_html_block, parse_mute_duration};
+use super::super::helpers::{as_html_card, escape_html_text, parse_mute_duration};
+use super::menu::{main_menu_keyboard, upsert_message_with_menu};
 
 pub(crate) async fn handle_alerts(
     bot: &Bot,
@@ -44,7 +45,13 @@ pub(crate) async fn handle_alerts(
         if snapshot.disk_alerting { "yes" } else { "no" }
     );
 
-    bot.send_message(msg.chat.id, as_html_block("Alert Configuration", &body))
+    let alert_html = as_html_card(
+        "Alert Configuration",
+        &escape_html_text(&body).replace('\n', "<br/>"),
+    );
+
+    bot.send_message(msg.chat.id, alert_html)
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
 
@@ -58,35 +65,36 @@ pub(crate) async fn handle_mute(
     duration_str: &str,
 ) -> ResponseResult<()> {
     let Some(duration) = parse_mute_duration(duration_str) else {
-        let message = as_html_block(
+        let message = as_html_card(
             "Mute failed",
-            "Invalid duration. Use format like: 30s, 15m, 2h, 1d",
+            "Invalid duration. Use format like: <b>30s</b>, <b>15m</b>, <b>2h</b>, <b>1d</b>.",
         );
-        bot.send_message(msg.chat.id, message)
-            .parse_mode(ParseMode::Html)
-            .await?;
+        upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
         return Ok(());
     };
 
     let muted_until = match mute_alerts_use_case(&app_context.monitor.alert_state, duration).await {
         Ok(until) => until,
         Err(MuteActionError::Cooldown { retry_after_secs }) => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    "Mute cooldown",
-                    &format!("Please wait {retry_after_secs}s before changing mute state again."),
+            let message = as_html_card(
+                "Mute cooldown",
+                &format!(
+                    "Please wait <b>{retry_after_secs}s</b> before changing mute state again."
                 ),
-            )
-            .parse_mode(ParseMode::Html)
-            .await?;
+            );
+            upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities)
+                .await?;
             return Ok(());
         }
     };
-    let body = format!("Alerts are muted until {}", muted_until.to_rfc3339());
-    bot.send_message(msg.chat.id, as_html_block("Alerts muted", &body))
-        .parse_mode(ParseMode::Html)
-        .await?;
+    let message = as_html_card(
+        "Alerts muted ✅",
+        &format!(
+            "Alerts are muted until <b>{}</b>.<br/><br/>You can continue from the Monitor menu below.",
+            escape_html_text(&muted_until.to_rfc3339())
+        ),
+    );
+    upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
 
     Ok(())
 }
@@ -99,23 +107,18 @@ pub(crate) async fn handle_unmute(
     if let Err(MuteActionError::Cooldown { retry_after_secs }) =
         unmute_alerts_use_case(&app_context.monitor.alert_state).await
     {
-        bot.send_message(
-            msg.chat.id,
-            as_html_block(
-                "Unmute cooldown",
-                &format!("Please wait {retry_after_secs}s before changing mute state again."),
-            ),
-        )
-        .parse_mode(ParseMode::Html)
-        .await?;
+        let message = as_html_card(
+            "Unmute cooldown",
+            &format!("Please wait <b>{retry_after_secs}s</b> before changing mute state again."),
+        );
+        upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
         return Ok(());
     }
-    bot.send_message(
-        msg.chat.id,
-        as_html_block("Alerts unmuted", "Alerts are active again."),
-    )
-    .parse_mode(ParseMode::Html)
-    .await?;
+    let message = as_html_card(
+        "Alerts unmuted ✅",
+        "Alerts are active again.<br/><br/>You can continue from the Monitor menu below.",
+    );
+    upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
 
     Ok(())
 }

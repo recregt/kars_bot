@@ -10,7 +10,46 @@ use super::super::super::{
         maybe_redact_sensitive_output, send_html_or_file, timeout_for,
     },
 };
+use super::super::menu::send_navigation_hint;
 use super::common::unsupported_feature_message;
+
+fn summarize_interfaces(stdout: &str) -> String {
+    let interfaces = stdout
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if !trimmed
+                .chars()
+                .next()
+                .map(|ch| ch.is_ascii_digit())
+                .unwrap_or(false)
+            {
+                return None;
+            }
+
+            let mut parts = trimmed.splitn(3, ':');
+            let _idx = parts.next()?;
+            let name = parts.next()?.trim();
+
+            if name.is_empty() {
+                None
+            } else {
+                Some(name.to_string())
+            }
+        })
+        .filter(|name| name != "lo")
+        .collect::<Vec<_>>();
+
+    if interfaces.is_empty() {
+        return "Interfaces: no non-loopback interface detected".to_string();
+    }
+
+    format!("Interfaces: {}", interfaces.join(", "))
+}
+
+fn compact_lines(text: &str, max_lines: usize) -> String {
+    text.lines().take(max_lines).collect::<Vec<_>>().join("\n")
+}
 
 pub(crate) async fn handle_cpu(
     bot: &Bot,
@@ -58,6 +97,7 @@ pub(crate) async fn handle_cpu(
     bot.send_message(msg.chat.id, message)
         .parse_mode(ParseMode::Html)
         .await?;
+    send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
 
     Ok(())
 }
@@ -93,11 +133,14 @@ pub(crate) async fn handle_network(
     {
         Ok(output) => {
             let raw_body = command_body(&output);
+            let summary = summarize_interfaces(&output.stdout);
+            let compact = compact_lines(&raw_body, 24);
             let body = maybe_redact_sensitive_output(
-                &raw_body,
+                &format!("{}\n\nDetails:\n{}", summary, compact),
                 config.config.security.redact_sensitive_output,
             );
             send_html_or_file(bot, msg.chat.id, "Network Statistics", &body).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -141,6 +184,7 @@ pub(crate) async fn handle_uptime(
         Ok(output) => {
             let body = command_body(&output);
             send_html_or_file(bot, msg.chat.id, "System Uptime", &body).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))
@@ -184,6 +228,7 @@ pub(crate) async fn handle_temp(
         Ok(output) => {
             let body = command_body(&output);
             send_html_or_file(bot, msg.chat.id, "Temperature Sensors", &body).await?;
+            send_navigation_hint(bot, msg.chat.id, &config.capabilities).await?;
         }
         Err(error) => {
             bot.send_message(msg.chat.id, command_error_html(&error))

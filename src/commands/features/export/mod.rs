@@ -3,6 +3,7 @@ use teloxide::{prelude::*, types::InputFile, types::ParseMode};
 use crate::app_context::AppContext;
 
 use super::super::helpers::{acquire_command_slot, as_html_block};
+use super::menu::main_menu_keyboard;
 use parser::{format_window_suffix, parse_export_request};
 use payload::build_export_payload;
 
@@ -29,6 +30,7 @@ pub(crate) async fn handle_export(
             msg.chat.id,
             as_html_block("Export Disabled", "Export feature is disabled in config."),
         )
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -43,6 +45,7 @@ pub(crate) async fn handle_export(
             msg.chat.id,
             as_html_block("Export Usage", EXPORT_USAGE_TEXT),
         )
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -58,6 +61,7 @@ pub(crate) async fn handle_export(
             msg.chat.id,
             as_html_block("Export", "not enough samples yet"),
         )
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -78,6 +82,7 @@ pub(crate) async fn handle_export(
                 msg.chat.id,
                 as_html_block("Export", &format!("Could not build export: {error}")),
             )
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
             .parse_mode(ParseMode::Html)
             .await?;
             return Ok(());
@@ -91,6 +96,7 @@ pub(crate) async fn handle_export(
             request.metric.as_str(),
             format_window_suffix(request.window_minutes)
         ))
+        .reply_markup(main_menu_keyboard(&app_context.capabilities))
         .await?;
 
     Ok(())
