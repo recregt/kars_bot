@@ -47,7 +47,7 @@ impl ReportingStorage for InMemoryReportingStore {
         let guard = self.samples.lock().unwrap();
         guard
             .iter()
-            .cloned()
+            .copied()
             .filter(|s| s.timestamp >= cutoff)
             .collect()
     }
@@ -118,10 +118,7 @@ impl ReportingStore {
             Ok(Some(store)) => Arc::new(store),
             Ok(None) => Arc::new(NullReportingStorage),
             Err(error) => {
-                log::warn!(
-                    "reporting_store_disabled reason=open_failed error={}",
-                    error
-                );
+                log::warn!("reporting_store_disabled reason=open_failed error={error}");
                 Arc::new(NullReportingStorage)
             }
         }
@@ -166,7 +163,7 @@ impl ReportingStorage for ReportingStore {
 
         self.samples
             .range(start_key..)
-            .filter_map(|item| item.ok())
+            .filter_map(std::result::Result::ok)
             .filter_map(|(_, value)| serde_json::from_slice::<StoredMetricSample>(&value).ok())
             .filter_map(|item| {
                 chrono::DateTime::parse_from_rfc3339(&item.timestamp_utc)
@@ -227,14 +224,14 @@ impl ReportingStore {
     }
 
     fn prune_old(&self) -> Result<(), sled::Error> {
-        let cutoff = Utc::now() - ChronoDuration::days(self.retention_days as i64);
+        let cutoff = Utc::now() - ChronoDuration::days(i64::from(self.retention_days));
         let cutoff_key = cutoff.timestamp_millis().to_be_bytes();
 
         let keys_to_remove = self
             .samples
             .iter()
             .keys()
-            .filter_map(|key| key.ok())
+            .filter_map(std::result::Result::ok)
             .take_while(|key| {
                 key.as_ref().len() >= 8 && &key.as_ref()[0..8] < cutoff_key.as_slice()
             })
@@ -249,7 +246,7 @@ impl ReportingStore {
             .daily_rollups
             .iter()
             .keys()
-            .filter_map(|key| key.ok())
+            .filter_map(std::result::Result::ok)
             .filter_map(|key| String::from_utf8(key.to_vec()).ok())
             .take_while(|day| day < &cutoff_day)
             .collect::<Vec<_>>();

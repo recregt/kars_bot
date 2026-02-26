@@ -57,10 +57,7 @@ pub(crate) async fn handle_update(
             msg.chat.id,
             as_html_block(
                 "Update",
-                &format!(
-                    "No newer release found. Current v{} is up to date.",
-                    CURRENT_VERSION
-                ),
+                &format!("No newer release found. Current v{CURRENT_VERSION} is up to date."),
             ),
         )
         .parse_mode(ParseMode::Html)
@@ -90,7 +87,7 @@ pub(crate) async fn handle_update(
             msg.chat.id,
             as_html_block(
                 "Update",
-                &format!("Update apply is blocked by pre-checks.\n{}", detail),
+                &format!("Update apply is blocked by pre-checks.\n{detail}"),
             ),
         )
         .parse_mode(ParseMode::Html)
@@ -102,10 +99,7 @@ pub(crate) async fn handle_update(
         msg.chat.id,
         as_html_block(
             "Update",
-            &format!(
-                "Starting update to v{}. Service may restart during apply.",
-                latest_version
-            ),
+            &format!("Starting update to v{latest_version}. Service may restart during apply."),
         ),
     )
     .parse_mode(ParseMode::Html)
@@ -122,7 +116,7 @@ pub(crate) async fn handle_update(
         Err(error) => {
             bot.send_message(
                 msg.chat.id,
-                as_html_block("Update", &format!("Update apply failed: {}", error)),
+                as_html_block("Update", &format!("Update apply failed: {error}")),
             )
             .parse_mode(ParseMode::Html)
             .await?;
@@ -140,20 +134,18 @@ async fn send_update_check(
     readiness: Result<(bool, String), String>,
 ) -> ResponseResult<()> {
     let readiness_line = match readiness {
-        Ok((true, details)) => format!("Apply readiness: ready\n{}", details),
-        Ok((false, details)) => format!("Apply readiness: blocked\n{}", details),
-        Err(error) => format!("Apply readiness: check failed ({})", error),
+        Ok((true, details)) => format!("Apply readiness: ready\n{details}"),
+        Ok((false, details)) => format!("Apply readiness: blocked\n{details}"),
+        Err(error) => format!("Apply readiness: check failed ({error})"),
     };
 
     let body = if compare == Ordering::Less {
         format!(
-            "Current: v{}\nLatest: v{}\n\nUpdate available.\nRun /update apply to trigger controlled restart.\n\n{}",
-            CURRENT_VERSION, latest_version, readiness_line
+            "Current: v{CURRENT_VERSION}\nLatest: v{latest_version}\n\nUpdate available.\nRun /update apply to trigger controlled restart.\n\n{readiness_line}"
         )
     } else {
         format!(
-            "Current: v{}\nLatest: v{}\n\nYou are up to date.\n\n{}",
-            CURRENT_VERSION, latest_version, readiness_line
+            "Current: v{CURRENT_VERSION}\nLatest: v{latest_version}\n\nYou are up to date.\n\n{readiness_line}"
         )
     };
 

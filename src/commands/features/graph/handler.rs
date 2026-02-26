@@ -58,7 +58,7 @@ pub(crate) async fn handle_graph(
             msg.chat.id,
             as_html_block(
                 "Graph Cooldown",
-                &format!("Please wait {}s before using /graph again.", remaining_secs),
+                &format!("Please wait {remaining_secs}s before using /graph again."),
             ),
         )
         .parse_mode(ParseMode::Html)
@@ -81,20 +81,19 @@ pub(crate) async fn handle_graph(
         .await?;
         return Ok(());
     }
-    let summary = match compute_metric_summary(request.metric, &samples) {
-        Some(summary) => summary,
-        None => {
-            bot.send_message(
-                msg.chat.id,
-                as_html_block(
-                    &format!("{} Graph", request.metric.title()),
-                    "not enough samples yet",
-                ),
-            )
-            .parse_mode(ParseMode::Html)
-            .await?;
-            return Ok(());
-        }
+    let summary = if let Some(summary) = compute_metric_summary(request.metric, &samples) {
+        summary
+    } else {
+        bot.send_message(
+            msg.chat.id,
+            as_html_block(
+                &format!("{} Graph", request.metric.title()),
+                "not enough samples yet",
+            ),
+        )
+        .parse_mode(ParseMode::Html)
+        .await?;
+        return Ok(());
     };
     let threshold = request.metric.threshold(&runtime_config.alerts);
     let anomaly_labels = assess_anomaly_labels(request.metric, &samples, threshold)
@@ -160,9 +159,9 @@ pub(crate) async fn handle_graph(
                 summary.max,
                 summary.avg,
                 if anomaly_labels.is_empty() {
-                    "".to_string()
+                    String::new()
                 } else {
-                    format!(" | {}", anomaly_labels)
+                    format!(" | {anomaly_labels}")
                 }
             ))
             .await?;

@@ -55,13 +55,11 @@ pub(crate) async fn handle_health(
             let lag_secs = now.signed_duration_since(tick).num_seconds().max(0);
             let status_line = if lag_secs > threshold_secs {
                 format!(
-                    "⚠️ CRITICAL: Monitor loop is delayed. Last tick: {}s ago (threshold: {}s)",
-                    lag_secs, threshold_secs
+                    "⚠️ CRITICAL: Monitor loop is delayed. Last tick: {lag_secs}s ago (threshold: {threshold_secs}s)"
                 )
             } else {
                 format!(
-                    "✅ Healthy. Last monitor tick: {}s ago (threshold: {}s)",
-                    lag_secs, threshold_secs
+                    "✅ Healthy. Last monitor tick: {lag_secs}s ago (threshold: {threshold_secs}s)"
                 )
             };
 

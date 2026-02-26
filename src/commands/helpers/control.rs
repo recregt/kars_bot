@@ -63,7 +63,7 @@ pub(crate) async fn acquire_command_slot(
     match command_slots.clone().acquire_owned().await {
         Ok(permit) => Ok(Some(permit)),
         Err(error) => {
-            log::error!("failed to acquire command semaphore: {}", error);
+            log::error!("failed to acquire command semaphore: {error}");
             bot.send_message(
                 msg.chat.id,
                 as_html_block(

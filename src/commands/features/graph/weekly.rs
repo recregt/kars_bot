@@ -109,9 +109,9 @@ pub(crate) async fn build_weekly_cpu_report(
             max_cpu,
             avg_cpu,
             if anomaly_labels.is_empty() {
-                "".to_string()
+                String::new()
             } else {
-                format!(" | {}", anomaly_labels)
+                format!(" | {anomaly_labels}")
             },
             rollup_suffix,
         ),

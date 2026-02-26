@@ -40,7 +40,7 @@ pub fn record_anomaly_if_needed(config: &Config, cpu: f32, ram: f32, disk: f32) 
 
     let paths = paths_from_config(config);
     if let Err(error) = ensure_db_dirs(&paths) {
-        log::warn!("anomaly db: failed to create directory: {}", error);
+        log::warn!("anomaly db: failed to create directory: {error}");
         return;
     }
 
@@ -58,7 +58,7 @@ pub fn record_anomaly_if_needed(config: &Config, cpu: f32, ram: f32, disk: f32) 
         config.anomaly_db.max_file_size_bytes,
         config.anomaly_db.retention_days,
     ) {
-        log::warn!("anomaly db: failed to write event line: {}", error);
+        log::warn!("anomaly db: failed to write event line: {error}");
         return;
     }
 
@@ -83,7 +83,7 @@ pub fn record_anomaly_if_needed(config: &Config, cpu: f32, ram: f32, disk: f32) 
     };
     let index_path = paths.index_dir.join(index_file_name);
     if let Err(error) = append_json_line(&index_path, &index_entry) {
-        log::warn!("anomaly db: failed to write index line: {}", error);
+        log::warn!("anomaly db: failed to write index line: {error}");
     }
 }
 
@@ -153,29 +153,17 @@ mod tests {
 #[cfg(test)]
 mod storage_tests {
     use crate::anomaly_db::AnomalyStorage;
-    use crate::config::Config;
 
     #[tokio::test]
     async fn in_memory_storage_records_events_without_disk() {
-        let config = Config {
-            bot_token: "tok".to_string(),
-            owner_id: 1,
-            monitor_interval: 1,
-            command_timeout_secs: 1,
-            alerts: crate::config::Alerts::default(),
-            daily_summary: crate::config::DailySummary::default(),
-            weekly_report: crate::config::WeeklyReport::default(),
-            graph: crate::config::Graph::default(),
-            anomaly_db: crate::config::AnomalyDb {
-                enabled: true,
-                dir: "logs".to_string(),
-                max_file_size_bytes: 0,
-                retention_days: 0,
-            },
-            simulation: crate::config::Simulation::default(),
-            reporting_store: crate::config::ReportingStoreConfig::default(),
-            release_notifier: crate::config::ReleaseNotifierConfig::default(),
-            security: crate::config::Security::default(),
+        let mut config = crate::config::test_utils::base_test_config();
+        config.monitor_interval = 1;
+        config.command_timeout_secs = 1;
+        config.anomaly_db = crate::config::AnomalyDb {
+            enabled: true,
+            dir: "logs".to_string(),
+            max_file_size_bytes: 0,
+            retention_days: 0,
         };
 
         let store = crate::anomaly_db::InMemoryAnomalyStorage::new();

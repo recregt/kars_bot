@@ -23,8 +23,7 @@ pub(crate) async fn handle_recent_anomalies(
                 as_html_block(
                     "Recent anomalies",
                     &format!(
-                        "Invalid query: {}\n\nUsage:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85\n/recent cpu>85 ram>80 6h",
-                        error
+                        "Invalid query: {error}\n\nUsage:\n/recent\n/recent 5\n/recent 6h\n/recent cpu>85\n/recent cpu>85 ram>80 6h"
                     ),
                 ),
             )

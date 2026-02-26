@@ -39,23 +39,20 @@ async fn perform_release_notify<N: Notifier>(notifier: &N, config: &crate::confi
     let owner_chat_id = match config.owner_chat_id() {
         Ok(chat_id) => chat_id,
         Err(error) => {
-            log::error!("release notify skipped: invalid owner chat id: {}", error);
+            log::error!("release notify skipped: invalid owner chat id: {error}");
             return;
         }
     };
 
-    let message = format!(
-        "🚀 Deploy Notification\n\nVersion: v{}\n\n{}",
-        version, notes
-    );
+    let message = format!("🚀 Deploy Notification\n\nVersion: v{version}\n\n{notes}");
 
     if let Err(error) = notifier.send_message(owner_chat_id, message).await {
-        log::warn!("release notify send failed: {}", error);
+        log::warn!("release notify send failed: {error}");
         return;
     }
 
     if let Err(error) = write_notified_version(&state_path, version) {
-        log::warn!("release notify state write failed: {}", error);
+        log::warn!("release notify state write failed: {error}");
     }
 }
 
@@ -65,7 +62,7 @@ fn read_notified_version(path: &Path) -> Option<String> {
         .ok()?
         .get("last_notified_version")?
         .as_str()
-        .map(|s| s.to_string())
+        .map(std::string::ToString::to_string)
 }
 
 fn write_notified_version(path: &Path, version: &str) -> Result<(), std::io::Error> {
@@ -95,24 +92,13 @@ mod tests {
         let changelog = dir.path().join("CHANGELOG.md");
         fs::write(&changelog, "### v1.0.0\n- test").unwrap();
 
-        let config = crate::config::Config {
-            bot_token: "tok".to_string(),
-            owner_id: 1,
-            monitor_interval: 1,
-            command_timeout_secs: 1,
-            alerts: Default::default(),
-            daily_summary: Default::default(),
-            weekly_report: Default::default(),
-            graph: Default::default(),
-            anomaly_db: Default::default(),
-            simulation: Default::default(),
-            reporting_store: Default::default(),
-            release_notifier: crate::config::ReleaseNotifierConfig {
-                enabled: true,
-                changelog_path: changelog.to_string_lossy().to_string(),
-                state_path: dir.path().join("state.json").to_string_lossy().to_string(),
-            },
-            security: Default::default(),
+        let mut config = crate::config::test_utils::base_test_config();
+        config.monitor_interval = 1;
+        config.command_timeout_secs = 1;
+        config.release_notifier = crate::config::ReleaseNotifierConfig {
+            enabled: true,
+            changelog_path: changelog.to_string_lossy().to_string(),
+            state_path: dir.path().join("state.json").to_string_lossy().to_string(),
         };
 
         let notifier = SpyNotifier::new();

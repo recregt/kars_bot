@@ -16,16 +16,13 @@ pub async fn answer(
     if !is_authorized(&msg, config) {
         let owner_user_id = config
             .owner_user_id()
-            .map(|id| id.0.to_string())
-            .unwrap_or_else(|_| "invalid_owner_id".to_string());
+            .map_or_else(|_| "invalid_owner_id".to_string(), |id| id.0.to_string());
         let owner_chat_id = config
             .owner_chat_id()
-            .map(|id| id.0.to_string())
-            .unwrap_or_else(|_| "invalid_owner_id".to_string());
+            .map_or_else(|_| "invalid_owner_id".to_string(), |id| id.0.to_string());
         let user_id = msg
             .from()
-            .map(|user| user.id.0.to_string())
-            .unwrap_or_else(|| "unknown".to_string());
+            .map_or_else(|| "unknown".to_string(), |user| user.id.0.to_string());
         log::warn!(
             "SECURITY: Unauthorized access attempt. mode=owner_dm_only expected_user_id={} expected_chat_id={} user_id={} chat_id={} command_text={:?}",
             owner_user_id,

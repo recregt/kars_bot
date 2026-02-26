@@ -15,7 +15,7 @@ pub fn run_maintenance(config: &Config) {
 
     let paths = paths_from_config(config);
     if let Err(error) = ensure_db_dirs(&paths) {
-        log::warn!("anomaly db maintenance: failed to ensure dirs: {}", error);
+        log::warn!("anomaly db maintenance: failed to ensure dirs: {error}");
         return;
     }
 
@@ -49,7 +49,7 @@ fn prune_directory_by_date_prefix(
     };
 
     let today = Utc::now().date_naive();
-    let keep_for = ChronoDuration::days(retention_days as i64);
+    let keep_for = ChronoDuration::days(i64::from(retention_days));
     let mut removed_days = HashSet::new();
 
     for entry in entries.flatten() {
@@ -104,7 +104,7 @@ fn remove_matching_date_files(dir: &Path, prefix: &str, day: &str) {
             continue;
         };
 
-        let expected_prefix = format!("{}{}", prefix, day);
+        let expected_prefix = format!("{prefix}{day}");
         if !name.starts_with(&expected_prefix) || !name.contains(".jsonl") {
             continue;
         }

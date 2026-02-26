@@ -62,10 +62,7 @@ mod tests {
 
     use tokio::sync::Mutex;
 
-    use crate::config::{
-        Alerts, Config, Graph, ReleaseNotifierConfig, ReportingStoreConfig, Security, Simulation,
-        WeeklyReport,
-    };
+    use crate::config::{Config, test_utils::base_test_config};
 
     use super::{AlertState, Metrics, evaluate_alerts_at};
     use crate::monitor::provider::{
@@ -73,27 +70,13 @@ mod tests {
     };
 
     fn test_config() -> Config {
-        Config {
-            bot_token: "token".to_string(),
-            owner_id: 1,
-            alerts: Alerts {
-                cpu: 80.0,
-                ram: 80.0,
-                disk: 80.0,
-                cooldown_secs: 300,
-                hysteresis: 5.0,
-            },
-            monitor_interval: 10,
-            command_timeout_secs: 30,
-            daily_summary: Default::default(),
-            weekly_report: WeeklyReport::default(),
-            graph: Graph::default(),
-            anomaly_db: Default::default(),
-            simulation: Simulation::default(),
-            reporting_store: ReportingStoreConfig::default(),
-            release_notifier: ReleaseNotifierConfig::default(),
-            security: Security::default(),
-        }
+        let mut config = base_test_config();
+        config.alerts.cpu = 80.0;
+        config.alerts.ram = 80.0;
+        config.alerts.disk = 80.0;
+        config.alerts.cooldown_secs = 300;
+        config.alerts.hysteresis = 5.0;
+        config
     }
 
     #[tokio::test]

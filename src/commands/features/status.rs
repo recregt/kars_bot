@@ -24,9 +24,8 @@ pub(crate) async fn handle_status_overview(
         _ => "not muted".to_string(),
     };
 
-    let last_tick_text = last_monitor_tick
-        .map(|tick| tick.to_rfc3339())
-        .unwrap_or_else(|| "not available yet".to_string());
+    let last_tick_text =
+        last_monitor_tick.map_or_else(|| "not available yet".to_string(), |tick| tick.to_rfc3339());
 
     let capabilities = app_context.capabilities.as_ref();
 

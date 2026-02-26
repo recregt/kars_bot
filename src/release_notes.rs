@@ -6,8 +6,8 @@ pub fn release_notes_for_version(changelog_path: &str, version: &str) -> Option<
 }
 
 fn extract_release_section(content: &str, version: &str) -> Option<String> {
-    let with_v = format!("## v{}", version);
-    let without_v = format!("## {}", version);
+    let with_v = format!("## v{version}");
+    let without_v = format!("## {version}");
 
     let mut in_target = false;
     let mut lines = Vec::new();

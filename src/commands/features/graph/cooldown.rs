@@ -12,7 +12,7 @@ pub(super) async fn graph_cooldown_remaining_secs(app_context: &AppContext) -> O
     if let Some(previous) = *last_used {
         let elapsed = now.saturating_duration_since(previous);
         if elapsed < cooldown {
-            let remaining = cooldown - elapsed;
+            let remaining = cooldown.checked_sub(elapsed).unwrap();
             return Some(remaining.as_secs().max(1));
         }
     }

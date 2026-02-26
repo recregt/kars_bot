@@ -76,7 +76,7 @@ pub(crate) async fn handle_export(
         Err(error) => {
             bot.send_message(
                 msg.chat.id,
-                as_html_block("Export", &format!("Could not build export: {}", error)),
+                as_html_block("Export", &format!("Could not build export: {error}")),
             )
             .parse_mode(ParseMode::Html)
             .await?;

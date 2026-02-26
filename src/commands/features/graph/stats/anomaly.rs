@@ -38,7 +38,7 @@ pub(crate) fn assess_anomaly_labels(
 
     let values: Vec<f64> = samples
         .iter()
-        .map(|sample| metric.value(sample) as f64)
+        .map(|sample| f64::from(metric.value(sample)))
         .collect();
 
     let mean = values.iter().sum::<f64>() / values.len() as f64;
@@ -70,7 +70,7 @@ fn detect_spike(samples: &[MetricSample], metric: GraphMetric, mean: f64, stddev
     let return_threshold = mean + (SPIKE_RETURN_STDDEV_MULTIPLIER * stddev);
 
     for (idx, sample) in samples.iter().enumerate() {
-        let value = metric.value(sample) as f64;
+        let value = f64::from(metric.value(sample));
         if value < spike_threshold {
             continue;
         }
@@ -86,7 +86,7 @@ fn detect_spike(samples: &[MetricSample], metric: GraphMetric, mean: f64, stddev
                 break;
             }
 
-            if (metric.value(next) as f64) <= return_threshold {
+            if f64::from(metric.value(next)) <= return_threshold {
                 return true;
             }
         }

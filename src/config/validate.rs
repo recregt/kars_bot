@@ -170,8 +170,7 @@ impl Config {
 fn validate_percentage(field: &str, value: f32) -> Result<(), ConfigError> {
     if value.is_nan() || !(0.0..=100.0).contains(&value) {
         return Err(ConfigError::Validation(format!(
-            "{} must be between 0 and 100",
-            field
+            "{field} must be between 0 and 100"
         )));
     }
     Ok(())

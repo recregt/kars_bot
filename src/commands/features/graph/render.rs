@@ -54,7 +54,7 @@ pub(super) fn render_graph_png(
             BitMapBackend::with_buffer(&mut rgb_buffer, (width, height)).into_drawing_area();
         drawing_area
             .fill(&GraphStyle::BACKGROUND)
-            .map_err(|error| classify_plotters_error("background_fill", format!("{:?}", error)))?;
+            .map_err(|error| classify_plotters_error("background_fill", format!("{error:?}")))?;
 
         let mut x_start = points
             .first()
@@ -75,7 +75,7 @@ pub(super) fn render_graph_png(
             .x_label_area_size(GraphStyle::X_LABEL_AREA_SIZE)
             .y_label_area_size(GraphStyle::Y_LABEL_AREA_SIZE)
             .build_cartesian_2d(x_start..x_end, GraphStyle::Y_MIN..GraphStyle::Y_MAX)
-            .map_err(|error| classify_plotters_error("chart_build", format!("{:?}", error)))?;
+            .map_err(|error| classify_plotters_error("chart_build", format!("{error:?}")))?;
 
         chart
             .draw_series(std::iter::once(PathElement::new(
@@ -85,18 +85,18 @@ pub(super) fn render_graph_png(
                     .collect::<Vec<_>>(),
                 GraphStyle::metric_line(metric),
             )))
-            .map_err(|error| classify_plotters_error("series_draw", format!("{:?}", error)))?;
+            .map_err(|error| classify_plotters_error("series_draw", format!("{error:?}")))?;
 
         chart
             .draw_series(std::iter::once(PathElement::new(
                 vec![(x_start, threshold), (x_end, threshold)],
                 GraphStyle::THRESHOLD_LINE.mix(GraphStyle::THRESHOLD_ALPHA),
             )))
-            .map_err(|error| classify_plotters_error("threshold_draw", format!("{:?}", error)))?;
+            .map_err(|error| classify_plotters_error("threshold_draw", format!("{error:?}")))?;
 
         drawing_area
             .present()
-            .map_err(|error| classify_plotters_error("present", format!("{:?}", error)))?;
+            .map_err(|error| classify_plotters_error("present", format!("{error:?}")))?;
     }
 
     let rgb_image = RgbImage::from_raw(width, height, rgb_buffer)
@@ -135,10 +135,10 @@ fn ensure_embedded_font_registered() -> Result<(), GraphRenderError> {
 fn classify_plotters_error(stage: &str, detail: String) -> GraphRenderError {
     let lower = detail.to_lowercase();
     if lower.contains("font") || lower.contains("glyph") || lower.contains("freetype") {
-        return GraphRenderError::FontUnavailable(format!("{}:{}", stage, detail));
+        return GraphRenderError::FontUnavailable(format!("{stage}:{detail}"));
     }
 
-    GraphRenderError::Backend(format!("{}:{}", stage, detail))
+    GraphRenderError::Backend(format!("{stage}:{detail}"))
 }
 
 #[cfg(test)]

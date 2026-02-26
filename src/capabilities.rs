@@ -31,7 +31,7 @@ impl Capabilities {
 fn command_exists(command: &str) -> bool {
     Command::new("sh")
         .arg("-c")
-        .arg(format!("command -v {} >/dev/null 2>&1", command))
+        .arg(format!("command -v {command} >/dev/null 2>&1"))
         .status()
         .map(|status| status.success())
         .unwrap_or(false)

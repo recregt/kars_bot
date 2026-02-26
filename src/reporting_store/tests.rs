@@ -96,8 +96,12 @@ fn rolling_summary_survives_store_reopen() {
             disk: 35.0,
         })
         .expect("record sample before restart");
+    store.samples.flush().expect("flush samples before reopen");
+    store
+        .daily_rollups
+        .flush()
+        .expect("flush rollups before reopen");
     drop(store);
-    std::thread::sleep(std::time::Duration::from_millis(25));
 
     let reopened = open_test_store(temp.path());
     let summary = reopened

@@ -26,8 +26,7 @@ pub(crate) async fn handle_alerts(
     };
     let summary_line = snapshot
         .last_daily_summary_at
-        .map(|time| time.to_rfc3339())
-        .unwrap_or_else(|| "not generated yet".to_string());
+        .map_or_else(|| "not generated yet".to_string(), |time| time.to_rfc3339());
     let body = format!(
         "Thresholds:\n- CPU: {:.1}%\n- RAM: {:.1}%\n- Disk: {:.1}%\n\nControl:\n- Cooldown: {}s\n- Hysteresis: {:.1}%\n- Mute: {}\n- Last daily summary (UTC): {}\n\nCurrent State:\n- CPU alerting: {}\n- RAM alerting: {}\n- Disk alerting: {}",
         runtime_config.alerts.cpu,
@@ -73,10 +72,7 @@ pub(crate) async fn handle_mute(
                 msg.chat.id,
                 as_html_block(
                     "Mute cooldown",
-                    &format!(
-                        "Please wait {}s before changing mute state again.",
-                        retry_after_secs
-                    ),
+                    &format!("Please wait {retry_after_secs}s before changing mute state again."),
                 ),
             )
             .parse_mode(ParseMode::Html)
@@ -104,10 +100,7 @@ pub(crate) async fn handle_unmute(
             msg.chat.id,
             as_html_block(
                 "Unmute cooldown",
-                &format!(
-                    "Please wait {}s before changing mute state again.",
-                    retry_after_secs
-                ),
+                &format!("Please wait {retry_after_secs}s before changing mute state again."),
             ),
         )
         .parse_mode(ParseMode::Html)

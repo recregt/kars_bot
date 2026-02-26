@@ -27,8 +27,7 @@ use crate::jobs::start_background_jobs;
 fn init_json_logging() {
     if let Err(error) = tracing_log::LogTracer::init() {
         eprintln!(
-            "logging bridge initialization failed (continuing with existing logger): {}",
-            error
+            "logging bridge initialization failed (continuing with existing logger): {error}"
         );
     }
 
@@ -41,7 +40,7 @@ fn init_json_logging() {
         .finish();
 
     if let Err(error) = tracing::subscriber::set_global_default(subscriber) {
-        eprintln!("global logger initialization failed: {}", error);
+        eprintln!("global logger initialization failed: {error}");
     }
 }
 
@@ -77,15 +76,14 @@ async fn log_dns_probe() {
     match lookup_host(("api.telegram.org", 443)).await {
         Ok(mut addresses) => {
             if let Some(address) = addresses.next() {
-                log::info!("dns_probe_ok host=api.telegram.org address={}", address);
+                log::info!("dns_probe_ok host=api.telegram.org address={address}");
             } else {
                 log::warn!("dns_probe_degraded host=api.telegram.org reason=no_records");
             }
         }
         Err(error) => {
             log::warn!(
-                "dns_probe_degraded host=api.telegram.org reason=lookup_failed error={}",
-                error
+                "dns_probe_degraded host=api.telegram.org reason=lookup_failed error={error}"
             );
         }
     }
@@ -99,7 +97,7 @@ async fn wait_for_shutdown_signal() {
         let mut terminate = match unix_signal(SignalKind::terminate()) {
             Ok(stream) => stream,
             Err(error) => {
-                log::warn!("failed_to_bind_sigterm_handler error={}", error);
+                log::warn!("failed_to_bind_sigterm_handler error={error}");
                 let _ = signal::ctrl_c().await;
                 return;
             }
@@ -129,13 +127,13 @@ async fn main() {
     let config: Config = match load_config(CONFIG_PATH) {
         Ok(config) => config,
         Err(error) => {
-            log::error!("Configuration error: {}", error);
+            log::error!("Configuration error: {error}");
             return;
         }
     };
 
     if let Err(error) = config.validate() {
-        log::error!("Configuration validation failed: {}", error);
+        log::error!("Configuration validation failed: {error}");
         return;
     }
 
@@ -179,10 +177,10 @@ async fn main() {
         .build();
 
     tokio::select! {
-        _ = dispatcher.dispatch() => {
+        () = dispatcher.dispatch() => {
             log::info!("bot_dispatcher_stopped");
         }
-        _ = wait_for_shutdown_signal() => {
+        () = wait_for_shutdown_signal() => {
             log::warn!("bot_shutdown_sequence_started reason=signal");
         }
     }

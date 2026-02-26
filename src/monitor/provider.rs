@@ -112,7 +112,7 @@ impl MetricsProvider for RealMetricsProvider {
             .iter()
             .find(|disk| disk.mount_point() == Path::new("/"))
             .or_else(|| self.system.disks().first())
-            .map(|disk| {
+            .map_or(0.0, |disk| {
                 let total_space = disk.total_space() as f32;
                 let used_space = (disk.total_space() - disk.available_space()) as f32;
                 if total_space > 0.0 {
@@ -120,15 +120,14 @@ impl MetricsProvider for RealMetricsProvider {
                 } else {
                     0.0
                 }
-            })
-            .unwrap_or(0.0);
+            });
 
         Ok(Metrics { cpu, ram, disk })
     }
 }
 
-/// ActiveMetricsProvider kaldırıldı — yerine Box<dyn MetricsProvider> kullanılır.
-/// Oluşturmak için: new_metrics_provider(simulation_enabled)
+/// `ActiveMetricsProvider` kaldırıldı — yerine Box<dyn MetricsProvider> kullanılır.
+/// Oluşturmak için: `new_metrics_provider(simulation_enabled)`
 #[async_trait]
 impl MetricsProvider for Box<dyn MetricsProvider> {
     async fn collect_metrics(&mut self) -> Result<Metrics, MonitorError> {

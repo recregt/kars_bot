@@ -64,7 +64,7 @@ mod tests {
         let mut samples = Vec::with_capacity(120_000);
         for idx in 0..120_000 {
             samples.push(MetricSample {
-                timestamp: start + Duration::seconds(idx as i64),
+                timestamp: start + Duration::seconds(i64::from(idx)),
                 cpu: (idx % 100) as f32,
                 ram: ((idx + 20) % 100) as f32,
                 disk: ((idx + 40) % 100) as f32,

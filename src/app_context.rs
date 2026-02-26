@@ -73,39 +73,23 @@ mod tests {
 
     use crate::{
         capabilities::Capabilities,
-        config::{
-            Alerts, AnomalyDb, Config, DailySummary, Graph, ReleaseNotifierConfig,
-            ReportingStoreConfig, RuntimeConfig, Security, Simulation, WeeklyReport,
-        },
+        config::{ReportingStoreConfig, RuntimeConfig, test_utils::base_test_config},
     };
 
     use super::AppContext;
 
-    fn test_config() -> Config {
-        Config {
-            bot_token: "token".to_string(),
-            owner_id: 1,
-            alerts: Alerts {
-                cpu: 85.0,
-                ram: 90.0,
-                disk: 90.0,
-                cooldown_secs: 300,
-                hysteresis: 3.0,
-            },
-            monitor_interval: 10,
-            command_timeout_secs: 30,
-            daily_summary: DailySummary::default(),
-            weekly_report: WeeklyReport::default(),
-            graph: Graph::default(),
-            anomaly_db: AnomalyDb::default(),
-            simulation: Simulation::default(),
-            reporting_store: ReportingStoreConfig {
-                enabled: false,
-                ..ReportingStoreConfig::default()
-            },
-            release_notifier: ReleaseNotifierConfig::default(),
-            security: Security::default(),
-        }
+    fn test_config() -> crate::config::Config {
+        let mut config = base_test_config();
+        config.alerts.cpu = 85.0;
+        config.alerts.ram = 90.0;
+        config.alerts.disk = 90.0;
+        config.alerts.cooldown_secs = 300;
+        config.alerts.hysteresis = 3.0;
+        config.reporting_store = ReportingStoreConfig {
+            enabled: false,
+            ..ReportingStoreConfig::default()
+        };
+        config
     }
 
     #[tokio::test]

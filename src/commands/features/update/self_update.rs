@@ -100,7 +100,7 @@ pub(super) fn summarize_manifest_readiness(manifest: &DistManifest) -> (bool, St
     let Some(target) = target_entry else {
         return (
             false,
-            format!("Target {} not present in dist manifest", TARGET_TRIPLE),
+            format!("Target {TARGET_TRIPLE} not present in dist manifest"),
         );
     };
 
@@ -139,7 +139,7 @@ pub(super) async fn run_self_update(current_version: &str) -> Result<Option<Stri
         .set_install_dir(
             std::env::current_exe()
                 .ok()
-                .and_then(|path| path.parent().map(|parent| parent.to_path_buf()))
+                .and_then(|path| path.parent().map(std::path::Path::to_path_buf))
                 .ok_or_else(|| "cannot resolve current executable directory".to_string())?
                 .to_string_lossy()
                 .to_string(),
@@ -166,8 +166,7 @@ pub(super) async fn run_self_update(current_version: &str) -> Result<Option<Stri
             "Updated via axoupdater: v{} -> v{} ({})",
             updated
                 .old_version
-                .map(|value| value.to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
+                .map_or_else(|| "unknown".to_string(), |value| value.to_string()),
             updated.new_version,
             updated.new_version_tag
         )

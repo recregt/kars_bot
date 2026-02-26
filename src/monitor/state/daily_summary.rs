@@ -6,9 +6,9 @@ use crate::monitor::provider::Metrics;
 impl DailySummaryAccumulator {
     pub(super) fn add_sample(&mut self, metrics: Metrics) {
         self.sample_count += 1;
-        self.cpu_sum += metrics.cpu as f64;
-        self.ram_sum += metrics.ram as f64;
-        self.disk_sum += metrics.disk as f64;
+        self.cpu_sum += f64::from(metrics.cpu);
+        self.ram_sum += f64::from(metrics.ram);
+        self.disk_sum += f64::from(metrics.disk);
 
         self.cpu_min = Some(
             self.cpu_min

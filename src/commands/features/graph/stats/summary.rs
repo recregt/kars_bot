@@ -17,7 +17,7 @@ pub(crate) fn compute_metric_summary(
 
     let mut min_value = first;
     let mut max_value = first;
-    let mut sum = first as f64;
+    let mut sum = f64::from(first);
     let mut count: usize = 1;
 
     for value in values {
@@ -27,7 +27,7 @@ pub(crate) fn compute_metric_summary(
         if value > max_value {
             max_value = value;
         }
-        sum += value as f64;
+        sum += f64::from(value);
         count += 1;
     }
 

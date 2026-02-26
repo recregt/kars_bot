@@ -43,7 +43,7 @@ pub(crate) fn as_html_block(title: &str, body: &str) -> String {
         escaped_body.push_str(TRUNCATE_NOTICE);
     }
 
-    let message = format!("<b>{}</b>\n<pre>{}</pre>", escaped_title, escaped_body);
+    let message = format!("<b>{escaped_title}</b>\n<pre>{escaped_body}</pre>");
     if message.len() > TELEGRAM_TEXT_HARD_LIMIT {
         log::warn!("formatted Telegram message is close to hard limit");
     }
@@ -94,7 +94,7 @@ fn sanitize_and_truncate(input: &str, max_escaped_len: usize) -> String {
     let mut best = "";
 
     while low <= high {
-        let mid = (low + high) / 2;
+        let mid = usize::midpoint(low, high);
         let candidate = truncate_to_char_boundary(input, mid);
         let escaped = html_escape::encode_text(candidate);
 
