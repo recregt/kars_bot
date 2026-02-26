@@ -3,6 +3,7 @@ use teloxide::{prelude::*, types::ParseMode};
 use crate::app_context::AppContext;
 
 use super::super::helpers::as_html_block;
+use super::menu::main_menu_keyboard;
 use super::recent_query::{RecentQuery, apply_recent_query, parse_recent_query};
 
 pub(crate) async fn handle_recent_anomalies(
@@ -27,6 +28,7 @@ pub(crate) async fn handle_recent_anomalies(
                     ),
                 ),
             )
+            .reply_markup(main_menu_keyboard())
             .parse_mode(ParseMode::Html)
             .await?;
             return Ok(());
@@ -53,6 +55,7 @@ pub(crate) async fn handle_recent_anomalies(
             msg.chat.id,
             as_html_block("Recent anomalies", "No anomaly records found."),
         )
+        .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
         return Ok(());
@@ -81,6 +84,7 @@ pub(crate) async fn handle_recent_anomalies(
         .join("\n");
 
     bot.send_message(msg.chat.id, as_html_block("Recent anomalies", &lines))
+        .reply_markup(main_menu_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
 
