@@ -115,12 +115,14 @@ async fn notifications_triggered_when_threshold_exceeded() {
     ));
     let mut provider = MockMetricsProvider::new(vec![Metrics::new(50.0, 0.0, 0.0)]);
     let notifier = crate::monitor::SpyNotifier::new();
+    let anomaly_store = crate::anomaly_db::InMemoryAnomalyStorage::new();
 
     check_alerts(
         &notifier,
         &config,
         &runtime,
         &store,
+        &anomaly_store,
         &state,
         &history,
         &mut provider,
