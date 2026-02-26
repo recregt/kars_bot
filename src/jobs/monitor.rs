@@ -8,6 +8,7 @@ use crate::monitor::new_metrics_provider;
 
 pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
     tokio::spawn(async move {
+        let notifier = crate::monitor::TeloxideNotifier(bot.clone());
         let mut metrics_provider = new_metrics_provider(app_context.config.simulation.enabled);
         if app_context.config.simulation.enabled {
             log::warn!(
@@ -42,7 +43,7 @@ pub(super) fn start_monitor_job(bot: Bot, app_context: AppContext) {
             }
 
             check_alerts(
-                &bot,
+                &notifier,
                 &app_context.config,
                 &runtime_config,
                 reporting_store.as_ref(),

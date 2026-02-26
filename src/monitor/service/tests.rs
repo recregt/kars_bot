@@ -3,7 +3,10 @@ use std::sync::Arc;
 use chrono::{Duration as ChronoDuration, Utc};
 use tokio::sync::Mutex;
 
-use crate::monitor::{AlertState, provider::Metrics};
+use crate::monitor::{
+    AlertState, check_alerts,
+    provider::{Metrics, MockMetricsProvider},
+};
 
 use super::{
     MuteActionError, alert_snapshot, mute_alerts_for, take_daily_summary_report, unmute_alerts,
@@ -13,7 +16,8 @@ use super::{
 async fn mute_unmute_contract_is_consistent() {
     let state = Arc::new(Mutex::new(AlertState::default()));
 
-    let muted_until = mute_alerts_for(&state, ChronoDuration::minutes(10))
+    // use a small duration so test finishes quickly
+    let muted_until = mute_alerts_for(&state, ChronoDuration::seconds(1))
         .await
         .expect("mute should succeed");
     let snapshot = alert_snapshot(&state).await;
@@ -21,7 +25,16 @@ async fn mute_unmute_contract_is_consistent() {
     assert_eq!(snapshot.muted_until, Some(muted_until));
     assert!(muted_until > Utc::now());
 
-    tokio::time::sleep(std::time::Duration::from_secs(11)).await;
+    // wait only long enough for the mute duration to pass
+    tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+
+    // COOLDOWN is 10 seconds, so artificially rewind the last action time
+    {
+        let mut lock = state.lock().await;
+        if let Some(last) = lock.last_mute_action_at {
+            lock.last_mute_action_at = Some(last - ChronoDuration::seconds(11));
+        }
+    }
 
     unmute_alerts(&state).await.expect("unmute should succeed");
     let snapshot_after = alert_snapshot(&state).await;
@@ -66,4 +79,55 @@ async fn daily_summary_report_contract_resets_window() {
 
     let next_report = take_daily_summary_report(&state).await;
     assert!(next_report.is_none());
+}
+
+#[tokio::test]
+async fn notifications_triggered_when_threshold_exceeded() {
+    // prepare minimal config with low thresholds
+    let config = crate::config::Config {
+        bot_token: "tok".to_string(),
+        owner_id: 42,
+        monitor_interval: 1,
+        command_timeout_secs: 1,
+        alerts: crate::config::Alerts {
+            cpu: 0.0,
+            ram: 100.0,
+            disk: 100.0,
+            cooldown_secs: 1,
+            hysteresis: 0.0,
+        },
+        daily_summary: Default::default(),
+        weekly_report: Default::default(),
+        graph: Default::default(),
+        anomaly_db: Default::default(),
+        simulation: Default::default(),
+        reporting_store: Default::default(),
+        release_notifier: Default::default(),
+        security: Default::default(),
+    };
+    let mut runtime = crate::config::RuntimeConfig::from_config(&config);
+    runtime.alerts.cpu = 0.0;
+
+    let store = crate::reporting_store::NullReportingStorage;
+    let state = Arc::new(Mutex::new(AlertState::default()));
+    let history = Arc::new(Mutex::new(
+        crate::monitor::MetricHistory::with_monitor_interval_secs(1),
+    ));
+    let mut provider = MockMetricsProvider::new(vec![Metrics::new(50.0, 0.0, 0.0)]);
+    let notifier = crate::monitor::SpyNotifier::new();
+
+    check_alerts(
+        &notifier,
+        &config,
+        &runtime,
+        &store,
+        &state,
+        &history,
+        &mut provider,
+    )
+    .await;
+
+    let sent = notifier.sent.lock().await;
+    assert_eq!(sent.len(), 1);
+    assert!(sent[0].1.contains("CPU"));
 }

@@ -1,1 +1,5 @@
 /target
+
+# runtime files
+/logs/
+*.log

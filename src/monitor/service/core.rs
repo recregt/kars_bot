@@ -1,7 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
 use chrono::Utc;
-use teloxide::prelude::*;
 use tokio::sync::Mutex;
 
 use crate::anomaly_db::record_anomaly_if_needed;
@@ -15,8 +14,8 @@ use super::super::{
     state::AlertState,
 };
 
-pub async fn check_alerts<P: MetricsProvider>(
-    bot: &Bot,
+pub async fn check_alerts<P: MetricsProvider, N: crate::monitor::AlertNotifier>(
+    notifier: &N,
     config: &Config,
     runtime_config: &RuntimeConfig,
     reporting_store: &dyn ReportingStorage,
@@ -95,7 +94,7 @@ pub async fn check_alerts<P: MetricsProvider>(
     }
 
     for notification in notifications {
-        if let Err(error) = bot.send_message(owner_chat_id, notification).await {
+        if let Err(error) = notifier.send(owner_chat_id, notification).await {
             log::error!(
                 "CRITICAL: Failed to send alert to {}: {}",
                 owner_chat_id.0,
