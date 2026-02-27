@@ -58,10 +58,7 @@ pub(crate) async fn handle_status_overview(
         capabilities.has_uptime,
     );
 
-    let status_html = as_html_card(
-        "Bot Status",
-        &escape_html_text(&body).replace('\n', "<br/>"),
-    );
+    let status_html = as_html_card("Bot Status", &escape_html_text(&body));
 
     bot.send_message(msg.chat.id, status_html)
         .reply_markup(main_menu_keyboard(&app_context.capabilities))

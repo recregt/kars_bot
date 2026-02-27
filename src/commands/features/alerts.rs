@@ -45,10 +45,7 @@ pub(crate) async fn handle_alerts(
         if snapshot.disk_alerting { "yes" } else { "no" }
     );
 
-    let alert_html = as_html_card(
-        "Alert Configuration",
-        &escape_html_text(&body).replace('\n', "<br/>"),
-    );
+    let alert_html = as_html_card("Alert Configuration", &escape_html_text(&body));
 
     bot.send_message(msg.chat.id, alert_html)
         .reply_markup(main_menu_keyboard(&app_context.capabilities))
@@ -90,7 +87,7 @@ pub(crate) async fn handle_mute(
     let message = as_html_card(
         "Alerts muted ✅",
         &format!(
-            "Alerts are muted until <b>{}</b>.<br/><br/>You can continue from the Monitor menu below.",
+            "Alerts are muted until <b>{}</b>.\n\nYou can continue from the Monitor menu below.",
             escape_html_text(&muted_until.to_rfc3339())
         ),
     );
@@ -116,7 +113,7 @@ pub(crate) async fn handle_unmute(
     }
     let message = as_html_card(
         "Alerts unmuted ✅",
-        "Alerts are active again.<br/><br/>You can continue from the Monitor menu below.",
+        "Alerts are active again.\n\nYou can continue from the Monitor menu below.",
     );
     upsert_message_with_menu(bot, msg, message, "monitor", &app_context.capabilities).await?;
 
