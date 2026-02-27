@@ -4,7 +4,7 @@ set -euo pipefail
 REPO="${REPO:-recregt/kars_bot}"
 SERVICE_NAME="${SERVICE_NAME:-kars-bot}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/kars_bot}"
-BIN_PATH="${BIN_PATH:-$INSTALL_DIR/target/release/kars_bot}"
+BIN_PATH="${BIN_PATH:-$INSTALL_DIR/bin/kars_bot}"
 ASSET_PATTERN='x86_64-unknown-linux-musl.tar.xz$'
 CHECKSUM_ASSET_PATTERN='sha256.sum$'
 API_URL="https://api.github.com/repos/${REPO}/releases/latest"

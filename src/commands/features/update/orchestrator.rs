@@ -17,12 +17,12 @@ pub(super) async fn run_update_check(
     _timeout_secs: u64,
     current_version: &str,
 ) -> Result<(bool, String), String> {
-    let manifest = self_update::fetch_latest_dist_manifest().await?;
-    if !self_update::update_available(current_version, &manifest.latest.version) {
+    let info = self_update::fetch_latest_release().await?;
+    if !self_update::update_available(current_version, &info.version) {
         return Ok((true, "No update available for current version.".to_string()));
     }
 
-    Ok(self_update::summarize_manifest_readiness(&manifest))
+    Ok(self_update::summarize_release_readiness(&info))
 }
 
 pub(super) async fn extract_readiness(
@@ -60,13 +60,20 @@ pub(super) async fn run_update_apply(
     .map_err(|_| format!("update apply lock timeout after {UPDATE_LOCK_TIMEOUT_SECS}s"))?
     .map_err(|source| format!("update apply lock error: {source}"))?;
 
-    let output = self_update::run_self_update(current_version).await;
+    // Phase 1: download, verify, extract, atomic-swap the binary on disk
+    let output = self_update::prepare_update(current_version).await;
 
     drop(permit);
 
     output.map(|maybe_message| {
         maybe_message.unwrap_or_else(|| "No update was applied (already up to date).".to_string())
     })
+}
+
+/// Phase 2: trigger systemd restart. Must be called AFTER the final Telegram
+/// message has been sent, because this will kill the current process.
+pub(super) fn trigger_service_restart() -> Result<(), String> {
+    self_update::restart_service()
 }
 
 fn update_apply_lock() -> &'static Semaphore {

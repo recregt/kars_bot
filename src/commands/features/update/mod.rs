@@ -25,8 +25,8 @@ pub(crate) async fn handle_update(
     args: &str,
 ) -> ResponseResult<()> {
     let mode = args.trim().to_lowercase();
-    let latest_version = match self_update::fetch_latest_dist_manifest().await {
-        Ok(manifest) => manifest.latest.version,
+    let latest_version = match self_update::fetch_latest_release().await {
+        Ok(info) => info.version,
         Err(_) => version::latest_changelog_version(CHANGELOG_PATH)
             .unwrap_or_else(|| CURRENT_VERSION.to_string()),
     };
@@ -124,10 +124,31 @@ pub(crate) async fn handle_update(
         orchestrator::run_update_apply(runtime_config.command_timeout_secs, CURRENT_VERSION).await;
     match result {
         Ok(message) => {
-            bot.send_message(msg.chat.id, as_html_block("Update", &message))
+            // Send the success message BEFORE triggering restart.
+            // After restart, this process will be terminated by SIGTERM.
+            bot.send_message(
+                msg.chat.id,
+                as_html_block("Update", &format!("{message}\nService is restarting...")),
+            )
+            .reply_markup(main_menu_keyboard(&app_context.capabilities))
+            .parse_mode(ParseMode::Html)
+            .await?;
+
+            // Phase 2: trigger systemd restart (non-blocking spawn)
+            if let Err(error) = orchestrator::trigger_service_restart() {
+                bot.send_message(
+                    msg.chat.id,
+                    as_html_block(
+                        "Update",
+                        &format!(
+                            "Binary installed but service restart failed: {error}\nManual restart required: systemctl restart kars-bot"
+                        ),
+                    ),
+                )
                 .reply_markup(main_menu_keyboard(&app_context.capabilities))
                 .parse_mode(ParseMode::Html)
                 .await?;
+            }
         }
         Err(error) => {
             bot.send_message(
