@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.8.1](https://github.com/recregt/kars_bot/compare/v1.8.0...v1.8.1) - 2026-02-27
+
+### Changed
+
+- replace axoupdater with direct HTTPS self-update
+
 ## [1.8.0](https://github.com/recregt/kars_bot/compare/v1.7.4...v1.8.0) - 2026-02-26
 
 ### Added
