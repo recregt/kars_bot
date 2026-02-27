@@ -42,11 +42,69 @@ This keeps changelog/version generation in `release-plz` and binary packaging in
 
 ## Self-Update & Security Constraints
 
-The bot features a self-update mechanism via `axoupdater`. Since the service runs in a hardened environment, the following logic applies:
+The bot features a direct self-update mechanism that downloads release assets from GitHub over HTTPS, without relying on third-party installer frameworks. Since the service runs in a hardened environment, the following logic applies:
 
-* **Environment Variable**: `INSTALLER_NO_MODIFY_PATH=1` is set within the application (via `unsafe { std::env::set_var(...) }`) before running the updater. This prevents the `cargo-dist` installer script from attempting to modify shell profiles (`.profile`, `.bashrc`), which would fail due to `ProtectHome=true`.
-* **Staging**: The updater uses `/tmp` for downloading and preparing the new binary.
-* **Atomic Swap**: The service must have write access to its own binary path to perform the swap.
+* **No Profile Mutation**: The updater never reads or writes shell profile files (`.profile`, `.bashrc`). No `INSTALLER_NO_MODIFY_PATH` workaround is needed.
+* **SHA256 Verification**: Downloaded archives are verified against the `sha256.sum` asset published alongside each release.
+* **Staging**: Temp directory (via `tempfile`) is used for downloading and extracting. `PrivateTmp=yes` ensures isolation.
+* **Sanity Check**: The extracted binary is executed with `--version` before installation.
+* **Atomic Swap**: The new binary is written as `kars_bot.new` then renamed into place (`rename` is atomic on the same filesystem). The previous binary is backed up as `kars_bot.bak`.
+* **Two-Phase Restart**: The update runs in two phases:
+  1. **Prepare**: download, verify, extract, atomic-swap the binary on disk.
+  2. **Restart**: send final Telegram message, then `systemctl restart kars-bot`. The current process is killed by SIGTERM and the new binary starts.
+
+### Directory Layout
+
+```text
+/opt/kars_bot/
+├── bin/
+│   ├── kars_bot          # active binary (owner: bot:bot, mode: 0755)
+│   ├── kars_bot.bak      # previous version backup (auto-created)
+│   └── kars_bot.new      # transient staging file (removed after rename)
+└── data/
+    ├── config.toml        # bot configuration
+    ├── anomaly_db/        # event storage
+    └── reporting_store/   # reporting data
+```
+
+### Initial Setup
+
+```bash
+# Create directory structure
+sudo install -d -o bot -g bot -m 0755 /opt/kars_bot/bin
+sudo install -d -o bot -g bot -m 0755 /opt/kars_bot/data
+
+# Install initial binary
+sudo install -o bot -g bot -m 0755 kars_bot /opt/kars_bot/bin/kars_bot
+```
+
+### Polkit Rule (Service Restart Permission)
+
+The `bot` user needs permission to restart `kars-bot.service` without a password.
+Create `/etc/polkit-1/rules.d/50-kars-bot-restart.rules`:
+
+```javascript
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        action.lookup("unit") == "kars-bot.service" &&
+        action.lookup("verb") == "restart" &&
+        subject.user == "bot") {
+        return polkit.Result.YES;
+    }
+});
+```
+
+Then reload polkit:
+
+```bash
+sudo systemctl restart polkit
+```
+
+To verify the rule works:
+
+```bash
+sudo -u bot systemctl restart kars-bot
+```
 
 ## systemd Service (Hardened)
 
@@ -60,8 +118,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt/kars_bot
-ExecStart=/opt/kars_bot/target/release/kars_bot
+WorkingDirectory=/opt/kars_bot/data
+ExecStart=/opt/kars_bot/bin/kars_bot
 Restart=always
 RestartSec=5
 User=bot
@@ -74,8 +132,9 @@ ProtectSystem=strict
 PrivateTmp=yes
 
 # Sandboxed Write Access
-# The bot only needs to write to its own directory for self-updates
-ReadWritePaths=/opt/kars_bot/
+# bin/  -> binary self-update (atomic swap)
+# data/ -> config, anomaly_db, reporting_store
+ReadWritePaths=/opt/kars_bot/bin /opt/kars_bot/data
 
 [Install]
 WantedBy=multi-user.target

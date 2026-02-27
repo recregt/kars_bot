@@ -10,6 +10,7 @@
 * Owner identity changes currently require restart (`systemctl restart kars-bot`).
 * Anomaly DB layout under `dir`: `events/`, `index/`, `meta/`.
 * Event files rotate by size; hourly maintenance prunes `events` and matching `index` day files.
-* **Self-Update Environment**: The `axoupdater` execution is wrapped in a thread-safe environment guard. The `INSTALLER_NO_MODIFY_PATH` variable must be set to `1` via an `unsafe` block before the updater run to bypass shell profile mutation attempts in hardened environments.
-* **Service Sandboxing**: Runtime assumes a `ProtectSystem=strict` and `ProtectHome=true` state. Any persistent data or self-update binary swaps must occur within the explicitly allowed `ReadWritePaths` (typically `/opt/kars_bot/`).
+* **Self-Update Environment**: The self-update mechanism downloads release archives directly via HTTPS from GitHub, verifies SHA256 checksums, extracts the binary, and performs an atomic swap to `/opt/kars_bot/bin/kars_bot`. No third-party installer subprocess is spawned. No shell profile files are accessed, making it fully compatible with `ProtectHome=true` and `ProtectSystem=strict` sandboxing. After swapping the binary, the bot triggers `systemctl restart kars-bot` which sends SIGTERM to the running process and starts the new binary.
+* **Service Sandboxing**: Runtime assumes a `ProtectSystem=strict` and `ProtectHome=true` state. `ReadWritePaths` grants write access to `/opt/kars_bot/bin` (binary swap) and `/opt/kars_bot/data` (config, anomaly_db, reporting_store).
+* **Restart Permission**: The `bot` user is authorized to restart `kars-bot.service` via a polkit rule (`/etc/polkit-1/rules.d/50-kars-bot-restart.rules`). No sudo or root escalation is needed.
 * **Temporary Assets**: The `PrivateTmp=yes` directive in the systemd service ensures that update artifacts and temporary staging files are isolated and automatically purged on service restart/stop.
