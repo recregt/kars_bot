@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+## [1.8.2](https://github.com/recregt/kars_bot/compare/v1.8.1...v1.8.2) - 2026-02-27
+
+### Fixed
+
+- replace unsupported <br/> tags with newlines in Telegram HTML
+
 ## [1.8.1](https://github.com/recregt/kars_bot/compare/v1.8.0...v1.8.1) - 2026-02-27
 
 ### Changed
