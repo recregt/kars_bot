@@ -15,7 +15,7 @@ pub(crate) async fn handle_help(
         msg.chat.id,
         as_html_card(
             "Control Center",
-            "• Use buttons below for common flows.<br/><br/><b>Main journeys</b><br/>• Health &amp; status checks<br/>• System diagnostics<br/>• Monitoring, alerts and graphs<br/>• Recent anomalies and exports<br/><br/>Slash commands still work if you prefer manual usage.",
+            "• Use buttons below for common flows.\n\n<b>Main journeys</b>\n• Health &amp; status checks\n• System diagnostics\n• Monitoring, alerts and graphs\n• Recent anomalies and exports\n\nSlash commands still work if you prefer manual usage.",
         ),
     )
     .reply_markup(main_menu_keyboard(&app_context.capabilities))
@@ -63,10 +63,7 @@ pub(crate) async fn handle_health(
         ),
     };
 
-    let health_html = as_html_card(
-        "Bot Health",
-        &escape_html_text(&body).replace('\n', "<br/>"),
-    );
+    let health_html = as_html_card("Bot Health", &escape_html_text(&body));
 
     bot.send_message(msg.chat.id, health_html)
         .reply_markup(main_menu_keyboard(&app_context.capabilities))
